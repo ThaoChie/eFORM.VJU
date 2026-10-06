@@ -1,33 +1,28 @@
-import React, { useState, createContext, useContext } from 'react';
-import { MOCK_ACCOUNTS } from '../mock/data';
+import { create } from 'zustand';
+import { MOCK_ACCOUNTS } from '../common/constants';
 
-const AuthContext = createContext(null);
+const useAuthStore = create((set) => ({
+  user: null, // null = chưa đăng nhập
 
-export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-
-  const login = (username, password) => {
+  login: async (username, password) => {
     return new Promise((resolve, reject) => {
+      // Giả lập độ trễ API 500ms
       setTimeout(() => {
         const account = MOCK_ACCOUNTS[username];
         if (account && account.password === password) {
           const userData = { ...account, token: 'mock-jwt-token-123' };
-          setUser(userData);
+          
+          // Cập nhật state user vào store
+          set({ user: userData });
           resolve(userData);
         } else {
           reject(new Error('Sai tài khoản hoặc mật khẩu'));
         }
       }, 500);
     });
-  };
+  },
 
-  const logout = () => setUser(null);
+  logout: () => set({ user: null }),
+}));
 
-  return (
-    <AuthContext.Provider value={{ user, login, logout }}>
-      {children}
-    </AuthContext.Provider>
-  );
-};
-
-export const useAuthStore = () => useContext(AuthContext);
+export default useAuthStore;
