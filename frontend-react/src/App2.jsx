@@ -1,5 +1,5 @@
 import React from 'react';
-import { AuthProvider, useAuthStore } from './context/AuthContext';
+import { AuthProvider, useAuthStore } from './stores/useAuthContext';
 import AppShell from './layout/AppShell';
 import LoginView from './pages/LoginView';
 
