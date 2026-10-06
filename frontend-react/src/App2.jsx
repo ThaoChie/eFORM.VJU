@@ -1,12 +1,17 @@
 import React from 'react';
-import useAuthStore from './stores/useAuthContext';
-import AppShell from './components/layout/AppShell';
-import LoginView from './pages/login/LoginView';
+import { AuthProvider, useAuthStore } from './context/AuthContext';
+import AppShell from './layout/AppShell';
+import LoginView from './pages/LoginView';
+
+const AuthConsumer = () => {
+  const { user } = useAuthStore();
+  return user ? <AppShell /> : <LoginView />;
+};
 
 export default function App() {
-  // Lấy state user trực tiếp từ Zustand store
-  const user = useAuthStore((state) => state.user);
-
-  // Nếu có user thì vào AppShell (layout chính), chưa có thì vào màn hình Login
-  return user ? <AppShell /> : <LoginView />;
+  return (
+    <AuthProvider>
+      <AuthConsumer />
+    </AuthProvider>
+  );
 }
