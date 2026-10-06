@@ -1,7 +1,7 @@
 import React from 'react';
 import { AuthProvider, useAuthStore } from './stores/useAuthContext';
-import AppShell from './layout/AppShell';
-import LoginView from './pages/LoginView';
+import AppShell from './components/layout/AppShell';
+import LoginView from './pages/login/LoginView';
 
 const AuthConsumer = () => {
   const { user } = useAuthStore();
