@@ -1,0 +1,7 @@
+{
+  "name": "ef_drl_dev",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "cd frontend-react && npm install && npm run build && cd .. && rm -rf dist && cp -r frontend-react/dist dist"
+  }
+}
