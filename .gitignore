@@ -1,0 +1,114 @@
+# ========================
+# SECRETS & ENVIRONMENT
+# ========================
+.env
+.env.*
+!.env.example
+*.jks
+*.p12
+*.keystore
+
+# ========================
+# macOS
+# ========================
+.DS_Store
+**/.DS_Store
+.AppleDouble
+
+# ========================
+# IDE & Editor
+# ========================
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+
+# ========================
+# Java / Spring Boot
+# ========================
+backend-springboot/target/
+backend-springboot/*.log
+backend-springboot/*.zip
+backend-springboot/*.jar
+*.class
+
+# Script tạm sinh ra khi dev / AI codegen
+backend-springboot/fix_*.js
+backend-springboot/fix_*.cjs
+backend-springboot/update_*.js
+backend-springboot/update_*.cjs
+backend-springboot/add_*.js
+backend-springboot/add_*.cjs
+
+# ========================
+# Node / Frontend
+# ========================
+frontend-react/node_modules/
+frontend-react/dist/
+frontend-react/.cache/
+frontend-react/.env
+frontend-react/.env.*
+!frontend-react/.env.example
+
+# Script tạm sinh ra khi dev / AI codegen
+frontend-react/fix_*.cjs
+frontend-react/fix_*.js
+frontend-react/update_*.cjs
+frontend-react/update_*.js
+frontend-react/gen_*.cjs
+frontend-react/get_*.cjs
+frontend-react/rebuild_*.cjs
+frontend-react/reorder_*.cjs
+frontend-react/replace_*.cjs
+frontend-react/restore_*.cjs
+frontend-react/add_*.cjs
+
+# ========================
+# Python / word-parser
+# ========================
+tools/word-parser/__pycache__/
+tools/word-parser/*.pyc
+tools/word-parser/.venv/
+
+# ========================
+# File rác / Tài liệu nội bộ
+# ========================
+*.zip
+*.log
+*.bak
+backend_test_output.txt
+*transcript_extract.txt
+
+# File .md nội bộ (KHÔNG track, để mỗi người giữ local)
+context.md
+cheatsheet.md
+statusproject.md
+task.md
+unittest.md
+deploy.md
+README_DOCKER.md
+TEMPLATE_USER_GUIDE.md
+codegen.py
+
+# Thư mục tài liệu nội bộ
+documents/
+docs/
+
+# IDE / Editor settings (không share cấu hình cá nhân)
+.vscode/
+.idea/
+
+# Script sinh keystore / smoke-test (chứa thông tin nhạy cảm khi chạy)
+scripts/
+
+# File tài liệu Word nội bộ
+*.doc
+*.docx
+
+# Codegen script tạm
+codegen.py
+
+# Root package.json (không liên quan đến project, dễ nhầm với FE/BE)
+/package.json
+/package-lock.json

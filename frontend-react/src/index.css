@@ -1,0 +1,64 @@
+@import url("https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap");
+@import "tailwindcss";
+
+@theme {
+  --color-canvas: #f7f7f8;
+  --color-line: #e5e7eb;
+  --color-ink: #1f2937;
+  --color-muted: #6b7280;
+  --color-disabled: #9ca3af;
+  --color-brand: #c62828;
+  --color-brand-dark: #b71c1c;
+  --color-brand-soft: #fdecec;
+  --color-brand-line: #f3b6b6;
+  --color-night: #111827;
+  --font-sans: "Be Vietnam Pro", Inter, system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 8px;
+}
+
+.watermark {
+  transform: rotate(-30deg);
+  transform-origin: center;
+}
+
+.signature-stroke {
+  font-family: cursive;
+  font-style: italic;
+}
