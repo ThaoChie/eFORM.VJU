@@ -16,6 +16,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.UUID;
 
 @Service
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "storage.provider", havingValue = "minio", matchIfMissing = true)
 public class StorageServiceImpl implements StorageService {
 
     private final MinioClient minioClient;
