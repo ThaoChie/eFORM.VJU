@@ -1,5 +1,6 @@
 {
-  "description": "Streamline student self-assessment and approval processes in universities with a user-friendly platform for students, class leaders, deans, and admins.",
+  "title": "Hệ thống eFORM Chấm Điểm Rèn Luyện",
+  "description": "Hệ thống E-Form Điểm Rèn Luyện dành cho Sinh viên và Giảng viên trường Đại học Việt Nhật",
   "robots": {
     "index": false
   },
