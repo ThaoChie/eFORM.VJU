@@ -93,3 +93,22 @@ codegen.py
 
 # Thư mục tài liệu nội bộ
 documents/
+docs/
+
+# IDE / Editor settings (không share cấu hình cá nhân)
+.vscode/
+.idea/
+
+# Script sinh keystore / smoke-test (chứa thông tin nhạy cảm khi chạy)
+scripts/
+
+# File tài liệu Word nội bộ
+*.doc
+*.docx
+
+# Codegen script tạm
+codegen.py
+
+# Root package.json (không liên quan đến project, dễ nhầm với FE/BE)
+/package.json
+/package-lock.json
