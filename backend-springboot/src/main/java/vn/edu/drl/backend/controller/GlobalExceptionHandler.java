@@ -29,8 +29,20 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(ApiResponse.error("FORBIDDEN", "Không đủ quyền truy cập"), HttpStatus.FORBIDDEN);
     }
 
+    @ExceptionHandler({RuntimeException.class, vn.edu.drl.backend.exception.BusinessException.class})
+    public ResponseEntity<ApiResponse<Void>> handleBusinessException(RuntimeException ex) {
+        return new ResponseEntity<>(ApiResponse.error("BAD_REQUEST", ex.getMessage()), HttpStatus.BAD_REQUEST);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGenericException(Exception ex) {
+        String message = ex.getMessage();
+        if (message != null && message.contains("409")) {
+            return new ResponseEntity<>(ApiResponse.error("FORM_LOCKED", message), HttpStatus.CONFLICT);
+        }
+        if (message != null && message.contains("422")) {
+            return new ResponseEntity<>(ApiResponse.error("INVALID_TRANSITION", message), HttpStatus.UNPROCESSABLE_ENTITY);
+        }
         return new ResponseEntity<>(ApiResponse.error("INTERNAL_ERROR", "Lỗi máy chủ nội bộ"), HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }

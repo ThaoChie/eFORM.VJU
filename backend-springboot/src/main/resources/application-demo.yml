@@ -1,0 +1,27 @@
+server:
+  port: ${PORT:8080}
+spring:
+  main:
+    lazy-initialization: false
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    hikari:
+      maximum-pool-size: 4
+      minimum-idle: 0
+      connection-timeout: 60000
+      max-lifetime: 240000
+      idle-timeout: 120000
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+    clean-disabled: true
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

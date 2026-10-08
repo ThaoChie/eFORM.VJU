@@ -8,6 +8,7 @@ import java.time.Instant;
 @Data
 @Entity
 @Table(name = "users")
+@com.fasterxml.jackson.annotation.JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -22,6 +23,10 @@ public class User {
     @Column(unique = true, nullable = false)
     private String email;
 
+    @Column(name = "status")
+    private Integer status = 1;
+
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 

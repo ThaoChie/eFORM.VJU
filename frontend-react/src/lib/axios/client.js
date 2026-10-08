@@ -1,8 +1,10 @@
 import axios from 'axios';
 
-const client = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
-  timeout: 10000,
+export const client = axios.create({
+  baseURL: 'http://localhost:8080/api/v1',
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
 
 client.interceptors.request.use((config) => {
@@ -14,20 +16,17 @@ client.interceptors.request.use((config) => {
 });
 
 client.interceptors.response.use(
-  (response) => response.data,
-  (error) => {
-    if (error.response) {
-      if (error.response.status === 401) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        window.location.href = '/login';
-      }
-      if (error.response.status === 403) {
-        alert('Không đủ quyền truy cập');
-      }
+  (response) => {
+    // Return only data if it's an ApiResponse wrapper, else return full data
+    if (response.data && response.data.code === "OK") {
+      return response.data.data;
     }
+    if (response.data && response.data.success === false) {
+      return Promise.reject(new Error(response.data.message || "Lỗi hệ thống"));
+    }
+    return response.data;
+  },
+  (error) => {
     return Promise.reject(error);
   }
 );
-
-export default client;
