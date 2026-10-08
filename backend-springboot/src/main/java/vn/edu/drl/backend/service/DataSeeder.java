@@ -56,7 +56,7 @@ public class DataSeeder implements CommandLineRunner {
             sem.setEndDate(LocalDate.of(2027, 1, 15));
             semesterRepository.save(sem);
 
-            String defaultPassword = passwordEncoder.encode("password123");
+            String defaultPassword = passwordEncoder.encode("123456");
 
             User admin = new User();
             admin.setEmail("admin@drl.edu.vn");

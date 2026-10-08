@@ -126,10 +126,11 @@ export function PageTitle({ title, description, action }) {
   )
 }
 
-export function FilterBar({ children, onSearch }) {
+export function FilterBar({ children, onSearch, cols = 4 }) {
+  const gridClass = { 1: "md:grid-cols-1", 2: "md:grid-cols-2", 3: "md:grid-cols-3", 4: "md:grid-cols-4", 5: "md:grid-cols-5" }[cols];
   return (
     <Card className="mb-4">
-      <div className="grid gap-3 md:grid-cols-4">
+      <div className={`grid gap-3 ${gridClass}`}>
         {children}
         <Button onClick={onSearch}>
           <Search className="size-4" />

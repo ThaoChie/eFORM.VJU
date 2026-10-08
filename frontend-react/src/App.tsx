@@ -28,7 +28,10 @@ import BatchDetailPage from "./pages/dean/BatchDetailPage"
 import DeanReportPage from "./pages/dean/DeanReportPage"
 import AdminDashboard from "./pages/admin/AdminDashboard"
 import FormVersionListPage from "./pages/admin/form-versions/FormVersionListPage"
+import FieldCodeListPage from "./pages/admin/field-codes/FieldCodeListPage"
 import FormVersionCreatePage from "./pages/admin/form-versions/FormVersionCreatePage"
+import FieldCodeCreatePage from "./pages/admin/field-codes/FieldCodeCreatePage"
+import FieldCodeDetailPage from "./pages/admin/field-codes/FieldCodeDetailPage"
 import DirectoryPage from "./pages/admin/directory/DirectoryPage"
 import ApprovalQueuePage from "./pages/admin/approvals/ApprovalQueuePage"
 
@@ -153,20 +156,11 @@ export default function App() {
           />
           <Route
             path="/admin/field-codes"
-            element={<FormVersionListPage fieldCodes />}
+            element={<FieldCodeListPage />}
           />
-          <Route
-            path="/admin/field-codes/new"
-            element={<FormVersionCreatePage fieldCode />}
-          />
-          <Route
-            path="/admin/field-codes/:id"
-            element={<FormVersionCreatePage fieldCode />}
-          />
-          <Route
-            path="/admin/field-codes/:id/edit"
-            element={<FormVersionCreatePage fieldCode />}
-          />
+          <Route path="/admin/field-codes/new" element={<FieldCodeCreatePage />} />
+          <Route path="/admin/field-codes/:id" element={<FieldCodeDetailPage />} />
+          <Route path="/admin/field-codes/:id/edit" element={<FieldCodeCreatePage />} />
           <Route path="/admin/directory/:tab" element={<DirectoryPage />} />
           <Route
             path="/admin/directory/users/new"

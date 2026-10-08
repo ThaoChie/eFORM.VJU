@@ -92,7 +92,7 @@ export default function LoginPage() {
           <button
             disabled={loading}
             type="button"
-            onClick={() => quickLogin("admin@drl.edu.vn", "password123")}
+            onClick={() => quickLogin("admin@drl.edu.vn", "123456")}
             className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium hover:border-brand hover:text-brand"
           >
             Admin
@@ -100,7 +100,7 @@ export default function LoginPage() {
           <button
             disabled={loading}
             type="button"
-            onClick={() => quickLogin("dean@drl.edu.vn", "password123")}
+            onClick={() => quickLogin("dean@drl.edu.vn", "123456")}
             className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium hover:border-brand hover:text-brand"
           >
             Trưởng khoa
@@ -108,7 +108,7 @@ export default function LoginPage() {
           <button
             disabled={loading}
             type="button"
-            onClick={() => quickLogin("leader@drl.edu.vn", "password123")}
+            onClick={() => quickLogin("leader@drl.edu.vn", "123456")}
             className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium hover:border-brand hover:text-brand"
           >
             Lớp trưởng
@@ -116,7 +116,7 @@ export default function LoginPage() {
           <button
             disabled={loading}
             type="button"
-            onClick={() => quickLogin("student@drl.edu.vn", "password123")}
+            onClick={() => quickLogin("student@drl.edu.vn", "123456")}
             className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium hover:border-brand hover:text-brand"
           >
             Sinh viên
