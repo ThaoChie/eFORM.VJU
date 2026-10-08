@@ -5,8 +5,14 @@ export const directoryService = {
     return await client.get("/departments");
   },
   getOffices: async () => {
-    // Return mock since there is no endpoint yet
-    return []; 
+    return await client.get("/offices");
+  },
+  importOffices: async (file, preview = true) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return await client.post(`/offices/import?preview=${preview}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
   },
   getClasses: async () => {
     return await client.get("/classes");

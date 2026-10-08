@@ -27,6 +27,7 @@ export default function DirectoryPage() {
   const [filters, setFilters] = useState({ query: "", status: "Tất cả" });
   const [page, setPage] = useState(1);
   const [deans, setDeans] = useState([]);
+  const [admins, setAdmins] = useState([]);
   const [colConfig, setColConfig] = useState(false);
   const [hiddenCols, setHiddenCols] = useState({});
   const [importExcel, setImportExcel] = useState(false);
@@ -42,6 +43,11 @@ export default function DirectoryPage() {
 
   useEffect(() => {
     fetchItems(active);
+    if (active === "offices") {
+      import("../../../lib/axios/client").then(({ client }) => {
+        client.get("/directory/users?role=ADMIN").then(res => setAdmins(Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : [])));
+      });
+    }
     if (active === "departments") {
       import("../../../services/directory-service").then(({ directoryService }) => {
         directoryService.getDeans().then(res => {
@@ -265,6 +271,7 @@ export default function DirectoryPage() {
       code: item.officeCode || item.code || "",
       name: item.officeName || item.name || "",
       headName: item.headName || "Chưa chỉ định",
+      headId: item.headId,
       status: item.status
     }));
   }
@@ -388,7 +395,15 @@ export default function DirectoryPage() {
           <Button onClick={() => setColConfig(true)}>
             <Settings className="size-4" /> Cấu hình cột
           </Button>
-          <Button onClick={() => window.open(active === "classes" ? "http://localhost:8080/api/v1/classes/template-excel" : "http://localhost:8080/api/v1/directory/users/template-excel", "_blank")}>
+          <Button onClick={() => {
+            const urls = {
+              classes: "http://localhost:8080/api/v1/classes/template-excel",
+              departments: "http://localhost:8080/api/v1/departments/template-excel",
+              offices: "http://localhost:8080/api/v1/offices/template-excel",
+              users: "http://localhost:8080/api/v1/directory/users/template-excel"
+            };
+            window.open(urls[active] || urls.users, "_blank");
+          }}>
             <Download className="size-4" /> Tải file mẫu
           </Button>
           <Button onClick={() => {
@@ -424,7 +439,7 @@ export default function DirectoryPage() {
 
   return (
     <>
-      <PageTitle title="Danh bạ đơn vị" description="Dữ liệu danh mục được ghi trực tiếp, không qua quy trình duyệt." />
+      <PageTitle title="Danh bạ đơn vị" description="Hệ thống được phát triển bởi nhóm sinh viên Trường Đại học Việt Nhật" />
       <div className="mb-4 flex overflow-x-auto border-b border-line">
         {tabs.map(([key, label]) => (
           <button
@@ -469,35 +484,51 @@ export default function DirectoryPage() {
         );
       })()}
 
-      <Modal open={!!form && active === "offices"} title={form?.mode === 'edit' ? "Chỉnh sửa danh mục" : "Thêm mới danh mục"} onClose={() => setForm(false)} footer={
+      {active === "offices" && form && (
+        <Modal open={true} title={form.mode === 'edit' ? "Chỉnh sửa Phòng ban" : "Thêm mới Phòng ban"} onClose={() => setForm(false)} footer={
           <>
             <Button onClick={() => setForm(false)}>Hủy</Button>
             <Button variant="primary" onClick={async () => {
-              if (active === "departments" && form.mode === 'create') {
-                try {
-                  const { client } = await import("../../../lib/axios/client");
-                  const deptCode = document.querySelector('input[placeholder="Nhập mã"]').value;
-                  const deptName = document.querySelector('input[placeholder="Nhập tên"]').value;
-                  if (!deptCode || !deptName) return toast.error("Vui lòng nhập đủ mã và tên khoa");
-                  await client.post("/departments", { deptCode, deptName });
-                  toast.success("Tạo Khoa thành công!");
-                  setForm(false);
-                  fetchItems(active);
-                } catch (e) {
-                  toast.error(e.response?.data?.message || "Lỗi tạo Khoa");
+              try {
+                const { client } = await import("../../../lib/axios/client");
+                if (!form.officeCode && !form.code) return toast.error("Vui lòng nhập mã phòng ban");
+                if (!form.officeName && !form.name) return toast.error("Vui lòng nhập tên phòng ban");
+                const payload = {
+                  officeCode: form.officeCode || form.code,
+                  officeName: form.officeName || form.name,
+                  status: form.status !== undefined ? form.status : 1,
+                  headId: form.headId || null
+                };
+                if (form.mode === 'create') {
+                  await client.post("/offices", payload);
+                  toast.success("Tạo Phòng ban thành công!");
+                } else {
+                  await client.put(`/offices/${form.id}`, payload);
+                  toast.success("Cập nhật Phòng ban thành công!");
                 }
-              } else {
                 setForm(false);
+                fetchItems(active);
+              } catch (e) {
+                toast.error(e.response?.data?.message || "Lỗi xử lý Phòng ban");
               }
             }}>Lưu</Button>
           </>
-        }
-      >
-        <div className="space-y-4">
-          <Input label="Mã" required placeholder="Nhập mã" defaultValue={form?.code || ""} disabled={form?.mode === 'edit' && active === "departments"} />
-          <Input label="Tên" required placeholder="Nhập tên" defaultValue={form?.name || ""} />
-        </div>
-      </Modal>\n
+        }>
+          <div className="space-y-4">
+            <Input label="Mã phòng ban *" placeholder="Nhập mã phòng ban" value={form.officeCode || form.code || ""} onChange={e => setForm({...form, officeCode: e.target.value})} disabled={form.mode === 'edit'} />
+            <Input label="Tên phòng ban *" placeholder="Nhập tên phòng ban" value={form.officeName || form.name || ""} onChange={e => setForm({...form, officeName: e.target.value})} />
+            <Select label="Trưởng phòng ban" value={form.headId || ""} onChange={e => setForm({...form, headId: e.target.value ? Number(e.target.value) : null})}>
+              <option value="">Chưa chỉ định</option>
+              {admins.map(a => <option key={a.id} value={a.id}>{a.userCode ? a.userCode + ' - ' : ''}{a.fullName}</option>)}
+            </Select>
+            <Select label="Trạng thái" value={form.status !== undefined ? form.status : 1} onChange={e => setForm({...form, status: Number(e.target.value)})}>
+              <option value={1}>Đang hoạt động</option>
+              <option value={0}>Vô hiệu hóa</option>
+            </Select>
+          </div>
+        </Modal>
+      )}
+    
       {active === "departments" && form && (
         <Modal open={true} title={form.mode === 'edit' ? "Chỉnh sửa Khoa" : "Thêm mới Khoa"} onClose={() => setForm(false)} footer={
           <>
@@ -559,7 +590,7 @@ export default function DirectoryPage() {
                  setImporting(true);
                  try {
                    const { directoryService } = await import("../../../services/directory-service");
-                   await (active === "classes" ? directoryService.importClasses(selectedFile, false) : directoryService.importDepartments(selectedFile, false));
+                   await (active === "classes" ? directoryService.importClasses(selectedFile, false) : active === "offices" ? directoryService.importOffices(selectedFile, false) : directoryService.importDepartments(selectedFile, false));
                    toast.success("Nhập dữ liệu thành công!");
                    setImportExcel(false);
                    setImportData(null);
@@ -576,7 +607,7 @@ export default function DirectoryPage() {
                  setImporting(true);
                  try {
                    const { directoryService } = await import("../../../services/directory-service");
-                   const res = await (active === "classes" ? directoryService.importClasses(selectedFile, true) : directoryService.importDepartments(selectedFile, true));
+                   const res = await (active === "classes" ? directoryService.importClasses(selectedFile, true) : active === "offices" ? directoryService.importOffices(selectedFile, true) : directoryService.importDepartments(selectedFile, true));
                    setImportData(res);
                  } catch (err) {
                    toast.error("Lỗi đọc file Excel!");

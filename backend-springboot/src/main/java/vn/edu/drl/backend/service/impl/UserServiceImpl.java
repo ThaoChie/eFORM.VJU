@@ -22,12 +22,14 @@ public class UserServiceImpl implements UserService {
     private final UserHibernateDao hibernateDao;
     private final vn.edu.drl.backend.dao.DepartmentRepository deptRepo;
     private final vn.edu.drl.backend.dao.ClassRepository classRepo;
+    private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
     
-    public UserServiceImpl(UserRepository repository, UserHibernateDao hibernateDao, vn.edu.drl.backend.dao.DepartmentRepository deptRepo, vn.edu.drl.backend.dao.ClassRepository classRepo) { 
+    public UserServiceImpl(UserRepository repository, UserHibernateDao hibernateDao, vn.edu.drl.backend.dao.DepartmentRepository deptRepo, vn.edu.drl.backend.dao.ClassRepository classRepo, org.springframework.security.crypto.password.PasswordEncoder passwordEncoder) { 
         this.repository = repository; 
         this.hibernateDao = hibernateDao;
         this.deptRepo = deptRepo;
         this.classRepo = classRepo;
+        this.passwordEncoder = passwordEncoder;
     }
     
     public List<User> findAll() { return repository.findAll(); }
@@ -42,7 +44,7 @@ public class UserServiceImpl implements UserService {
         u.setFullName(req.getFullName());
         u.setUserCode(req.getUserCode());
         u.setRole(Role.valueOf(req.getRole()));
-        u.setPasswordHash("DEFAULT"); // Should use PasswordEncoder
+        u.setPasswordHash(passwordEncoder.encode("123456")); // Should use PasswordEncoder
         return repository.save(u);
     }
     
@@ -107,7 +109,7 @@ public class UserServiceImpl implements UserService {
                     } catch (Exception e) {
                         u.setRole(Role.STUDENT);
                     }
-                    u.setPasswordHash("DEFAULT");
+                    u.setPasswordHash(passwordEncoder.encode("123456"));
                     
                     if (!deptCode.isEmpty()) {
                         vn.edu.drl.backend.model.Department d = deptRepo.findByDeptCode(deptCode).orElse(null);
