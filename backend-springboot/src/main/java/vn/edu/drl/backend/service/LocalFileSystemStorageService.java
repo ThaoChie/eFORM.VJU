@@ -12,7 +12,7 @@ import java.util.UUID;
 import jakarta.annotation.PostConstruct;
 
 @Service
-@ConditionalOnProperty(name = "storage.provider", havingValue = "local")
+@ConditionalOnProperty(name = "storage.provider", havingValue = "local", matchIfMissing = false)
 public class LocalFileSystemStorageService implements StorageService {
     private final Path rootLocation = Paths.get("/tmp/drl-storage");
 
@@ -28,43 +28,34 @@ public class LocalFileSystemStorageService implements StorageService {
     }
 
     @Override
-    public String uploadFile(String bucketName, MultipartFile file) {
-        try {
-            String filename = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
-            Path destinationFile = rootLocation.resolve(bucketName).resolve(filename);
-            Files.copy(file.getInputStream(), destinationFile, StandardCopyOption.REPLACE_EXISTING);
-            return filename;
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to store file", e);
-        }
+    public String uploadFile(MultipartFile file, String bucketName) throws Exception {
+        String filename = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
+        Path destinationFile = rootLocation.resolve(bucketName).resolve(filename);
+        Files.copy(file.getInputStream(), destinationFile, StandardCopyOption.REPLACE_EXISTING);
+        return filename;
     }
 
     @Override
-    public String uploadFile(String bucketName, InputStream inputStream, String fileName, String contentType) {
-        try {
-            String filename = UUID.randomUUID().toString() + "_" + fileName;
-            Path destinationFile = rootLocation.resolve(bucketName).resolve(filename);
-            Files.copy(inputStream, destinationFile, StandardCopyOption.REPLACE_EXISTING);
-            return filename;
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to store file", e);
+    public String uploadBytes(byte[] bytes, String bucketName, String contentType) throws Exception {
+        String filename = UUID.randomUUID().toString();
+        if ("application/pdf".equals(contentType)) {
+            filename += ".pdf";
+        } else if ("image/png".equals(contentType)) {
+            filename += ".png";
         }
+        Path destinationFile = rootLocation.resolve(bucketName).resolve(filename);
+        Files.write(destinationFile, bytes);
+        return filename;
     }
 
     @Override
-    public InputStream getFile(String bucketName, String objectName) {
-        try {
-            Path file = rootLocation.resolve(bucketName).resolve(objectName);
-            return Files.newInputStream(file);
-        } catch (Exception e) {
-            throw new RuntimeException("Could not read file", e);
-        }
-    }
-    
-    @Override
-    public String getFileUrl(String bucketName, String objectName, int expiryMinutes) {
-        // Return a local URL or base64 if needed, but typically for demo we might need an endpoint to serve files
-        // A simple way is to add a controller to serve these files
+    public String getPresignedUrl(String bucketName, String objectName) throws Exception {
         return "/api/v1/storage/" + bucketName + "/" + objectName;
+    }
+
+    @Override
+    public byte[] getFileBytes(String bucketName, String objectName) throws Exception {
+        Path file = rootLocation.resolve(bucketName).resolve(objectName);
+        return Files.readAllBytes(file);
     }
 }
