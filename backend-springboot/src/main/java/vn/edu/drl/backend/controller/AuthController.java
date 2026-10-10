@@ -30,6 +30,9 @@ public class AuthController {
     @GetMapping("/me")
     public ApiResponse<vn.edu.drl.backend.dto.response.AuthUserResponse> me() {
         Long currentUserId = vn.edu.drl.backend.security.SecurityUtils.getCurrentUserId();
+        if (currentUserId == null) {
+            throw new RuntimeException("UNAUTHORIZED");
+        }
         return ApiResponse.success(authService.me(currentUserId));
     }
 }
