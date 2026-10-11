@@ -36,6 +36,7 @@ public class ClassController {
     public org.springframework.http.ResponseEntity<byte[]> downloadTemplate() {
         byte[] data = service.generateExcelTemplate();
         return org.springframework.http.ResponseEntity.ok()
+            .contentType(org.springframework.http.MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
             .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=classes_template.xlsx")
             .body(data);
     }

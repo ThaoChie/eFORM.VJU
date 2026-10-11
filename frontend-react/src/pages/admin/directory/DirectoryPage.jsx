@@ -5,6 +5,7 @@ import { useLocation, useNavigate } from "react-router-dom"
 import { Button, Card, IconButton, Input, Modal, PageTitle, Select, Table } from "../../../components/ui/Primitives"
 import { useDirectoryStore } from "../../../stores/useDirectoryStore"
 import ReactSelect from "react-select";
+import { downloadBlob, downloadExcelTemplate } from "../../../lib/downloadHelper";
 
 const tabs = [
   ["departments", "Khoa"],
@@ -473,14 +474,7 @@ export default function DirectoryPage() {
     </html>`;
 
     const blob = new Blob([tableHtml], { type: "application/vnd.ms-excel;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${fileName}.xls`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    downloadBlob(blob, `${fileName}.xls`);
   };
 
   const handleExportExcel = () => {
@@ -501,25 +495,10 @@ export default function DirectoryPage() {
   const handleDownloadTemplate = async () => {
     try {
       const { client } = await import("../../../lib/axios/client");
-      const pathMap = {
-        classes: "/classes/template-excel",
-        departments: "/departments/template-excel",
-        offices: "/offices/template-excel",
-        users: "/directory/users/template-excel"
-      };
-      const path = pathMap[active] || "/departments/template-excel";
-      const res = await client.get(path, { responseType: 'blob' });
-      const blob = new Blob([res], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${active}_template.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+      await downloadExcelTemplate(active, client);
       toast.success("Tải file mẫu thành công!");
     } catch (e) {
+      console.error("Lỗi tải file mẫu:", e);
       toast.error("Không thể tải file mẫu");
     }
   };
@@ -845,6 +824,16 @@ export default function DirectoryPage() {
                 <Upload className={`size-8 mx-auto mb-3 ${selectedFile ? 'text-brand' : 'text-muted'}`} />
                 <p className={`font-medium ${selectedFile ? 'text-brand' : ''}`}>{selectedFile ? selectedFile.name : 'Click để chọn file từ máy tính'}</p>
                 {!selectedFile && <p className="text-sm text-muted mt-1">hoặc kéo thả file Excel vào đây</p>}
+              </div>
+              <div className="flex justify-between items-center text-sm px-1">
+                <span className="text-muted">Chưa có file mẫu dữ liệu?</span>
+                <button
+                  type="button"
+                  onClick={handleDownloadTemplate}
+                  className="text-brand hover:underline font-medium inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Download className="size-4" /> Tải file mẫu ({tabs.find(t => t[0] === active)?.[1] || active})
+                </button>
               </div>
             </>
           ) : (

@@ -160,6 +160,18 @@ public class UserServiceImpl implements UserService {
             for (int i = 0; i < columns.length; i++) {
                 header.createCell(i).setCellValue(columns[i]);
             }
+
+            Row sample = sheet.createRow(1);
+            sample.createCell(0).setCellValue("SV2026001");
+            sample.createCell(1).setCellValue("Nguyễn Văn A");
+            sample.createCell(2).setCellValue("nguyenvana@vju.ac.vn");
+            sample.createCell(3).setCellValue("STUDENT");
+            sample.createCell(4).setCellValue("CNTT");
+            sample.createCell(5).setCellValue("");
+            sample.createCell(6).setCellValue("K21_CNTT01");
+            sample.createCell(7).setCellValue("K21");
+            sample.createCell(8).setCellValue("1");
+
             workbook.write(out);
             return out.toByteArray();
         } catch (Exception e) {

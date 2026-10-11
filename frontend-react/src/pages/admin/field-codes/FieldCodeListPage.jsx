@@ -14,6 +14,7 @@ import {
   Modal
 } from "../../../components/ui/Primitives"
 import { client } from "../../../lib/axios/client"
+import { downloadExcelTemplate } from "../../../lib/downloadHelper"
 
 const formatDate = (dateStr) => {
   if (!dateStr) return "";
@@ -23,6 +24,15 @@ const formatDate = (dateStr) => {
 };
 
 export default function FieldCodeListPage() {
+  const handleDownloadTemplate = async () => {
+    try {
+      await downloadExcelTemplate("field-codes");
+      toast.success("Tải file mẫu thành công!");
+    } catch (e) {
+      console.error("Lỗi tải file mẫu:", e);
+      toast.error("Không thể tải file mẫu");
+    }
+  };
   const navigate = useNavigate()
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
@@ -159,7 +169,7 @@ export default function FieldCodeListPage() {
             <Button onClick={() => setColConfig(true)}>
               <Settings className="size-4" /> Cấu hình cột
             </Button>
-            <Button onClick={() => toast.success("Đang tải file mẫu...")}>
+            <Button onClick={handleDownloadTemplate}>
               <Download className="size-4" />
               Tải file mẫu
             </Button>
