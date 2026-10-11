@@ -41,7 +41,10 @@ public class ClassController {
     }
 
     @PostMapping("/import")
-    public ApiResponse<?> importClasses(@RequestParam("file") MultipartFile file, @RequestParam(value = "dryRun", defaultValue = "false") boolean dryRun) {
-        return ApiResponse.success(service.importFromExcel(file, dryRun));
+    public ApiResponse<?> importClasses(@RequestParam("file") MultipartFile file, 
+                                        @RequestParam(value = "dryRun", required = false) Boolean dryRun,
+                                        @RequestParam(value = "preview", required = false) Boolean preview) {
+        boolean isPreview = (preview != null) ? preview : (dryRun != null ? dryRun : false);
+        return ApiResponse.success(service.importFromExcel(file, isPreview));
     }
 }

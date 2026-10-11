@@ -544,6 +544,7 @@ export default function DirectoryPage() {
             input.onchange = (e) => {
               if (e.target.files.length > 0) {
                  setSelectedFile(e.target.files[0]);
+                 setImportData(null);
                  setImportExcel(true);
               }
             };
@@ -775,18 +776,28 @@ export default function DirectoryPage() {
           <>
             <Button onClick={() => { setImportExcel(false); setImportData(null); setSelectedFile(null); }}>Hủy</Button>
             {importData ? (
-               <Button variant="primary" loading={importing} onClick={async () => {
+               <Button variant="primary" loading={importing} disabled={!importData || importData.validRows === 0} onClick={async () => {
                  setImporting(true);
                  try {
                    const { directoryService } = await import("../../../services/directory-service");
-                   await (active === "classes" ? directoryService.importClasses(selectedFile, false) : active === "offices" ? directoryService.importOffices(selectedFile, false) : directoryService.importDepartments(selectedFile, false));
-                   toast.success("Nhập dữ liệu thành công!");
+                   let res;
+                   if (active === "classes") {
+                     res = await directoryService.importClasses(selectedFile, false);
+                   } else if (active === "offices") {
+                     res = await directoryService.importOffices(selectedFile, false);
+                   } else if (active === "users") {
+                     res = await directoryService.importUsers(selectedFile, false);
+                   } else {
+                     res = await directoryService.importDepartments(selectedFile, false);
+                   }
+                   const count = res?.data?.validRows ?? importData.validRows;
+                   toast.success(`Nhập dữ liệu thành công (${count} dòng)!`);
                    setImportExcel(false);
                    setImportData(null);
                    setSelectedFile(null);
                    fetchItems(active);
                  } catch (err) {
-                   toast.error("Có lỗi xảy ra khi nhập dữ liệu!");
+                   toast.error(err.response?.data?.message || err.message || "Có lỗi xảy ra khi nhập dữ liệu!");
                  } finally {
                    setImporting(false);
                  }
@@ -796,10 +807,19 @@ export default function DirectoryPage() {
                  setImporting(true);
                  try {
                    const { directoryService } = await import("../../../services/directory-service");
-                   const res = await (active === "classes" ? directoryService.importClasses(selectedFile, true) : active === "offices" ? directoryService.importOffices(selectedFile, true) : directoryService.importDepartments(selectedFile, true));
-                   setImportData(res);
+                   let res;
+                   if (active === "classes") {
+                     res = await directoryService.importClasses(selectedFile, true);
+                   } else if (active === "offices") {
+                     res = await directoryService.importOffices(selectedFile, true);
+                   } else if (active === "users") {
+                     res = await directoryService.importUsers(selectedFile, true);
+                   } else {
+                     res = await directoryService.importDepartments(selectedFile, true);
+                   }
+                   setImportData(res?.data || res);
                  } catch (err) {
-                   toast.error("Lỗi đọc file Excel!");
+                   toast.error(err.response?.data?.message || err.message || "Lỗi đọc file Excel!");
                  } finally {
                    setImporting(false);
                  }

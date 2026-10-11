@@ -194,8 +194,10 @@ public class ClassServiceImpl implements ClassService {
         int validRows = 0;
         int invalidRows = 0;
         List<String> errors = new ArrayList<>();
+        DataFormatter formatter = new DataFormatter();
+        Set<String> seenClassCodes = new HashSet<>();
         
-        try (InputStream is = file.getInputStream(); Workbook workbook = new XSSFWorkbook(is)) {
+        try (InputStream is = file.getInputStream(); Workbook workbook = WorkbookFactory.create(is)) {
             Sheet sheet = workbook.getSheetAt(0);
             Iterator<Row> rows = sheet.iterator();
             if (rows.hasNext()) rows.next(); // skip header
@@ -204,14 +206,14 @@ public class ClassServiceImpl implements ClassService {
             while (rows.hasNext()) {
                 Row row = rows.next();
                 rowIndex++;
-                if (row.getCell(0) == null || row.getCell(0).getCellType() == CellType.BLANK) continue;
+                if (isRowEmpty(row, formatter)) continue;
                 
-                String classCode = getCellVal(row.getCell(0));
-                String className = getCellVal(row.getCell(1));
-                String deptCode = getCellVal(row.getCell(2));
-                String cohort = getCellVal(row.getCell(3));
-                String leaderCodesStr = getCellVal(row.getCell(4));
-                String deputyCodesStr = getCellVal(row.getCell(5));
+                String classCode = getCellVal(formatter, row.getCell(0));
+                String className = getCellVal(formatter, row.getCell(1));
+                String deptCode = getCellVal(formatter, row.getCell(2));
+                String cohort = getCellVal(formatter, row.getCell(3));
+                String leaderCodesStr = getCellVal(formatter, row.getCell(4));
+                String deputyCodesStr = getCellVal(formatter, row.getCell(5));
                 
                 if (classCode.isEmpty() || className.isEmpty() || deptCode.isEmpty()) {
                     invalidRows++;
@@ -219,10 +221,30 @@ public class ClassServiceImpl implements ClassService {
                     continue;
                 }
                 
+                if (classCode.length() > 50) {
+                    invalidRows++;
+                    errors.add("Dòng " + rowIndex + ": Mã lớp không được vượt quá 50 ký tự");
+                    continue;
+                }
+
+                if (seenClassCodes.contains(classCode.toLowerCase())) {
+                    invalidRows++;
+                    errors.add("Dòng " + rowIndex + ": Mã lớp '" + classCode + "' bị trùng lặp trong file tải lên");
+                    continue;
+                }
+
+                if (repository.findByClassCode(classCode).isPresent()) {
+                    invalidRows++;
+                    errors.add("Dòng " + rowIndex + ": Mã lớp '" + classCode + "' đã tồn tại trong hệ thống");
+                    continue;
+                }
+
+                seenClassCodes.add(classCode.toLowerCase());
+                
                 var deptOpt = deptRepo.findByDeptCode(deptCode);
                 if (deptOpt.isEmpty()) {
                     invalidRows++;
-                    errors.add("Dòng " + rowIndex + ": Mã Khoa '" + deptCode + "' không tồn tại");
+                    errors.add("Dòng " + rowIndex + ": Mã Khoa '" + deptCode + "' không tồn tại trong hệ thống");
                     continue;
                 }
                 
@@ -251,7 +273,7 @@ public class ClassServiceImpl implements ClassService {
                 for (String lc : leaderCodes) {
                     var userOpt = userRepo.findByUserCode(lc);
                     if (userOpt.isEmpty()) {
-                        errors.add("Dòng " + rowIndex + ": Mã sinh viên Lớp trưởng '" + lc + "' không tồn tại");
+                        errors.add("Dòng " + rowIndex + ": Mã sinh viên Lớp trưởng '" + lc + "' không tồn tại trong hệ thống");
                         hasError = true;
                     } else {
                         validLeaders.add(userOpt.get());
@@ -262,7 +284,7 @@ public class ClassServiceImpl implements ClassService {
                 for (String dc : deputyCodes) {
                     var userOpt = userRepo.findByUserCode(dc);
                     if (userOpt.isEmpty()) {
-                        errors.add("Dòng " + rowIndex + ": Mã sinh viên Lớp phó '" + dc + "' không tồn tại");
+                        errors.add("Dòng " + rowIndex + ": Mã sinh viên Lớp phó '" + dc + "' không tồn tại trong hệ thống");
                         hasError = true;
                     } else {
                         validDeputies.add(userOpt.get());
@@ -281,6 +303,7 @@ public class ClassServiceImpl implements ClassService {
                     c.setClassName(className);
                     c.setDepartment(deptOpt.get());
                     c.setAcademicCohort(cohort.isEmpty() ? null : cohort);
+                    c.setStatus(1);
                     c = repository.save(c);
                     
                     // Clear old leaders/deputies for this class
@@ -296,12 +319,24 @@ public class ClassServiceImpl implements ClassService {
                     for (User l : validLeaders) {
                         l.setRole(Role.CLASS_LEADER);
                         l.setClassEntity(c);
+                        if (l.getDepartment() == null && c.getDepartment() != null) {
+                            l.setDepartment(c.getDepartment());
+                        }
+                        if ((l.getAcademicCohort() == null || l.getAcademicCohort().trim().isEmpty()) && c.getAcademicCohort() != null) {
+                            l.setAcademicCohort(c.getAcademicCohort());
+                        }
                         userRepo.save(l);
                     }
                     
                     for (User d : validDeputies) {
                         d.setRole(Role.CLASS_DEPUTY);
                         d.setClassEntity(c);
+                        if (d.getDepartment() == null && c.getDepartment() != null) {
+                            d.setDepartment(c.getDepartment());
+                        }
+                        if ((d.getAcademicCohort() == null || d.getAcademicCohort().trim().isEmpty()) && c.getAcademicCohort() != null) {
+                            d.setAcademicCohort(c.getAcademicCohort());
+                        }
                         userRepo.save(d);
                     }
                 }
@@ -309,7 +344,7 @@ public class ClassServiceImpl implements ClassService {
                 validRows++;
             }
         } catch (Exception e) {
-            throw new RuntimeException("Lỗi đọc file: " + e.getMessage());
+            throw new RuntimeException("Lỗi đọc file: " + e.getMessage(), e);
         }
         
         Map<String, Object> res = new HashMap<>();
@@ -319,14 +354,20 @@ public class ClassServiceImpl implements ClassService {
         return res;
     }
 
-    private String getCellVal(Cell cell) {
-        if (cell == null) return "";
-        if (cell.getCellType() == CellType.STRING) return cell.getStringCellValue().trim();
-        if (cell.getCellType() == CellType.NUMERIC) {
-            double val = cell.getNumericCellValue();
-            if (val == (long) val) return String.valueOf((long) val);
-            return String.valueOf(val);
+    private boolean isRowEmpty(Row row, DataFormatter formatter) {
+        if (row == null) return true;
+        for (int c = row.getFirstCellNum(); c < row.getLastCellNum(); c++) {
+            Cell cell = row.getCell(c);
+            if (cell != null && cell.getCellType() != CellType.BLANK) {
+                String val = formatter.formatCellValue(cell).trim();
+                if (!val.isEmpty()) return false;
+            }
         }
-        return "";
+        return true;
+    }
+
+    private String getCellVal(DataFormatter formatter, Cell cell) {
+        if (cell == null) return "";
+        return formatter.formatCellValue(cell).trim();
     }
 }

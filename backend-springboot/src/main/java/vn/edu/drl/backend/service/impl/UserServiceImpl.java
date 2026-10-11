@@ -174,39 +174,68 @@ public class UserServiceImpl implements UserService {
         int validRows = 0;
         int invalidRows = 0;
         
-        try (InputStream is = file.getInputStream(); Workbook workbook = new XSSFWorkbook(is)) {
+        List<User> usersToSave = new ArrayList<>();
+        DataFormatter formatter = new DataFormatter();
+        Set<String> seenEmails = new HashSet<>();
+        Set<String> seenUserCodes = new HashSet<>();
+
+        try (InputStream is = file.getInputStream(); Workbook workbook = WorkbookFactory.create(is)) {
             Sheet sheet = workbook.getSheetAt(0);
-            List<User> usersToSave = new ArrayList<>();
             
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
-                if (row == null) continue;
+                if (isRowEmpty(row, formatter)) continue;
                 
                 try {
-                    String userCode = getCellString(row.getCell(0));
-                    String fullName = getCellString(row.getCell(1));
-                    String email = getCellString(row.getCell(2));
-                    String roleStr = getCellString(row.getCell(3));
-                    String deptCode = getCellString(row.getCell(4));
-                    // String officeCode = getCellString(row.getCell(5)); // Ignored since Office doesn't exist
-                    String classCode = getCellString(row.getCell(6));
-                    String cohort = getCellString(row.getCell(7));
-                    String statusStr = getCellString(row.getCell(8));
+                    String userCode = getCellString(formatter, row.getCell(0));
+                    String fullName = getCellString(formatter, row.getCell(1));
+                    String email = getCellString(formatter, row.getCell(2));
+                    String roleStr = getCellString(formatter, row.getCell(3));
+                    String deptCode = getCellString(formatter, row.getCell(4));
+                    String officeCode = getCellString(formatter, row.getCell(5));
+                    String classCode = getCellString(formatter, row.getCell(6));
+                    String cohort = getCellString(formatter, row.getCell(7));
+                    String statusStr = getCellString(formatter, row.getCell(8));
                     
-                    if (email.isEmpty() || fullName.isEmpty()) {
-                        errors.add("Dòng " + (i + 1) + ": Thiếu tên hoặc email");
+                    if (fullName.isEmpty()) {
+                        errors.add("Dòng " + (i + 1) + ": Họ và tên không được để trống");
                         invalidRows++;
                         continue;
                     }
-                    
-                    if (repository.findByEmail(email).isPresent()) {
-                        errors.add("Dòng " + (i + 1) + ": Email đã tồn tại");
+                    if (email.isEmpty()) {
+                        errors.add("Dòng " + (i + 1) + ": Email không được để trống");
                         invalidRows++;
                         continue;
+                    }
+
+                    if (seenEmails.contains(email.toLowerCase())) {
+                        errors.add("Dòng " + (i + 1) + ": Email '" + email + "' bị trùng lặp trong file tải lên");
+                        invalidRows++;
+                        continue;
+                    }
+                    if (repository.findByEmail(email).isPresent()) {
+                        errors.add("Dòng " + (i + 1) + ": Email '" + email + "' đã tồn tại trong hệ thống");
+                        invalidRows++;
+                        continue;
+                    }
+                    seenEmails.add(email.toLowerCase());
+
+                    if (!userCode.isEmpty()) {
+                        if (seenUserCodes.contains(userCode.toLowerCase())) {
+                            errors.add("Dòng " + (i + 1) + ": Mã người dùng '" + userCode + "' bị trùng lặp trong file tải lên");
+                            invalidRows++;
+                            continue;
+                        }
+                        if (repository.findByUserCode(userCode).isPresent()) {
+                            errors.add("Dòng " + (i + 1) + ": Mã người dùng '" + userCode + "' đã tồn tại trong hệ thống");
+                            invalidRows++;
+                            continue;
+                        }
+                        seenUserCodes.add(userCode.toLowerCase());
                     }
                     
                     User u = new User();
-                    u.setUserCode(userCode);
+                    u.setUserCode(userCode.isEmpty() ? null : userCode);
                     u.setFullName(fullName);
                     u.setEmail(email);
                     try {
@@ -223,10 +252,22 @@ public class UserServiceImpl implements UserService {
                     
                     if (!classCode.isEmpty()) {
                         ClassEntity c = classRepo.findByClassCode(classCode).orElse(null);
-                        if (c != null) u.setClassEntity(c);
+                        if (c != null) {
+                            u.setClassEntity(c);
+                            if (u.getDepartment() == null && c.getDepartment() != null) {
+                                u.setDepartment(c.getDepartment());
+                            }
+                            if ((cohort.isEmpty()) && c.getAcademicCohort() != null) {
+                                cohort = c.getAcademicCohort();
+                            }
+                        }
+                    }
+
+                    if (!officeCode.isEmpty()) {
+                        u.setPositionTitle(officeCode);
                     }
                     
-                    u.setAcademicCohort(cohort);
+                    u.setAcademicCohort(cohort.isEmpty() ? null : cohort);
                     u.setStatus("0".equals(statusStr) || "Vô hiệu hóa".equalsIgnoreCase(statusStr) ? 0 : 1);
                     
                     usersToSave.add(u);
@@ -236,18 +277,18 @@ public class UserServiceImpl implements UserService {
                     invalidRows++;
                 }
             }
-            
-            if (!preview && !usersToSave.isEmpty()) {
-                repository.saveAll(usersToSave);
-            }
-            
-            result.put("validRows", validRows);
-            result.put("invalidRows", invalidRows);
-            result.put("errors", errors);
-            return result;
         } catch (Exception e) {
-            throw new RuntimeException("Failed to parse Excel file", e);
+            throw new RuntimeException("Lỗi đọc file Excel: " + e.getMessage(), e);
         }
+
+        if (!preview && !usersToSave.isEmpty()) {
+            repository.saveAll(usersToSave);
+        }
+        
+        result.put("validRows", validRows);
+        result.put("invalidRows", invalidRows);
+        result.put("errors", errors);
+        return result;
     }
     
     public byte[] exportToExcel(Long deptId, Long classId, String cohort, String role) {
@@ -277,10 +318,20 @@ public class UserServiceImpl implements UserService {
         }
     }
     
-    private String getCellString(Cell cell) {
+    private boolean isRowEmpty(Row row, DataFormatter formatter) {
+        if (row == null) return true;
+        for (int c = row.getFirstCellNum(); c < row.getLastCellNum(); c++) {
+            Cell cell = row.getCell(c);
+            if (cell != null && cell.getCellType() != CellType.BLANK) {
+                String val = formatter.formatCellValue(cell).trim();
+                if (!val.isEmpty()) return false;
+            }
+        }
+        return true;
+    }
+
+    private String getCellString(DataFormatter formatter, Cell cell) {
         if (cell == null) return "";
-        if (cell.getCellType() == CellType.STRING) return cell.getStringCellValue();
-        if (cell.getCellType() == CellType.NUMERIC) return String.valueOf((long)cell.getNumericCellValue());
-        return "";
+        return formatter.formatCellValue(cell).trim();
     }
 }
