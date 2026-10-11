@@ -2,7 +2,6 @@
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/Wrapper/ApiResponse.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/Wrapper/PageWrapper.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/config/RestTemplateConfig.java
-/Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/config/WebConfig.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/controller/AuthController.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/controller/ClassController.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/controller/CriteriaController.java
@@ -12,6 +11,7 @@
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/controller/FormVersionController.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/controller/GlobalExceptionHandler.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/controller/NotificationController.java
+/Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/controller/OfficeController.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/controller/PublicVerifyController.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/controller/ReportController.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/controller/SemesterController.java
@@ -21,9 +21,11 @@
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/dao/ClassRepository.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/dao/CriteriaRepository.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/dao/DepartmentRepository.java
+/Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/dao/FieldMasterHistoryRepository.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/dao/FieldMasterRepository.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/dao/FormVersionRepository.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/dao/NotificationRepository.java
+/Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/dao/OfficeRepository.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/dao/ScoreFormDetailRepository.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/dao/ScoreFormRepository.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/dao/SemesterRepository.java
@@ -38,6 +40,7 @@
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/dto/request/FieldMasterRequest.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/dto/request/FormTemplateRequest.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/dto/request/LoginRequest.java
+/Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/dto/request/OfficeRequest.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/dto/request/RejectRequest.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/dto/request/SaveDraftRequest.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/dto/request/SemesterRequest.java
@@ -50,10 +53,13 @@
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/dto/response/DeanApproveBatchResponse.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/dto/response/DepartmentResponse.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/dto/response/EditorFormResponse.java
+/Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/dto/response/FieldMasterHistoryResponse.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/dto/response/FieldMasterResponse.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/dto/response/FormVersionResponse.java
+/Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/dto/response/OfficeResponse.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/dto/response/PublicVerifyResponse.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/dto/response/SemesterResponse.java
+/Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/dto/response/UserResponse.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/dto/response/WorkflowDetailResponse.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/dto/response/WorkflowQueueItemResponse.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/enu/FieldDataType.java
@@ -70,8 +76,10 @@
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/model/Criteria.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/model/Department.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/model/FieldMaster.java
+/Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/model/FieldMasterHistory.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/model/FormVersion.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/model/Notification.java
+/Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/model/Office.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/model/ScoreForm.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/model/ScoreFormDetail.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/model/Semester.java
@@ -90,11 +98,15 @@
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/service/EditorService.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/service/FieldMasterService.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/service/FormVersionService.java
+/Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/service/LocalFileSystemStorageService.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/service/NotificationService.java
+/Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/service/OfficeService.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/service/PublicVerifyService.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/service/ReportService.java
+/Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/service/S3StorageService.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/service/SemesterService.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/service/StorageService.java
+/Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/service/UpdatePasswordRunner.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/service/UserService.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/service/WorkflowBatchHelperService.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/service/WorkflowService.java
@@ -111,6 +123,7 @@
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/service/impl/FieldMasterServiceImpl.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/service/impl/FormVersionServiceImpl.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/service/impl/NotificationServiceImpl.java
+/Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/service/impl/OfficeServiceImpl.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/service/impl/PublicVerifyServiceImpl.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/service/impl/ReportServiceImpl.java
 /Users/thaochie/Library/Mobile Documents/com~apple~CloudDocs/EF_DRL_DEV/eFORM.VJU/backend-springboot/src/main/java/vn/edu/drl/backend/service/impl/SemesterServiceImpl.java

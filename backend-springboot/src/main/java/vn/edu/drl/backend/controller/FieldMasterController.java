@@ -8,8 +8,11 @@ import org.springframework.web.bind.annotation.*;
 import vn.edu.drl.backend.Wrapper.ApiResponse;
 import vn.edu.drl.backend.Wrapper.PageWrapper;
 import vn.edu.drl.backend.dto.request.FieldMasterRequest;
+import vn.edu.drl.backend.dto.response.FieldMasterHistoryResponse;
 import vn.edu.drl.backend.dto.response.FieldMasterResponse;
 import vn.edu.drl.backend.service.FieldMasterService;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/fields")
@@ -28,6 +31,25 @@ public class FieldMasterController {
             @RequestParam(defaultValue = "10") int size) {
         Page<FieldMasterResponse> pageResult = fieldMasterService.getAllFields(PageRequest.of(page, size));
         return ApiResponse.success(new PageWrapper<>(pageResult));
+    }
+
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ApiResponse<FieldMasterResponse> getFieldById(@PathVariable Long id) {
+        try {
+            return ApiResponse.success(fieldMasterService.getFieldById(id));
+        } catch (RuntimeException ex) {
+            if ("NOT_FOUND".equals(ex.getMessage())) {
+                return ApiResponse.error("NOT_FOUND", "Không tìm thấy dữ liệu");
+            }
+            throw ex;
+        }
+    }
+
+    @GetMapping("/{id}/versions")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ApiResponse<List<FieldMasterHistoryResponse>> getFieldVersions(@PathVariable Long id) {
+        return ApiResponse.success(fieldMasterService.getFieldHistories(id));
     }
 
     @PostMapping
@@ -59,7 +81,7 @@ public class FieldMasterController {
         try {
             return ApiResponse.success(fieldMasterService.toggleStatus(id));
         } catch (RuntimeException ex) {
-            if (ex.getMessage().equals("NOT_FOUND")) return ApiResponse.error("NOT_FOUND", "Không tìm thấy dữ liệu");
+            if ("NOT_FOUND".equals(ex.getMessage())) return ApiResponse.error("NOT_FOUND", "Không tìm thấy dữ liệu");
             throw ex;
         }
     }

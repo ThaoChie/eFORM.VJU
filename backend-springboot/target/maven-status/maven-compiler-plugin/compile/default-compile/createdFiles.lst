@@ -27,7 +27,6 @@ vn/edu/drl/backend/dao/ClassRepository.class
 vn/edu/drl/backend/service/WorkflowService.class
 vn/edu/drl/backend/service/CriteriaService.class
 vn/edu/drl/backend/dto/response/EditorFormResponse$EditorFormDetailResponse.class
-vn/edu/drl/backend/config/WebConfig.class
 vn/edu/drl/backend/dto/request/ClassApproveRequest.class
 vn/edu/drl/backend/dto/request/DeanApproveBatchRequest.class
 vn/edu/drl/backend/enu/SignOrder.class

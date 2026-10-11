@@ -101,7 +101,7 @@ export default function FieldCodeListPage() {
     { key: "name", title: "Tên trường", render: (r) => r.fieldName },
     { key: "category", title: "Nhóm trường", render: (r) => r.category || "COMMON" },
     { key: "type", title: "Kiểu dữ liệu", render: (r) => r.dataType },
-    { key: "version", title: "Phiên bản", render: (r) => r.version || "1.0" },
+    { key: "version", title: "Phiên bản", render: (r) => <span className="font-mono font-medium text-slate-700">v{r.version || "1.0"}</span> },
     { key: "status", title: "Trạng thái hiệu lực", render: (r) => {
         // Mocking statuses for UI demonstration since DB only has isActive
         let statusText = r.isActive ? "Đang hiệu lực" : "Vô hiệu hóa";

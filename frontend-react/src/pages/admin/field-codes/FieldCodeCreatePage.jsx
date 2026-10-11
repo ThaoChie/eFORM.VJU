@@ -35,8 +35,13 @@ export default function FieldCodeCreatePage() {
     if (isEdit) {
       const loadField = async () => {
         try {
-          const res = await client.get("/fields", { params: { page: 0, size: 100 } });
-          const item = res.content?.find(x => x.id === Number(id));
+          let item = null;
+          try {
+            item = await client.get(`/fields/${id}`);
+          } catch (err) {
+            const res = await client.get("/fields", { params: { page: 0, size: 100 } });
+            item = res.content?.find(x => x.id === Number(id));
+          }
           if (item) {
             setForm({
               fieldCode: item.fieldCode || "",
