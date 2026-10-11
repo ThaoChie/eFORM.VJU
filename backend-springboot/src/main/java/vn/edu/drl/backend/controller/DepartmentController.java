@@ -21,6 +21,19 @@ public class DepartmentController {
     public ApiResponse<?> create(@Valid @RequestBody DepartmentRequest req) {
         return ApiResponse.success(service.create(req));
     }
+
+    @PutMapping("/{id}")
+    public ApiResponse<?> update(@PathVariable Long id, @RequestBody DepartmentRequest req) {
+        return ApiResponse.success(service.update(id, req));
+    }
+
+    @GetMapping("/template-excel")
+    public org.springframework.http.ResponseEntity<byte[]> downloadTemplate() {
+        byte[] data = service.generateExcelTemplate();
+        return org.springframework.http.ResponseEntity.ok()
+            .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=departments_template.xlsx")
+            .body(data);
+    }
     
     @PostMapping("/import")
     public ApiResponse<?> importExcel(@RequestParam("file") MultipartFile file, 

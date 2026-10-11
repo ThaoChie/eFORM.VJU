@@ -93,6 +93,7 @@ public class UserServiceImpl implements UserService {
                     throw new vn.edu.drl.backend.exception.BusinessException("Mã người dùng '" + req.getUserCode().trim() + "' đã tồn tại trong hệ thống.");
                 }
             });
+            u.setUserCode(req.getUserCode().trim());
         }
         if (req.getEmail() != null && !req.getEmail().trim().isEmpty()) {
             repository.findByEmail(req.getEmail().trim()).ifPresent(existing -> {

@@ -79,40 +79,56 @@ export default function DirectoryPage() {
     </span>
   );
 
-  const actionButtons = (r) => (
-    <div className="flex">
-      {r.status === "Đang hoạt động" && (
-        <IconButton label="Sửa" onClick={() => setForm({ mode: 'edit', ...r })}>
-          <Pencil className="size-4" />
-        </IconButton>
-      )}
-      {r.status === "Đang hoạt động" ? (
-        <IconButton label="Vô hiệu hóa" onClick={async () => {
-          try {
-            const { client } = await import("../../../lib/axios/client");
-            await client.put(`/${active}/${r.id}/toggle-status`);
-            fetchItems(active);
-          } catch (e) {
-            toast.error(e.response?.data?.message || "Không thể vô hiệu hóa");
-          }
-        }}>
-          <CircleOff className="size-4" />
-        </IconButton>
-      ) : (
-        <IconButton label="Kích hoạt" onClick={async () => {
-          try {
-            const { client } = await import("../../../lib/axios/client");
-            await client.put(`/${active}/${r.id}/toggle-status`);
-            fetchItems(active);
-          } catch (e) {
-            toast.error("Lỗi kích hoạt");
-          }
-        }}>
-          <CheckCircle className="size-4 text-green-500" />
-        </IconButton>
-      )}
-    </div>
-  );
+  const actionButtons = (r) => {
+    const isActive = r.status === "Đang hoạt động" || r.status === 1;
+    return (
+      <div className="flex">
+        {isActive && (
+          <IconButton label="Sửa" onClick={() => {
+            if (active === "departments") {
+              setForm({
+                mode: 'edit',
+                id: r.id,
+                deptCode: r.deptCode || r.code,
+                deptName: r.deptName || r.name,
+                deanId: r.deanId,
+                status: r.rawStatus !== undefined ? r.rawStatus : 1,
+              });
+            } else {
+              setForm({ mode: 'edit', ...r });
+            }
+          }}>
+            <Pencil className="size-4" />
+          </IconButton>
+        )}
+        {isActive ? (
+          <IconButton label="Vô hiệu hóa" onClick={async () => {
+            try {
+              const { client } = await import("../../../lib/axios/client");
+              await client.put(`/${active}/${r.id}/toggle-status`);
+              fetchItems(active);
+            } catch (e) {
+              toast.error(e.response?.data?.message || "Không thể vô hiệu hóa");
+            }
+          }}>
+            <CircleOff className="size-4" />
+          </IconButton>
+        ) : (
+          <IconButton label="Kích hoạt" onClick={async () => {
+            try {
+              const { client } = await import("../../../lib/axios/client");
+              await client.put(`/${active}/${r.id}/toggle-status`);
+              fetchItems(active);
+            } catch (e) {
+              toast.error("Lỗi kích hoạt");
+            }
+          }}>
+            <CheckCircle className="size-4 text-green-500" />
+          </IconButton>
+        )}
+      </div>
+    );
+  };
 
   let columns = [];
   let rows = [];
@@ -131,10 +147,13 @@ export default function DirectoryPage() {
       id: item.id,
       code: item.deptCode,
       name: item.deptName,
+      deptCode: item.deptCode,
+      deptName: item.deptName,
       dean: item.deanName || "Chưa chỉ định",
       deanId: item.deanId,
-      classesCount: item.classCount || 0,
+      classesCount: item.classesCount ?? item.classCount ?? 0,
       status: item.status === 1 ? "Đang hoạt động" : "Vô hiệu hóa",
+      rawStatus: item.status,
     }));
   } else if (active === "classes") {
     columns = [
@@ -388,6 +407,107 @@ export default function DirectoryPage() {
     return null;
   };
 
+  const exportToExcel = (visibleColumns, data, fileName) => {
+    let tableHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+    <head>
+      <meta http-equiv="content-type" content="application/vnd.ms-excel; charset=UTF-8"/>
+      <style>
+        table { border-collapse: collapse; font-family: sans-serif; }
+        th { background-color: #0b6bc7; color: #ffffff; border: 1px solid #cccccc; padding: 8px 12px; font-weight: bold; text-align: center; }
+        td { border: 1px solid #cccccc; padding: 6px 10px; text-align: left; }
+      </style>
+    </head>
+    <body>
+      <table>
+        <thead>
+          <tr>
+            ${visibleColumns.map(col => `<th>${col.title.replace(" *", "")}</th>`).join("")}
+          </tr>
+        </thead>
+        <tbody>
+          ${data.map((row, idx) => `
+            <tr>
+              ${visibleColumns.map(col => {
+                let val = "";
+                if (col.key === "stt") val = idx + 1;
+                else if (col.key === "status") val = row.status === 1 || row.status === "Đang hoạt động" ? "Đang hoạt động" : "Vô hiệu hóa";
+                else if (col.key === "code") val = row.code || row.deptCode || row.classCode || row.officeCode || "";
+                else if (col.key === "name") val = row.name || row.deptName || row.className || row.officeName || "";
+                else if (col.key === "dean") val = row.dean || row.deanName || "Chưa chỉ định";
+                else if (col.key === "classesCount") val = row.classesCount ?? row.classCount ?? 0;
+                else if (col.key === "usersCount") val = row.usersCount || 0;
+                else if (col.key === "head") val = row.headName || "Chưa chỉ định";
+                else if (col.key === "userCode") val = row.userCode || row.code || "";
+                else if (col.key === "fullName") val = row.fullName || row.name || "";
+                else if (col.key === "email") val = row.email || "";
+                else if (col.key === "role") val = row.role || "";
+                else if (col.key === "department") val = row.deptName || row.officeName || "";
+                else if (col.key === "academicCohort") val = row.academicCohort || "";
+                else if (col.key === "leader") val = row.leaders?.map(l => l.fullName).join(", ") || "Chưa chỉ định";
+                else if (col.key === "deputy") val = row.deputies?.map(l => l.fullName).join(", ") || "Chưa có";
+                else if (col.key === "studentsCount") val = row.studentCount || 0;
+                else val = row[col.key] ?? "";
+                return `<td>${String(val).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</td>`;
+              }).join("")}
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </body>
+    </html>`;
+
+    const blob = new Blob([tableHtml], { type: "application/vnd.ms-excel;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${fileName}.xls`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportExcel = () => {
+    const visibleCols = columns.filter(c => !hiddenCols[c.key] && c.key !== "action");
+    if (visibleCols.length === 0) {
+      toast.error("Không có cột nào được hiển thị để xuất!");
+      return;
+    }
+    const tabNames = {
+      departments: "Danh_sach_Khoa",
+      offices: "Danh_sach_Phong_ban",
+      classes: "Danh_sach_Lop",
+      users: "Danh_sach_Nguoi_dung"
+    };
+    exportToExcel(visibleCols, rows, tabNames[active] || "Danh_sach");
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      const { client } = await import("../../../lib/axios/client");
+      const pathMap = {
+        classes: "/classes/template-excel",
+        departments: "/departments/template-excel",
+        offices: "/offices/template-excel",
+        users: "/directory/users/template-excel"
+      };
+      const path = pathMap[active] || "/departments/template-excel";
+      const res = await client.get(path, { responseType: 'blob' });
+      const blob = new Blob([res], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${active}_template.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      toast.success("Tải file mẫu thành công!");
+    } catch (e) {
+      toast.error("Không thể tải file mẫu");
+    }
+  };
+
   const renderToolbar = () => {
     if (active === "classes" || active === "departments" || active === "users" || active === "offices") {
       return (
@@ -395,15 +515,10 @@ export default function DirectoryPage() {
           <Button onClick={() => setColConfig(true)}>
             <Settings className="size-4" /> Cấu hình cột
           </Button>
-          <Button onClick={() => {
-            const urls = {
-              classes: "http://localhost:8080/api/v1/classes/template-excel",
-              departments: "http://localhost:8080/api/v1/departments/template-excel",
-              offices: "http://localhost:8080/api/v1/offices/template-excel",
-              users: "http://localhost:8080/api/v1/directory/users/template-excel"
-            };
-            window.open(urls[active] || urls.users, "_blank");
-          }}>
+          <Button onClick={handleExportExcel}>
+            <Download className="size-4" /> Xuất Excel
+          </Button>
+          <Button onClick={handleDownloadTemplate}>
             <Download className="size-4" /> Tải file mẫu
           </Button>
           <Button onClick={() => {
@@ -420,13 +535,23 @@ export default function DirectoryPage() {
           }}>
             <Upload className="size-4" /> Nhập từ Excel
           </Button>
-          {active === "classes" ? <Button variant="primary" onClick={() => setClassForm({ mode: 'create', deptId: "", classCode: "", className: "", academicCohort: "", leaderIds: [], deputyIds: [], status: 1 })}>
-            <Plus className="size-4" /> Thêm mới
-          </Button> : active === "users" ? <Button variant="primary" onClick={() => setForm({ mode: 'create', role: 'STUDENT', status: 1 })}>
-            <Plus className="size-4" /> Thêm mới
-          </Button> : <Button variant="primary" onClick={() => setForm({ mode: 'create' })}>
-            <Plus className="size-4" /> Thêm mới
-          </Button>}
+          {active === "classes" ? (
+            <Button variant="primary" onClick={() => setClassForm({ mode: 'create', deptId: "", classCode: "", className: "", academicCohort: "", leaderIds: [], deputyIds: [], status: 1 })}>
+              <Plus className="size-4" /> Thêm mới
+            </Button>
+          ) : active === "users" ? (
+            <Button variant="primary" onClick={() => setForm({ mode: 'create', role: 'STUDENT', status: 1 })}>
+              <Plus className="size-4" /> Thêm mới
+            </Button>
+          ) : active === "departments" ? (
+            <Button variant="primary" onClick={() => setForm({ mode: 'create', deptCode: "", deptName: "", deanId: null, status: 1 })}>
+              <Plus className="size-4" /> Thêm mới
+            </Button>
+          ) : (
+            <Button variant="primary" onClick={() => setForm({ mode: 'create' })}>
+              <Plus className="size-4" /> Thêm mới
+            </Button>
+          )}
         </div>
       );
     }
@@ -529,43 +654,96 @@ export default function DirectoryPage() {
         </Modal>
       )}
     
-      {active === "departments" && form && (
-        <Modal open={true} title={form.mode === 'edit' ? "Chỉnh sửa Khoa" : "Thêm mới Khoa"} onClose={() => setForm(false)} footer={
-          <>
-            <Button onClick={() => setForm(false)}>Hủy</Button>
-            <Button variant="primary" onClick={async () => {
-              try {
-                const { client } = await import("../../../lib/axios/client");
-                if (!form.deptCode || !form.deptName) return toast.error("Vui lòng nhập đủ mã và tên khoa");
-                if (form.mode === 'create') {
-                  await client.post("/departments", form);
-                  toast.success("Tạo Khoa thành công!");
-                } else {
-                  await client.put(`/departments/${form.id}`, form);
-                  toast.success("Cập nhật Khoa thành công!");
-                }
-                setForm(false);
-                fetchItems(active);
-              } catch (e) {
-                toast.error(e.response?.data?.message || "Lỗi xử lý Khoa");
-              }
-            }}>Lưu</Button>
-          </>
-        }>
-          <div className="space-y-4">
-            <Input label="Mã khoa *" placeholder="Nhập mã khoa" value={form.deptCode || form.code || ""} onChange={e => setForm({...form, deptCode: e.target.value})} disabled={form.mode === 'edit'} />
-            <Input label="Tên khoa *" placeholder="Nhập tên khoa" value={form.deptName || form.name || ""} onChange={e => setForm({...form, deptName: e.target.value})} />
-            <Select label="Trưởng khoa" value={form.deanId || ""} onChange={e => setForm({...form, deanId: e.target.value ? Number(e.target.value) : null})}>
-              <option value="">Chưa chỉ định</option>
-              {deans.map(d => <option key={d.id} value={d.id}>{d.fullName}</option>)}
-            </Select>
-            <Select label="Trạng thái" value={form.status !== undefined ? form.status : (form.statusStr === 'Vô hiệu hóa' ? 0 : 1)} onChange={e => setForm({...form, status: Number(e.target.value)})}>
-              <option value={1}>Đang hoạt động</option>
-              <option value={0}>Vô hiệu hóa</option>
-            </Select>
-          </div>
-        </Modal>
-      )}
+      {active === "departments" && form && (() => {
+        const deanOptions = [
+          { value: null, label: "-- Chưa chỉ định --" },
+          ...deans.map(d => ({
+            value: d.id,
+            label: `${d.fullName} - ${d.userCode || d.email || ('ID: ' + d.id)}`
+          }))
+        ];
+        const selectedDean = deanOptions.find(opt => opt.value === form.deanId) || null;
+
+        return (
+          <Modal 
+            open={true} 
+            title={form.mode === 'edit' ? "Chỉnh sửa Khoa" : "Thêm mới Khoa"} 
+            onClose={() => setForm(false)} 
+            footer={
+              <>
+                <Button onClick={() => setForm(false)}>Hủy</Button>
+                <Button variant="primary" onClick={async () => {
+                  try {
+                    const { client } = await import("../../../lib/axios/client");
+                    const code = form.deptCode || form.code;
+                    const name = form.deptName || form.name;
+                    if (!name?.trim()) return toast.error("Vui lòng nhập tên khoa");
+                    if (form.mode === 'create' && !code?.trim()) return toast.error("Vui lòng nhập mã khoa");
+
+                    const payload = {
+                      deptCode: code?.trim(),
+                      deptName: name?.trim(),
+                      deanId: form.deanId || null,
+                      status: form.status !== undefined ? Number(form.status) : 1
+                    };
+
+                    if (form.mode === 'create') {
+                      await client.post("/departments", payload);
+                      toast.success("Tạo Khoa thành công!");
+                    } else {
+                      await client.put(`/departments/${form.id}`, payload);
+                      toast.success("Cập nhật Khoa thành công!");
+                    }
+                    setForm(false);
+                    fetchItems(active);
+                  } catch (e) {
+                    toast.error(e.response?.data?.message || "Lỗi xử lý Khoa");
+                  }
+                }}>Lưu</Button>
+              </>
+            }
+          >
+            <div className="space-y-4">
+              <Input 
+                label={form.mode === 'edit' ? "Mã khoa" : "Mã khoa *"} 
+                placeholder="Nhập mã khoa" 
+                value={form.deptCode || form.code || ""} 
+                onChange={e => setForm({...form, deptCode: e.target.value})} 
+                disabled={form.mode === 'edit'} 
+              />
+              <Input 
+                label="Tên khoa *" 
+                placeholder="Nhập tên khoa" 
+                value={form.deptName || form.name || ""} 
+                onChange={e => setForm({...form, deptName: e.target.value})} 
+              />
+              <div className="z-20 relative">
+                <label className="mb-1 block text-sm font-medium">Trưởng Khoa</label>
+                <ReactSelect
+                  isClearable
+                  isSearchable
+                  options={deanOptions}
+                  value={selectedDean}
+                  onChange={(selected) => setForm({ ...form, deanId: selected ? selected.value : null })}
+                  placeholder="Tìm kiếm và chọn Trưởng khoa..."
+                  noOptionsMessage={() => "Không tìm thấy trưởng khoa nào"}
+                  styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
+                  menuPortalTarget={document.body}
+                  menuPosition="fixed"
+                />
+              </div>
+              <Select 
+                label="Trạng thái" 
+                value={form.status !== undefined ? form.status : (form.statusStr === 'Vô hiệu hóa' ? 0 : 1)} 
+                onChange={e => setForm({...form, status: Number(e.target.value)})}
+              >
+                <option value={1}>Đang hoạt động</option>
+                <option value={0}>Vô hiệu hóa</option>
+              </Select>
+            </div>
+          </Modal>
+        );
+      })()}
     
 
       <Modal open={colConfig} title="Cấu hình cột hiển thị" onClose={() => setColConfig(false)} footer={<Button variant="primary" onClick={() => setColConfig(false)}>Xong</Button>}>
@@ -759,7 +937,7 @@ export default function DirectoryPage() {
           <>
             <Button onClick={() => setForm(false)}>Hủy</Button>
             <Button variant="primary" onClick={async () => {
-              if (!form.userCode || !form.fullName || !form.email) return toast.error("Vui lòng nhập đủ Mã, Tên và Email");
+              if (!form.fullName?.trim() || !form.email?.trim()) return toast.error("Vui lòng nhập tên người dùng và email");
               try {
                 const { client } = await import("../../../lib/axios/client");
                 if (form.mode === 'create') {
@@ -778,7 +956,7 @@ export default function DirectoryPage() {
           </>
         }>
           <div className="space-y-4">
-            <Input label="Mã người dùng *" value={form.userCode || ""} onChange={e => setForm({...form, userCode: e.target.value})} disabled={form.mode === 'edit'} />
+            <Input label={form.mode === 'edit' ? "Mã người dùng" : "Mã người dùng"} value={form.userCode || ""} onChange={e => setForm({...form, userCode: e.target.value})} disabled={form.mode === 'edit'} />
             <Input label="Họ và tên *" value={form.fullName || ""} onChange={e => setForm({...form, fullName: e.target.value})} />
             <Input label="Email *" value={form.email || ""} onChange={e => setForm({...form, email: e.target.value})} />
             

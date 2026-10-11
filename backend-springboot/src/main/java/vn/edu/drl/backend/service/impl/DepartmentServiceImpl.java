@@ -48,10 +48,71 @@ public class DepartmentServiceImpl implements DepartmentService {
     
     @Transactional
     public Department create(DepartmentRequest req) {
+        if (repository.findByDeptCode(req.getDeptCode()).isPresent()) {
+            throw new vn.edu.drl.backend.exception.BusinessException("Mã Khoa đã tồn tại");
+        }
         Department d = new Department();
         d.setDeptCode(req.getDeptCode());
         d.setDeptName(req.getDeptName());
-        return repository.save(d);
+        d.setStatus(req.getStatus() != null ? req.getStatus() : 1);
+        Department saved = repository.save(d);
+        if (req.getDeanId() != null) {
+            userRepository.findById(req.getDeanId()).ifPresent(dean -> {
+                dean.setDepartment(saved);
+                userRepository.save(dean);
+            });
+        }
+        return saved;
+    }
+
+    @Transactional
+    public Department update(Long id, DepartmentRequest req) {
+        Department d = repository.findById(id).orElseThrow(() -> new vn.edu.drl.backend.exception.BusinessException("Không tìm thấy khoa"));
+        d.setDeptName(req.getDeptName());
+        if (req.getStatus() != null) {
+            d.setStatus(req.getStatus());
+        }
+        Department saved = repository.save(d);
+
+        // Update dean assignment
+        User currentDean = userRepository.findFirstByDepartmentIdAndRole(saved.getId(), vn.edu.drl.backend.enu.Role.DEAN).orElse(null);
+        if (req.getDeanId() != null) {
+            if (currentDean == null || !currentDean.getId().equals(req.getDeanId())) {
+                if (currentDean != null) {
+                    currentDean.setDepartment(null);
+                    userRepository.save(currentDean);
+                }
+                userRepository.findById(req.getDeanId()).ifPresent(newDean -> {
+                    newDean.setDepartment(saved);
+                    userRepository.save(newDean);
+                });
+            }
+        } else {
+            if (currentDean != null) {
+                currentDean.setDepartment(null);
+                userRepository.save(currentDean);
+            }
+        }
+
+        return saved;
+    }
+
+    public byte[] generateExcelTemplate() {
+        try (Workbook workbook = new XSSFWorkbook(); java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("Khoa");
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("Mã Khoa *");
+            header.createCell(1).setCellValue("Tên Khoa *");
+
+            Row sample = sheet.createRow(1);
+            sample.createCell(0).setCellValue("CNTT");
+            sample.createCell(1).setCellValue("Khoa Công nghệ Thông tin");
+
+            workbook.write(out);
+            return out.toByteArray();
+        } catch (Exception e) {
+            throw new RuntimeException("Lỗi tạo template Excel: " + e.getMessage());
+        }
     }
     
     @Transactional
