@@ -7,13 +7,17 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import vn.edu.drl.backend.dao.CriteriaRepository;
+import vn.edu.drl.backend.dao.FieldMasterHistoryRepository;
 import vn.edu.drl.backend.dao.FieldMasterRepository;
 import vn.edu.drl.backend.dto.request.FieldMasterRequest;
 import vn.edu.drl.backend.dto.response.FieldMasterResponse;
 import vn.edu.drl.backend.enu.FieldDataType;
 import vn.edu.drl.backend.model.FieldMaster;
+import vn.edu.drl.backend.model.FieldMasterHistory;
+import vn.edu.drl.backend.service.impl.FieldMasterServiceImpl;
 
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -29,8 +33,11 @@ class FieldMasterServiceTest {
     @Mock
     private CriteriaRepository criteriaRepository;
 
+    @Mock
+    private FieldMasterHistoryRepository fieldMasterHistoryRepository;
+
     @InjectMocks
-    private FieldMasterService fieldMasterService;
+    private FieldMasterServiceImpl fieldMasterService;
 
     private FieldMasterRequest validRequest;
     private FieldMaster mockField;
@@ -50,18 +57,25 @@ class FieldMasterServiceTest {
         mockField.setFieldName("Test Field");
         mockField.setDataType(FieldDataType.NUMBER);
         mockField.setIsActive(true);
+        mockField.setVersion("1.0");
     }
 
     @Test
     void createField_Success() {
         when(fieldMasterRepository.existsByFieldCode("test_field")).thenReturn(false);
-        when(fieldMasterRepository.save(any(FieldMaster.class))).thenReturn(mockField);
+        when(fieldMasterRepository.save(any(FieldMaster.class))).thenAnswer(inv -> {
+            FieldMaster f = inv.getArgument(0);
+            f.setId(1L);
+            return f;
+        });
 
         FieldMasterResponse response = fieldMasterService.createField(validRequest);
 
         assertNotNull(response);
         assertEquals("test_field", response.getFieldCode());
+        assertEquals("1.0", response.getVersion());
         verify(fieldMasterRepository, times(1)).save(any(FieldMaster.class));
+        verify(fieldMasterHistoryRepository, times(1)).save(any(FieldMasterHistory.class));
     }
 
     @Test
@@ -90,14 +104,17 @@ class FieldMasterServiceTest {
     }
 
     @Test
-    void updateField_Success() {
+    void updateField_Success_IncrementsVersion() {
         when(fieldMasterRepository.findById(1L)).thenReturn(Optional.of(mockField));
-        when(fieldMasterRepository.save(any(FieldMaster.class))).thenReturn(mockField);
+        when(fieldMasterRepository.save(any(FieldMaster.class))).thenAnswer(inv -> inv.getArgument(0));
 
         FieldMasterResponse response = fieldMasterService.updateField(1L, validRequest);
 
         assertNotNull(response);
+        assertEquals("1.1", response.getVersion());
+        assertNotNull(response.getUpdatedAt());
         verify(fieldMasterRepository, times(1)).save(any(FieldMaster.class));
+        verify(fieldMasterHistoryRepository, atLeastOnce()).save(any(FieldMasterHistory.class));
     }
 
     @Test
@@ -122,5 +139,16 @@ class FieldMasterServiceTest {
 
         assertFalse(response.getIsActive()); // Original was true, should be toggled to false
         verify(fieldMasterRepository, times(1)).save(any(FieldMaster.class));
+    }
+
+    @Test
+    void getFieldById_Success() {
+        when(fieldMasterRepository.findById(1L)).thenReturn(Optional.of(mockField));
+
+        FieldMasterResponse response = fieldMasterService.getFieldById(1L);
+
+        assertNotNull(response);
+        assertEquals(1L, response.getId());
+        assertEquals("1.0", response.getVersion());
     }
 }
