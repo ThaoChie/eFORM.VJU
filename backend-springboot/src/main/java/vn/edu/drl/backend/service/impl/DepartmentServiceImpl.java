@@ -97,17 +97,21 @@ public class DepartmentServiceImpl implements DepartmentService {
         int validRows = 0;
         int invalidRows = 0;
         
-        try (InputStream is = file.getInputStream(); Workbook workbook = new XSSFWorkbook(is)) {
+        List<Department> listToSave = new ArrayList<>();
+        DataFormatter formatter = new DataFormatter();
+        java.util.Set<String> seenDeptCodes = new java.util.HashSet<>();
+
+        try (InputStream is = file.getInputStream(); Workbook workbook = WorkbookFactory.create(is)) {
             Sheet sheet = workbook.getSheetAt(0);
-            List<Department> listToSave = new ArrayList<>();
             
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
-                if (row == null) continue;
+                if (isRowEmpty(row, formatter)) continue;
                 
                 try {
-                    String code = getCellString(row.getCell(0));
-                    String name = getCellString(row.getCell(1));
+                    String code = getCellString(formatter, row.getCell(0));
+                    String name = getCellString(formatter, row.getCell(1));
+                    String statusStr = row.getLastCellNum() > 2 ? getCellString(formatter, row.getCell(2)) : "";
                     
                     if (code.isEmpty()) {
                         errors.add("Dòng " + (i + 1) + ": Mã Khoa không được để trống");
@@ -119,42 +123,64 @@ public class DepartmentServiceImpl implements DepartmentService {
                         invalidRows++;
                         continue;
                     }
-                    
-                    if (repository.findByDeptCode(code).isPresent()) {
-                        errors.add("Dòng " + (i + 1) + ": Mã Khoa đã tồn tại");
+                    if (code.length() > 50) {
+                        errors.add("Dòng " + (i + 1) + ": Mã Khoa không được vượt quá 50 ký tự");
                         invalidRows++;
                         continue;
                     }
+                    if (seenDeptCodes.contains(code.toLowerCase())) {
+                        errors.add("Dòng " + (i + 1) + ": Mã Khoa '" + code + "' bị trùng lặp trong file");
+                        invalidRows++;
+                        continue;
+                    }
+                    if (repository.findByDeptCode(code).isPresent()) {
+                        errors.add("Dòng " + (i + 1) + ": Mã Khoa '" + code + "' đã tồn tại trong hệ thống");
+                        invalidRows++;
+                        continue;
+                    }
+
+                    seenDeptCodes.add(code.toLowerCase());
                     
                     Department d = new Department();
                     d.setDeptCode(code);
                     d.setDeptName(name);
+                    d.setStatus("0".equals(statusStr) || "Vô hiệu hóa".equalsIgnoreCase(statusStr) ? 0 : 1);
                     listToSave.add(d);
                     validRows++;
                 } catch (Exception ex) {
-                    errors.add("Dòng " + (i + 1) + ": Format error - " + ex.getMessage());
+                    errors.add("Dòng " + (i + 1) + ": Lỗi định dạng - " + ex.getMessage());
                     invalidRows++;
                 }
             }
-            
-            if (!preview && !listToSave.isEmpty()) {
-                repository.saveAll(listToSave);
-            }
-            
-            result.put("validRows", validRows);
-            result.put("invalidRows", invalidRows);
-            result.put("errors", errors);
-            return result;
         } catch (Exception e) {
-            throw new RuntimeException("Failed to parse Excel file", e);
+            throw new RuntimeException("Lỗi đọc file Excel: " + e.getMessage(), e);
         }
+
+        if (!preview && !listToSave.isEmpty()) {
+            repository.saveAll(listToSave);
+        }
+        
+        result.put("validRows", validRows);
+        result.put("invalidRows", invalidRows);
+        result.put("errors", errors);
+        return result;
     }
     
-    private String getCellString(Cell cell) {
+    private boolean isRowEmpty(Row row, DataFormatter formatter) {
+        if (row == null) return true;
+        for (int c = row.getFirstCellNum(); c < row.getLastCellNum(); c++) {
+            Cell cell = row.getCell(c);
+            if (cell != null && cell.getCellType() != CellType.BLANK) {
+                String val = formatter.formatCellValue(cell).trim();
+                if (!val.isEmpty()) return false;
+            }
+        }
+        return true;
+    }
+
+    private String getCellString(DataFormatter formatter, Cell cell) {
         if (cell == null) return "";
-        if (cell.getCellType() == CellType.STRING) return cell.getStringCellValue();
-        if (cell.getCellType() == CellType.NUMERIC) return String.valueOf((long)cell.getNumericCellValue());
-        return "";
+        return formatter.formatCellValue(cell).trim();
     }
 
     @Transactional

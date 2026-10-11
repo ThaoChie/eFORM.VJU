@@ -26,7 +26,7 @@ export const directoryService = {
   importClasses: async (file, preview = true) => {
     const formData = new FormData();
     formData.append("file", file);
-    return await client.post(`/classes/import?preview=${preview}`, formData, {
+    return await client.post(`/classes/import?preview=${preview}&dryRun=${preview}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
   },
@@ -34,6 +34,15 @@ export const directoryService = {
     const formData = new FormData();
     formData.append("file", file);
     return await client.post(`/departments/import?preview=${preview}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+  },
+  importUsers: async (file, preview = true) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return await client.post(`/directory/users/import?preview=${preview}`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }

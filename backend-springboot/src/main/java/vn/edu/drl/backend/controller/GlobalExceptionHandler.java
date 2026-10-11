@@ -61,6 +61,6 @@ public class GlobalExceptionHandler {
         if (message != null && message.contains("422")) {
             return new ResponseEntity<>(ApiResponse.error("INVALID_TRANSITION", message), HttpStatus.UNPROCESSABLE_ENTITY);
         }
-        return new ResponseEntity<>(ApiResponse.error("INTERNAL_ERROR", "Lỗi máy chủ nội bộ"), HttpStatus.INTERNAL_SERVER_ERROR);
+        return new ResponseEntity<>(ApiResponse.error("INTERNAL_ERROR", "Lỗi máy chủ nội bộ" + (message != null && !message.isEmpty() ? ": " + message : "")), HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }

@@ -168,29 +168,58 @@ public class OfficeServiceImpl implements OfficeService {
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional
     public Map<String, Object> importFromExcel(MultipartFile file, boolean preview) {
         Map<String, Object> result = new HashMap<>();
         List<String> errors = new ArrayList<>();
         int validRows = 0;
         int invalidRows = 0;
 
-        try (InputStream is = file.getInputStream(); Workbook workbook = new XSSFWorkbook(is)) {
+        List<Office> toSave = new ArrayList<>();
+        Map<String, String> headAssignments = new HashMap<>();
+        DataFormatter formatter = new DataFormatter();
+        Set<String> seenCodesInFile = new HashSet<>();
+
+        try (InputStream is = file.getInputStream(); Workbook workbook = WorkbookFactory.create(is)) {
             Sheet sheet = workbook.getSheetAt(0);
-            List<Office> toSave = new ArrayList<>();
 
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
-                if (row == null) continue;
+                if (isRowEmpty(row, formatter)) continue;
 
                 try {
-                    String code = getCellString(row.getCell(0));
-                    String name = getCellString(row.getCell(1));
-                    String headCode = getCellString(row.getCell(2));
-                    String statusStr = getCellString(row.getCell(3));
+                    String code = getCellString(formatter, row.getCell(0));
+                    String name = getCellString(formatter, row.getCell(1));
+                    String headCode = getCellString(formatter, row.getCell(2));
+                    String statusStr = getCellString(formatter, row.getCell(3));
 
-                    if (code.isEmpty()) { errors.add("Dòng " + (i + 1) + ": Mã phòng ban không được để trống"); invalidRows++; continue; }
-                    if (name.isEmpty()) { errors.add("Dòng " + (i + 1) + ": Tên phòng ban không được để trống"); invalidRows++; continue; }
-                    if (repository.findByOfficeCode(code).isPresent()) { errors.add("Dòng " + (i + 1) + ": Mã phòng ban '" + code + "' đã tồn tại"); invalidRows++; continue; }
+                    if (code.isEmpty()) {
+                        errors.add("Dòng " + (i + 1) + ": Mã phòng ban không được để trống");
+                        invalidRows++;
+                        continue;
+                    }
+                    if (name.isEmpty()) {
+                        errors.add("Dòng " + (i + 1) + ": Tên phòng ban không được để trống");
+                        invalidRows++;
+                        continue;
+                    }
+                    if (code.length() > 50) {
+                        errors.add("Dòng " + (i + 1) + ": Mã phòng ban không được vượt quá 50 ký tự");
+                        invalidRows++;
+                        continue;
+                    }
+                    if (seenCodesInFile.contains(code.toLowerCase())) {
+                        errors.add("Dòng " + (i + 1) + ": Mã phòng ban '" + code + "' bị trùng lặp trong file");
+                        invalidRows++;
+                        continue;
+                    }
+                    if (repository.findByOfficeCode(code).isPresent()) {
+                        errors.add("Dòng " + (i + 1) + ": Mã phòng ban '" + code + "' đã tồn tại trong hệ thống");
+                        invalidRows++;
+                        continue;
+                    }
+
+                    seenCodesInFile.add(code.toLowerCase());
 
                     Office o = new Office();
                     o.setOfficeCode(code);
@@ -198,10 +227,8 @@ public class OfficeServiceImpl implements OfficeService {
                     o.setStatus("0".equals(statusStr) || "Vô hiệu hóa".equalsIgnoreCase(statusStr) ? 0 : 1);
                     toSave.add(o);
 
-                    // Store head association after save
-                    if (!preview && !headCode.isEmpty()) {
-                        final String finalCode = code;
-                        userRepository.findByUserCode(headCode).ifPresent(u -> u.setPositionTitle(finalCode));
+                    if (!headCode.isEmpty()) {
+                        headAssignments.put(code, headCode);
                     }
                     validRows++;
                 } catch (Exception ex) {
@@ -209,28 +236,42 @@ public class OfficeServiceImpl implements OfficeService {
                     invalidRows++;
                 }
             }
-
-            if (!preview && !toSave.isEmpty()) {
-                repository.saveAll(toSave);
-                // Re-process head assignments
-                for (Office o : toSave) {
-                    // find any user with positionTitle set to this code and update after save
-                }
-            }
-
-            result.put("validRows", validRows);
-            result.put("invalidRows", invalidRows);
-            result.put("errors", errors);
-            return result;
         } catch (Exception e) {
-            throw new RuntimeException("Lỗi đọc file Excel", e);
+            throw new RuntimeException("Lỗi đọc file Excel: " + e.getMessage(), e);
         }
+
+        if (!preview && !toSave.isEmpty()) {
+            repository.saveAll(toSave);
+            for (Map.Entry<String, String> entry : headAssignments.entrySet()) {
+                String officeCode = entry.getKey();
+                String headCode = entry.getValue();
+                userRepository.findByUserCode(headCode).ifPresent(u -> {
+                    u.setPositionTitle(officeCode);
+                    userRepository.save(u);
+                });
+            }
+        }
+
+        result.put("validRows", validRows);
+        result.put("invalidRows", invalidRows);
+        result.put("errors", errors);
+        return result;
     }
 
-    private String getCellString(Cell cell) {
+    private boolean isRowEmpty(Row row, DataFormatter formatter) {
+        if (row == null) return true;
+        for (int c = row.getFirstCellNum(); c < row.getLastCellNum(); c++) {
+            Cell cell = row.getCell(c);
+            if (cell != null && cell.getCellType() != CellType.BLANK) {
+                String val = formatter.formatCellValue(cell).trim();
+                if (!val.isEmpty()) return false;
+            }
+        }
+        return true;
+    }
+
+    private String getCellString(DataFormatter formatter, Cell cell) {
         if (cell == null) return "";
-        if (cell.getCellType() == CellType.STRING) return cell.getStringCellValue().trim();
-        if (cell.getCellType() == CellType.NUMERIC) return String.valueOf((long) cell.getNumericCellValue());
-        return "";
+        return formatter.formatCellValue(cell).trim();
     }
 }
