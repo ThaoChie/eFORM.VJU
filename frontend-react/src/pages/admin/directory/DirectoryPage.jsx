@@ -529,7 +529,7 @@ export default function DirectoryPage() {
             };
             input.click();
           }}>
-            <Upload className="size-4" /> Nhập từ Excel
+            <Upload className="size-4" /> Thêm mới theo lô
           </Button>
           {active === "classes" ? (
             <Button variant="primary" onClick={() => setClassForm({ mode: 'create', deptId: "", classCode: "", className: "", academicCohort: "", leaderIds: [], deputyIds: [], status: 1 })}>
@@ -751,7 +751,7 @@ export default function DirectoryPage() {
         </div>
       </Modal>
 
-      <Modal open={importExcel} wide={importData !== null} title="Nhập dữ liệu từ Excel" onClose={() => { setImportExcel(false); setImportData(null); setSelectedFile(null); }} footer={
+      <Modal open={importExcel} wide={importData !== null} title="Thêm mới theo lô (Nhập từ Excel)" onClose={() => { setImportExcel(false); setImportData(null); setSelectedFile(null); }} footer={
           <>
             <Button onClick={() => { setImportExcel(false); setImportData(null); setSelectedFile(null); }}>Hủy</Button>
             {importData ? (
