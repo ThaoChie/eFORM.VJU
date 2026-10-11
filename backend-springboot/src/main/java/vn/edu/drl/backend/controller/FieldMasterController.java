@@ -53,7 +53,7 @@ public class FieldMasterController {
         }
     }
 
-    @PatchMapping("/{id}/toggle-status")
+    @RequestMapping(value = "/{id}/toggle-status", method = {RequestMethod.PATCH, RequestMethod.PUT})
     @PreAuthorize("hasAuthority('ADMIN')")
     public ApiResponse<FieldMasterResponse> toggleStatus(@PathVariable Long id) {
         try {

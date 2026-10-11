@@ -21,7 +21,7 @@ export default function LoginPage() {
       const user = await login(email, password)
       navigate(homeByRole[user.role] || "/login")
     } catch (err) {
-      setError("Sai email hoặc mật khẩu")
+      setError(err.message || "Lỗi mạng hoặc server không phản hồi")
     }
   }
 
@@ -34,7 +34,7 @@ export default function LoginPage() {
       const user = await login(e, p);
       navigate(homeByRole[user.role] || "/login")
     } catch (err) {
-      setError("Sai email hoặc mật khẩu")
+      setError(err.message || "Lỗi mạng hoặc server không phản hồi")
     }
   }
 

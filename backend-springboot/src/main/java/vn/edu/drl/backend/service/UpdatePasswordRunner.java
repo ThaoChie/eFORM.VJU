@@ -7,7 +7,7 @@ import vn.edu.drl.backend.dao.UserRepository;
 import vn.edu.drl.backend.model.User;
 import java.util.List;
 
-@Component
+// @Component
 public class UpdatePasswordRunner implements CommandLineRunner {
 
     private final UserRepository userRepository;
