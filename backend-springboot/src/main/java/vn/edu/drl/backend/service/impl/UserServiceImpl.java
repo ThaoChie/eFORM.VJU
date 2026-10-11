@@ -77,9 +77,17 @@ public class UserServiceImpl implements UserService {
             deptRepo.findById(req.getEffectiveDeptId()).ifPresent(u::setDepartment);
         }
         if (req.getClassId() != null) {
-            classRepo.findById(req.getClassId()).ifPresent(u::setClassEntity);
+            classRepo.findById(req.getClassId()).ifPresent(c -> {
+                u.setClassEntity(c);
+                if (u.getDepartment() == null && c.getDepartment() != null) {
+                    u.setDepartment(c.getDepartment());
+                }
+                if ((u.getAcademicCohort() == null || u.getAcademicCohort().trim().isEmpty()) && c.getAcademicCohort() != null) {
+                    u.setAcademicCohort(c.getAcademicCohort());
+                }
+            });
         }
-        u.setStatus(1);
+        u.setStatus(req.getStatus() != null ? req.getStatus() : 1);
         User saved = repository.save(u);
         return new UserResponse(saved);
     }
@@ -117,9 +125,20 @@ public class UserServiceImpl implements UserService {
             u.setDepartment(null);
         }
         if (req.getClassId() != null) {
-            classRepo.findById(req.getClassId()).ifPresent(u::setClassEntity);
+            classRepo.findById(req.getClassId()).ifPresent(c -> {
+                u.setClassEntity(c);
+                if (u.getDepartment() == null && c.getDepartment() != null) {
+                    u.setDepartment(c.getDepartment());
+                }
+                if ((u.getAcademicCohort() == null || u.getAcademicCohort().trim().isEmpty()) && c.getAcademicCohort() != null) {
+                    u.setAcademicCohort(c.getAcademicCohort());
+                }
+            });
         } else {
             u.setClassEntity(null);
+        }
+        if (req.getStatus() != null) {
+            u.setStatus(req.getStatus());
         }
         User saved = repository.save(u);
         return new UserResponse(saved);

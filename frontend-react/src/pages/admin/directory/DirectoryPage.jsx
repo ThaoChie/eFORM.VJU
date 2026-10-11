@@ -245,24 +245,30 @@ export default function DirectoryPage() {
         </div>
       )}
     ];
-    rows = items.map(item => ({
-      ...item,
-      departmentId: item.departmentId || item.deptId || (item.department ? item.department.id : null),
-      classId: item.classId || (item.classEntity ? item.classEntity.id : null),
-      officeId: item.officeId || (item.office ? item.office.id : null),
-      userCode: item.userCode || item.code || "",
-      fullName: item.fullName || item.name || "",
-      email: item.email || "",
-      role: item.role || "STUDENT",
-      status: item.status,
-      deptName: item.deptName || (item.department ? item.department.deptName : ""),
-      deptCode: item.deptCode || (item.department ? item.department.deptCode : ""),
-      officeName: item.office ? item.office.officeName : "",
-      officeCode: item.office ? item.office.officeCode : "",
-      className: item.className || (item.classEntity ? item.classEntity.className : ""),
-      classCode: item.classCode || (item.classEntity ? item.classEntity.classCode : ""),
-      academicCohort: item.academicCohort || (item.classEntity ? item.classEntity.academicCohort : "")
-    }));
+    rows = items.map(item => {
+      const cls = classes.find(c => c.id === (item.classId || item.classEntity?.id));
+      const deptId = item.departmentId || item.deptId || (item.department ? item.department.id : (cls ? cls.deptId : null));
+      const cohort = item.academicCohort || (item.classEntity ? item.classEntity.academicCohort : (cls ? cls.academicCohort : ""));
+      return {
+        ...item,
+        departmentId: deptId,
+        deptId: deptId,
+        classId: item.classId || (item.classEntity ? item.classEntity.id : null),
+        officeId: item.officeId || (item.office ? item.office.id : null),
+        userCode: item.userCode || item.code || "",
+        fullName: item.fullName || item.name || "",
+        email: item.email || "",
+        role: item.role || "STUDENT",
+        status: item.status !== undefined ? item.status : 1,
+        deptName: item.deptName || (item.department ? item.department.deptName : (cls ? cls.deptName : "")),
+        deptCode: item.deptCode || (item.department ? item.department.deptCode : (cls ? cls.deptCode : "")),
+        officeName: item.office ? item.office.officeName : "",
+        officeCode: item.office ? item.office.officeCode : "",
+        className: item.className || (item.classEntity ? item.classEntity.className : (cls ? (cls.className || cls.name) : "")),
+        classCode: item.classCode || (item.classEntity ? item.classEntity.classCode : (cls ? (cls.classCode || cls.code) : "")),
+        academicCohort: cohort
+      };
+    });
   } else if (active === "offices") {
     columns = [
       { key: "stt", title: "STT", render: (_, i) => i + 1 },
@@ -942,6 +948,7 @@ export default function DirectoryPage() {
           <>
             <Button onClick={() => setForm(false)}>Hủy</Button>
             <Button variant="primary" onClick={async () => {
+              if (form.mode === 'create' && !form.userCode?.trim()) return toast.error("Vui lòng nhập mã người dùng");
               if (!form.fullName?.trim() || !form.email?.trim()) return toast.error("Vui lòng nhập tên người dùng và email");
               try {
                 const { client } = await import("../../../lib/axios/client");
@@ -961,7 +968,7 @@ export default function DirectoryPage() {
           </>
         }>
           <div className="space-y-4">
-            <Input label={form.mode === 'edit' ? "Mã người dùng" : "Mã người dùng"} value={form.userCode || ""} onChange={e => setForm({...form, userCode: e.target.value})} disabled={form.mode === 'edit'} />
+            <Input label={form.mode === 'edit' ? "Mã người dùng" : "Mã người dùng *"} value={form.userCode || ""} onChange={e => setForm({...form, userCode: e.target.value})} disabled={form.mode === 'edit'} />
             <Input label="Họ và tên *" value={form.fullName || ""} onChange={e => setForm({...form, fullName: e.target.value})} />
             <Input label="Email *" value={form.email || ""} onChange={e => setForm({...form, email: e.target.value})} />
             
@@ -974,14 +981,20 @@ export default function DirectoryPage() {
             </Select>
 
             {["STUDENT", "DEAN", "CLASS_LEADER", "CLASS_DEPUTY"].includes(form.role) && (
-              <Select label="Khoa" value={form.departmentId || form.deptId || ""} onChange={e => setForm({...form, departmentId: Number(e.target.value)})}>
+              <Select label="Khoa" value={form.departmentId || form.deptId || ""} onChange={e => {
+                const val = e.target.value ? Number(e.target.value) : null;
+                setForm({...form, departmentId: val, deptId: val});
+              }}>
                 <option value="">Chọn Khoa...</option>
                 {departments.map(d => <option key={d.id} value={d.id}>{d.deptCode} - {d.deptName}</option>)}
               </Select>
             )}
 
             {form.role === "ADMIN" && (
-              <Select label="Phòng ban" value={form.officeId || ""} onChange={e => setForm({...form, officeId: Number(e.target.value)})}>
+              <Select label="Phòng ban" value={form.officeId || ""} onChange={e => {
+                const val = e.target.value ? Number(e.target.value) : null;
+                setForm({...form, officeId: val});
+              }}>
                 <option value="">Chọn Phòng ban...</option>
                 {offices.map(o => <option key={o.id} value={o.id}>{o.officeCode || o.code} - {o.officeName || o.name}</option>)}
               </Select>
@@ -989,12 +1002,13 @@ export default function DirectoryPage() {
 
             {["STUDENT", "CLASS_LEADER", "CLASS_DEPUTY"].includes(form.role) && (
               <Select label="Lớp" value={form.classId || ""} onChange={e => {
-                const classId = e.target.value ? Number(e.target.value) : "";
+                const classId = e.target.value ? Number(e.target.value) : null;
                 const foundClass = classes.find(c => c.id === classId);
                 setForm(prev => ({
                   ...prev,
                   classId,
                   departmentId: foundClass?.deptId || prev.departmentId,
+                  deptId: foundClass?.deptId || prev.deptId,
                   academicCohort: foundClass?.academicCohort || prev.academicCohort
                 }));
               }}>

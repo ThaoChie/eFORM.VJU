@@ -106,6 +106,16 @@ public class UserResponse {
                 this.classCode = c.getClassCode();
                 this.className = c.getClassName();
                 this.classEntity = new ClassDto(c);
+                if (this.deptId == null && c.getDepartment() != null) {
+                    Department d = c.getDepartment();
+                    this.deptId = d.getId();
+                    this.deptCode = d.getDeptCode();
+                    this.deptName = d.getDeptName();
+                    this.department = new DepartmentDto(d);
+                }
+                if ((this.academicCohort == null || this.academicCohort.trim().isEmpty()) && c.getAcademicCohort() != null) {
+                    this.academicCohort = c.getAcademicCohort();
+                }
             }
         } catch (Exception ignored) {}
     }

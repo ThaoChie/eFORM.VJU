@@ -17,6 +17,7 @@ public class UserRequest {
     private Long departmentId;
     private Long classId;
     private String academicCohort;
+    private Integer status;
 
     public Long getEffectiveDeptId() {
         return departmentId != null ? departmentId : deptId;
