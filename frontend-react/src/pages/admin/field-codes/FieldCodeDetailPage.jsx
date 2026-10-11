@@ -174,7 +174,7 @@ export default function FieldCodeDetailPage() {
         }
       />
 
-      <div className="mx-auto max-w-4xl space-y-4">
+      <div className="space-y-4 w-full">
         {/* Version Switcher Bar */}
         <Card className="bg-gradient-to-r from-slate-50 to-white border-line">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -243,29 +243,31 @@ export default function FieldCodeDetailPage() {
               Cập nhật lần cuối: <strong className="text-slate-700">{formatDate(currentSnapshot.createdAt || field.updatedAt || field.createdAt)}</strong>
             </span>
           </div>
-          <div className="grid grid-cols-2 gap-y-4 gap-x-8 text-sm">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-y-4 gap-x-6 text-sm">
             <div>
-              <p className="text-muted mb-1">Mã trường</p>
-              <p className="font-semibold font-mono text-brand">{currentSnapshot.fieldCode}</p>
+              <p className="text-muted mb-1 text-xs">Mã trường</p>
+              <p className="font-semibold font-mono text-brand text-base">{currentSnapshot.fieldCode}</p>
             </div>
             <div>
-              <p className="text-muted mb-1">Tên trường</p>
-              <p className="font-medium text-slate-800">{currentSnapshot.fieldName}</p>
+              <p className="text-muted mb-1 text-xs">Tên trường</p>
+              <p className="font-medium text-slate-800 text-base">{currentSnapshot.fieldName}</p>
             </div>
             <div>
-              <p className="text-muted mb-1">Nhóm trường</p>
-              <p className="font-medium">{currentSnapshot.category || "COMMON"}</p>
+              <p className="text-muted mb-1 text-xs">Nhóm trường</p>
+              <p className="font-medium text-slate-700">{currentSnapshot.category || "COMMON"}</p>
             </div>
             <div>
-              <p className="text-muted mb-1">Kiểu dữ liệu</p>
-              <p className="font-medium font-mono">{currentSnapshot.dataType}</p>
+              <p className="text-muted mb-1 text-xs">Kiểu dữ liệu</p>
+              <span className="font-mono px-2 py-0.5 bg-slate-100 rounded text-slate-800 font-medium text-xs">
+                {currentSnapshot.dataType}
+              </span>
             </div>
             <div>
-              <p className="text-muted mb-1">Phiên bản</p>
+              <p className="text-muted mb-1 text-xs">Phiên bản</p>
               <p className="font-mono font-semibold text-slate-700">v{currentSnapshot.version || field.version}</p>
             </div>
             <div>
-              <p className="text-muted mb-1">Trạng thái hiệu lực</p>
+              <p className="text-muted mb-1 text-xs">Trạng thái hiệu lực</p>
               <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${currentSnapshot.isActive ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
                 {currentSnapshot.isActive ? "Đang hiệu lực" : "Vô hiệu hóa"}
               </span>
@@ -276,30 +278,30 @@ export default function FieldCodeDetailPage() {
         {/* Quy tắc xác thực */}
         <Card>
           <h2 className="mb-4 font-semibold border-b border-line pb-3 text-slate-800">Quy tắc xác thực</h2>
-          <div className="grid grid-cols-2 gap-y-4 gap-x-8 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-y-4 gap-x-6 text-sm">
             <div>
-              <p className="text-muted mb-1">Bắt buộc nhập</p>
-              <p className="font-medium">{currentSnapshot.isRequired ? "Có" : "Không"}</p>
+              <p className="text-muted mb-1 text-xs">Bắt buộc nhập</p>
+              <p className="font-medium text-slate-800">{currentSnapshot.isRequired ? "Có" : "Không"}</p>
             </div>
             {currentSnapshot.dataType === "NUMBER" && (
               <>
                 <div>
-                  <p className="text-muted mb-1">Giá trị nhỏ nhất</p>
-                  <p className="font-medium">{currentSnapshot.minValue !== null && currentSnapshot.minValue !== undefined ? currentSnapshot.minValue : "Không giới hạn"}</p>
+                  <p className="text-muted mb-1 text-xs">Giá trị nhỏ nhất</p>
+                  <p className="font-medium text-slate-800">{currentSnapshot.minValue !== null && currentSnapshot.minValue !== undefined ? currentSnapshot.minValue : "Không giới hạn"}</p>
                 </div>
                 <div>
-                  <p className="text-muted mb-1">Giá trị lớn nhất</p>
-                  <p className="font-medium">{currentSnapshot.maxValue !== null && currentSnapshot.maxValue !== undefined ? currentSnapshot.maxValue : "Không giới hạn"}</p>
+                  <p className="text-muted mb-1 text-xs">Giá trị lớn nhất</p>
+                  <p className="font-medium text-slate-800">{currentSnapshot.maxValue !== null && currentSnapshot.maxValue !== undefined ? currentSnapshot.maxValue : "Không giới hạn"}</p>
                 </div>
               </>
             )}
-            <div className="col-span-2">
-              <p className="text-muted mb-1">Biểu thức chính quy (Regex)</p>
-              <p className="font-mono bg-slate-50 p-2 rounded border border-line text-xs">{currentSnapshot.regexPattern || "Không có"}</p>
+            <div className="col-span-full">
+              <p className="text-muted mb-1 text-xs">Biểu thức chính quy (Regex)</p>
+              <p className="font-mono bg-slate-50 p-2.5 rounded-lg border border-line text-xs text-slate-800">{currentSnapshot.regexPattern || "Không có"}</p>
             </div>
-            <div className="col-span-2">
-              <p className="text-muted mb-1">Ghi chú / Mô tả</p>
-              <p className="font-medium whitespace-pre-wrap bg-slate-50 p-2.5 rounded border border-line text-xs">{currentSnapshot.description || "Không có"}</p>
+            <div className="col-span-full">
+              <p className="text-muted mb-1 text-xs">Ghi chú / Mô tả</p>
+              <p className="font-medium whitespace-pre-wrap bg-slate-50 p-3 rounded-lg border border-line text-xs text-slate-700">{currentSnapshot.description || "Không có"}</p>
             </div>
           </div>
         </Card>
