@@ -8,10 +8,8 @@ import vn.edu.drl.backend.dto.request.LoginRequest;
 import vn.edu.drl.backend.dto.response.AuthResponse;
 import vn.edu.drl.backend.model.User;
 import vn.edu.drl.backend.security.JwtUtil;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@Transactional
 public class AuthServiceImpl implements AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;

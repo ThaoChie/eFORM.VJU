@@ -19,10 +19,7 @@ import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import java.util.stream.Collectors;
 
-import org.springframework.transaction.annotation.Transactional;
-
 @Service
-@Transactional(readOnly = true)
 public class DepartmentServiceImpl implements DepartmentService {
     private final DepartmentRepository repository;
     private final ClassRepository classRepository;
@@ -46,7 +43,6 @@ public class DepartmentServiceImpl implements DepartmentService {
         }).collect(Collectors.toList());
     }
     
-    @Transactional
     public Department create(DepartmentRequest req) {
         Department d = new Department();
         d.setDeptCode(req.getDeptCode());
@@ -54,7 +50,6 @@ public class DepartmentServiceImpl implements DepartmentService {
         return repository.save(d);
     }
     
-    @Transactional
     public Map<String, Object> importFromExcel(MultipartFile file, boolean preview) {
         Map<String, Object> result = new HashMap<>();
         List<String> errors = new ArrayList<>();
@@ -121,8 +116,7 @@ public class DepartmentServiceImpl implements DepartmentService {
         return "";
     }
 
-    @Transactional
-    public Department toggleStatus(Long id) {
+            public Department toggleStatus(Long id) {
         Department d = repository.findById(id).orElseThrow(() -> new RuntimeException("Not found"));
         if (d.getStatus() == 1) {
             long classesCount = classRepository.countByDepartmentId(d.getId());

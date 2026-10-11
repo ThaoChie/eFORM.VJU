@@ -22,9 +22,6 @@ public class UserHibernateDao extends GenericHibernateDao<User, Long> {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<User> query = cb.createQuery(User.class);
         Root<User> root = query.from(User.class);
-        root.fetch("department", jakarta.persistence.criteria.JoinType.LEFT);
-        root.fetch("classEntity", jakarta.persistence.criteria.JoinType.LEFT);
-        query.distinct(true);
         
         List<Predicate> predicates = new ArrayList<>();
         
