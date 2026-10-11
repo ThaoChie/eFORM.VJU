@@ -247,17 +247,20 @@ export default function DirectoryPage() {
     ];
     rows = items.map(item => ({
       ...item,
-      userCode: item.userCode || item.code,
-      fullName: item.fullName || item.name,
+      departmentId: item.departmentId || item.deptId || (item.department ? item.department.id : null),
+      classId: item.classId || (item.classEntity ? item.classEntity.id : null),
+      officeId: item.officeId || (item.office ? item.office.id : null),
+      userCode: item.userCode || item.code || "",
+      fullName: item.fullName || item.name || "",
       email: item.email || "",
-      role: item.role || "Sinh viên",
+      role: item.role || "STUDENT",
       status: item.status,
-      deptName: item.department ? item.department.deptName : "",
-      deptCode: item.department ? item.department.deptCode : "",
+      deptName: item.deptName || (item.department ? item.department.deptName : ""),
+      deptCode: item.deptCode || (item.department ? item.department.deptCode : ""),
       officeName: item.office ? item.office.officeName : "",
       officeCode: item.office ? item.office.officeCode : "",
-      className: item.classEntity ? item.classEntity.className : "",
-      classCode: item.classEntity ? item.classEntity.classCode : "",
+      className: item.className || (item.classEntity ? item.classEntity.className : ""),
+      classCode: item.classCode || (item.classEntity ? item.classEntity.classCode : ""),
       academicCohort: item.academicCohort || (item.classEntity ? item.classEntity.academicCohort : "")
     }));
   } else if (active === "offices") {
@@ -984,14 +987,23 @@ export default function DirectoryPage() {
               </Select>
             )}
 
-            {form.role === "STUDENT" && (
-              <Select label="Lớp" value={form.classId || ""} onChange={e => setForm({...form, classId: Number(e.target.value)})}>
+            {["STUDENT", "CLASS_LEADER", "CLASS_DEPUTY"].includes(form.role) && (
+              <Select label="Lớp" value={form.classId || ""} onChange={e => {
+                const classId = e.target.value ? Number(e.target.value) : "";
+                const foundClass = classes.find(c => c.id === classId);
+                setForm(prev => ({
+                  ...prev,
+                  classId,
+                  departmentId: foundClass?.deptId || prev.departmentId,
+                  academicCohort: foundClass?.academicCohort || prev.academicCohort
+                }));
+              }}>
                 <option value="">Chọn Lớp...</option>
                 {classes.map(c => <option key={c.id} value={c.id}>{c.classCode || c.code} - {c.className || c.name}</option>)}
               </Select>
             )}
 
-            {form.role === "STUDENT" && (
+            {["STUDENT", "CLASS_LEADER", "CLASS_DEPUTY"].includes(form.role) && (
               <Input label="Niên khóa" placeholder="Ví dụ: K21" value={form.academicCohort || ""} onChange={e => setForm({...form, academicCohort: e.target.value})} />
             )}
 
