@@ -10,6 +10,8 @@ import java.util.Map;
 public interface DepartmentService {
     List<vn.edu.drl.backend.dto.response.DepartmentResponse> findAll();
     Department create(DepartmentRequest req);
+    Department update(Long id, DepartmentRequest req);
+    byte[] generateExcelTemplate();
     Map<String, Object> importFromExcel(MultipartFile file, boolean preview);
     Department toggleStatus(Long id);
 }

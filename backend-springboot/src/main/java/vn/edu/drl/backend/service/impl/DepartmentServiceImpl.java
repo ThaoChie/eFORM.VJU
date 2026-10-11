@@ -19,7 +19,10 @@ import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import java.util.stream.Collectors;
 
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
+@Transactional(readOnly = true)
 public class DepartmentServiceImpl implements DepartmentService {
     private final DepartmentRepository repository;
     private final ClassRepository classRepository;
@@ -33,23 +36,61 @@ public class DepartmentServiceImpl implements DepartmentService {
     
     public List<DepartmentResponse> findAll() {
         return repository.findAll().stream().map(d -> {
-            long classesCount = classRepository.countByDepartmentId(d.getId());
+            long classesCount = classRepository.countActiveByDepartmentId(d.getId());
             long usersCount = userRepository.countByDepartmentId(d.getId());
             String deanName = "Chưa chỉ định";
-            User dean = userRepository.findFirstByDepartmentIdAndRole(d.getId(), vn.edu.drl.backend.enu.Role.DEAN).orElse(null);
-            if (dean != null) deanName = dean.getFullName();
-            Long deanId = dean != null ? dean.getId() : null;
+            Long deanId = null;
+            List<User> deans = userRepository.findByDepartmentIdAndRole(d.getId(), vn.edu.drl.backend.enu.Role.DEAN);
+            if (!deans.isEmpty()) {
+                User dean = deans.stream().filter(u -> u.getStatus() != null && u.getStatus() == 1).findFirst().orElse(deans.get(0));
+                deanName = dean.getFullName();
+                deanId = dean.getId();
+            }
             return new DepartmentResponse(d, classesCount, usersCount, deanName, deanId);
         }).collect(Collectors.toList());
     }
     
+    @Transactional
     public Department create(DepartmentRequest req) {
+        if (repository.findByDeptCode(req.getDeptCode()).isPresent()) {
+            throw new vn.edu.drl.backend.exception.BusinessException("Mã Khoa đã tồn tại");
+        }
         Department d = new Department();
         d.setDeptCode(req.getDeptCode());
         d.setDeptName(req.getDeptName());
+        d.setStatus(req.getStatus() != null ? req.getStatus() : 1);
         return repository.save(d);
     }
+
+    @Transactional
+    public Department update(Long id, DepartmentRequest req) {
+        Department d = repository.findById(id).orElseThrow(() -> new vn.edu.drl.backend.exception.BusinessException("Không tìm thấy khoa"));
+        d.setDeptName(req.getDeptName());
+        if (req.getStatus() != null) {
+            d.setStatus(req.getStatus());
+        }
+        return repository.save(d);
+    }
+
+    public byte[] generateExcelTemplate() {
+        try (Workbook workbook = new XSSFWorkbook(); java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("Khoa");
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("Mã Khoa *");
+            header.createCell(1).setCellValue("Tên Khoa *");
+
+            Row sample = sheet.createRow(1);
+            sample.createCell(0).setCellValue("CNTT");
+            sample.createCell(1).setCellValue("Khoa Công nghệ Thông tin");
+
+            workbook.write(out);
+            return out.toByteArray();
+        } catch (Exception e) {
+            throw new RuntimeException("Lỗi tạo template Excel: " + e.getMessage());
+        }
+    }
     
+    @Transactional
     public Map<String, Object> importFromExcel(MultipartFile file, boolean preview) {
         Map<String, Object> result = new HashMap<>();
         List<String> errors = new ArrayList<>();
@@ -116,10 +157,11 @@ public class DepartmentServiceImpl implements DepartmentService {
         return "";
     }
 
-            public Department toggleStatus(Long id) {
+    @Transactional
+    public Department toggleStatus(Long id) {
         Department d = repository.findById(id).orElseThrow(() -> new RuntimeException("Not found"));
         if (d.getStatus() == 1) {
-            long classesCount = classRepository.countByDepartmentId(d.getId());
+            long classesCount = classRepository.countActiveByDepartmentId(d.getId());
             if (classesCount > 0) {
                 throw new RuntimeException("Còn " + classesCount + " lớp trực thuộc đang hoạt động, hãy vô hiệu hóa lớp trước");
             }

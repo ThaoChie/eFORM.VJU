@@ -12,6 +12,7 @@ public class DepartmentResponse {
     private Integer status;
     private Instant createdAt;
     private long classesCount;
+    private long classCount;
     private long usersCount;
     private String deanName;
     private Long deanId;
@@ -23,6 +24,7 @@ public class DepartmentResponse {
         this.status = d.getStatus();
         this.createdAt = d.getCreatedAt();
         this.classesCount = classesCount;
+        this.classCount = classesCount;
         this.usersCount = usersCount;
         this.deanName = deanName;
         this.deanId = deanId;
