@@ -37,6 +37,7 @@ vn/edu/drl/backend/controller/SemesterController.class
 vn/edu/drl/backend/dto/response/SemesterResponse.class
 vn/edu/drl/backend/service/impl/WorkflowBatchHelperServiceImpl.class
 vn/edu/drl/backend/service/impl/WorkflowServiceImpl.class
+vn/edu/drl/backend/service/impl/DashboardServiceImpl$1.class
 vn/edu/drl/backend/service/DataSeeder.class
 vn/edu/drl/backend/dao/DepartmentRepository.class
 vn/edu/drl/backend/dto/response/DepartmentResponse.class

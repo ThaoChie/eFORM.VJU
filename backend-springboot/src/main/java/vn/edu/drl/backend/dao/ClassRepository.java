@@ -18,6 +18,9 @@ public interface ClassRepository extends JpaRepository<ClassEntity, Long> {
     long countByDepartmentId(@Param("departmentId") Long departmentId);
     Optional<ClassEntity> findByClassCode(String code);
 
+    List<ClassEntity> findByDepartmentId(Long departmentId);
+    List<ClassEntity> findByDepartmentIdAndStatus(Long departmentId, Integer status);
+
     @Override
     @EntityGraph(attributePaths = {"department"})
     List<ClassEntity> findAll();
