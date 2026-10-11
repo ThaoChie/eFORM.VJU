@@ -91,8 +91,15 @@ export default function DirectoryPage() {
                 id: r.id,
                 deptCode: r.deptCode || r.code,
                 deptName: r.deptName || r.name,
-                deanId: r.deanId,
                 status: r.rawStatus !== undefined ? r.rawStatus : 1,
+              });
+            } else if (active === "offices") {
+              setForm({
+                mode: 'edit',
+                id: r.id,
+                officeCode: r.officeCode || r.code,
+                officeName: r.officeName || r.name,
+                status: r.status !== undefined ? (r.status === "Đang hoạt động" || r.status === 1 ? 1 : 0) : 1,
               });
             } else {
               setForm({ mode: 'edit', ...r });
@@ -544,7 +551,11 @@ export default function DirectoryPage() {
               <Plus className="size-4" /> Thêm mới
             </Button>
           ) : active === "departments" ? (
-            <Button variant="primary" onClick={() => setForm({ mode: 'create', deptCode: "", deptName: "", deanId: null, status: 1 })}>
+            <Button variant="primary" onClick={() => setForm({ mode: 'create', deptCode: "", deptName: "", status: 1 })}>
+              <Plus className="size-4" /> Thêm mới
+            </Button>
+          ) : active === "offices" ? (
+            <Button variant="primary" onClick={() => setForm({ mode: 'create', officeCode: "", officeName: "", status: 1 })}>
               <Plus className="size-4" /> Thêm mới
             </Button>
           ) : (
@@ -610,43 +621,61 @@ export default function DirectoryPage() {
       })()}
 
       {active === "offices" && form && (
-        <Modal open={true} title={form.mode === 'edit' ? "Chỉnh sửa Phòng ban" : "Thêm mới Phòng ban"} onClose={() => setForm(false)} footer={
-          <>
-            <Button onClick={() => setForm(false)}>Hủy</Button>
-            <Button variant="primary" onClick={async () => {
-              try {
-                const { client } = await import("../../../lib/axios/client");
-                if (!form.officeCode && !form.code) return toast.error("Vui lòng nhập mã phòng ban");
-                if (!form.officeName && !form.name) return toast.error("Vui lòng nhập tên phòng ban");
-                const payload = {
-                  officeCode: form.officeCode || form.code,
-                  officeName: form.officeName || form.name,
-                  status: form.status !== undefined ? form.status : 1,
-                  headId: form.headId || null
-                };
-                if (form.mode === 'create') {
-                  await client.post("/offices", payload);
-                  toast.success("Tạo Phòng ban thành công!");
-                } else {
-                  await client.put(`/offices/${form.id}`, payload);
-                  toast.success("Cập nhật Phòng ban thành công!");
+        <Modal 
+          open={true} 
+          title={form.mode === 'edit' ? "Chỉnh sửa Phòng ban" : "Thêm mới Phòng ban"} 
+          onClose={() => setForm(false)} 
+          footer={
+            <>
+              <Button onClick={() => setForm(false)}>Hủy</Button>
+              <Button variant="primary" onClick={async () => {
+                try {
+                  const { client } = await import("../../../lib/axios/client");
+                  const code = form.officeCode || form.code;
+                  const name = form.officeName || form.name;
+                  if (!name?.trim()) return toast.error("Vui lòng nhập tên phòng ban");
+                  if (form.mode === 'create' && !code?.trim()) return toast.error("Vui lòng nhập mã phòng ban");
+
+                  const payload = {
+                    officeCode: code?.trim(),
+                    officeName: name?.trim(),
+                    status: form.status !== undefined ? Number(form.status) : 1
+                  };
+                  if (form.mode === 'create') {
+                    await client.post("/offices", payload);
+                    toast.success("Tạo Phòng ban thành công!");
+                  } else {
+                    await client.put(`/offices/${form.id}`, payload);
+                    toast.success("Cập nhật Phòng ban thành công!");
+                  }
+                  setForm(false);
+                  fetchItems(active);
+                } catch (e) {
+                  toast.error(e.response?.data?.message || "Lỗi xử lý Phòng ban");
                 }
-                setForm(false);
-                fetchItems(active);
-              } catch (e) {
-                toast.error(e.response?.data?.message || "Lỗi xử lý Phòng ban");
-              }
-            }}>Lưu</Button>
-          </>
-        }>
+              }}>Lưu</Button>
+            </>
+          }
+        >
           <div className="space-y-4">
-            <Input label="Mã phòng ban *" placeholder="Nhập mã phòng ban" value={form.officeCode || form.code || ""} onChange={e => setForm({...form, officeCode: e.target.value})} disabled={form.mode === 'edit'} />
-            <Input label="Tên phòng ban *" placeholder="Nhập tên phòng ban" value={form.officeName || form.name || ""} onChange={e => setForm({...form, officeName: e.target.value})} />
-            <Select label="Trưởng phòng ban" value={form.headId || ""} onChange={e => setForm({...form, headId: e.target.value ? Number(e.target.value) : null})}>
-              <option value="">Chưa chỉ định</option>
-              {admins.map(a => <option key={a.id} value={a.id}>{a.userCode ? a.userCode + ' - ' : ''}{a.fullName}</option>)}
-            </Select>
-            <Select label="Trạng thái" value={form.status !== undefined ? form.status : 1} onChange={e => setForm({...form, status: Number(e.target.value)})}>
+            <Input 
+              label={form.mode === 'edit' ? "Mã phòng ban" : "Mã phòng ban *"} 
+              placeholder="Nhập mã phòng ban" 
+              value={form.officeCode || form.code || ""} 
+              onChange={e => setForm({...form, officeCode: e.target.value})} 
+              disabled={form.mode === 'edit'} 
+            />
+            <Input 
+              label="Tên phòng ban *" 
+              placeholder="Nhập tên phòng ban" 
+              value={form.officeName || form.name || ""} 
+              onChange={e => setForm({...form, officeName: e.target.value})} 
+            />
+            <Select 
+              label="Trạng thái" 
+              value={form.status !== undefined ? form.status : 1} 
+              onChange={e => setForm({...form, status: Number(e.target.value)})}
+            >
               <option value={1}>Đang hoạt động</option>
               <option value={0}>Vô hiệu hóa</option>
             </Select>
