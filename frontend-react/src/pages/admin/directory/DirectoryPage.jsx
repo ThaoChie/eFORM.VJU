@@ -654,96 +654,69 @@ export default function DirectoryPage() {
         </Modal>
       )}
     
-      {active === "departments" && form && (() => {
-        const deanOptions = [
-          { value: null, label: "-- Chưa chỉ định --" },
-          ...deans.map(d => ({
-            value: d.id,
-            label: `${d.fullName} - ${d.userCode || d.email || ('ID: ' + d.id)}`
-          }))
-        ];
-        const selectedDean = deanOptions.find(opt => opt.value === form.deanId) || null;
+      {active === "departments" && form && (
+        <Modal 
+          open={true} 
+          title={form.mode === 'edit' ? "Chỉnh sửa Khoa" : "Thêm mới Khoa"} 
+          onClose={() => setForm(false)} 
+          footer={
+            <>
+              <Button onClick={() => setForm(false)}>Hủy</Button>
+              <Button variant="primary" onClick={async () => {
+                try {
+                  const { client } = await import("../../../lib/axios/client");
+                  const code = form.deptCode || form.code;
+                  const name = form.deptName || form.name;
+                  if (!name?.trim()) return toast.error("Vui lòng nhập tên khoa");
+                  if (form.mode === 'create' && !code?.trim()) return toast.error("Vui lòng nhập mã khoa");
 
-        return (
-          <Modal 
-            open={true} 
-            title={form.mode === 'edit' ? "Chỉnh sửa Khoa" : "Thêm mới Khoa"} 
-            onClose={() => setForm(false)} 
-            footer={
-              <>
-                <Button onClick={() => setForm(false)}>Hủy</Button>
-                <Button variant="primary" onClick={async () => {
-                  try {
-                    const { client } = await import("../../../lib/axios/client");
-                    const code = form.deptCode || form.code;
-                    const name = form.deptName || form.name;
-                    if (!name?.trim()) return toast.error("Vui lòng nhập tên khoa");
-                    if (form.mode === 'create' && !code?.trim()) return toast.error("Vui lòng nhập mã khoa");
+                  const payload = {
+                    deptCode: code?.trim(),
+                    deptName: name?.trim(),
+                    status: form.status !== undefined ? Number(form.status) : 1
+                  };
 
-                    const payload = {
-                      deptCode: code?.trim(),
-                      deptName: name?.trim(),
-                      deanId: form.deanId || null,
-                      status: form.status !== undefined ? Number(form.status) : 1
-                    };
-
-                    if (form.mode === 'create') {
-                      await client.post("/departments", payload);
-                      toast.success("Tạo Khoa thành công!");
-                    } else {
-                      await client.put(`/departments/${form.id}`, payload);
-                      toast.success("Cập nhật Khoa thành công!");
-                    }
-                    setForm(false);
-                    fetchItems(active);
-                  } catch (e) {
-                    toast.error(e.response?.data?.message || "Lỗi xử lý Khoa");
+                  if (form.mode === 'create') {
+                    await client.post("/departments", payload);
+                    toast.success("Tạo Khoa thành công!");
+                  } else {
+                    await client.put(`/departments/${form.id}`, payload);
+                    toast.success("Cập nhật Khoa thành công!");
                   }
-                }}>Lưu</Button>
-              </>
-            }
-          >
-            <div className="space-y-4">
-              <Input 
-                label={form.mode === 'edit' ? "Mã khoa" : "Mã khoa *"} 
-                placeholder="Nhập mã khoa" 
-                value={form.deptCode || form.code || ""} 
-                onChange={e => setForm({...form, deptCode: e.target.value})} 
-                disabled={form.mode === 'edit'} 
-              />
-              <Input 
-                label="Tên khoa *" 
-                placeholder="Nhập tên khoa" 
-                value={form.deptName || form.name || ""} 
-                onChange={e => setForm({...form, deptName: e.target.value})} 
-              />
-              <div className="z-20 relative">
-                <label className="mb-1 block text-sm font-medium">Trưởng Khoa</label>
-                <ReactSelect
-                  isClearable
-                  isSearchable
-                  options={deanOptions}
-                  value={selectedDean}
-                  onChange={(selected) => setForm({ ...form, deanId: selected ? selected.value : null })}
-                  placeholder="Tìm kiếm và chọn Trưởng khoa..."
-                  noOptionsMessage={() => "Không tìm thấy trưởng khoa nào"}
-                  styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
-                  menuPortalTarget={document.body}
-                  menuPosition="fixed"
-                />
-              </div>
-              <Select 
-                label="Trạng thái" 
-                value={form.status !== undefined ? form.status : (form.statusStr === 'Vô hiệu hóa' ? 0 : 1)} 
-                onChange={e => setForm({...form, status: Number(e.target.value)})}
-              >
-                <option value={1}>Đang hoạt động</option>
-                <option value={0}>Vô hiệu hóa</option>
-              </Select>
-            </div>
-          </Modal>
-        );
-      })()}
+                  setForm(false);
+                  fetchItems(active);
+                } catch (e) {
+                  toast.error(e.response?.data?.message || "Lỗi xử lý Khoa");
+                }
+              }}>Lưu</Button>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            <Input 
+              label={form.mode === 'edit' ? "Mã khoa" : "Mã khoa *"} 
+              placeholder="Nhập mã khoa" 
+              value={form.deptCode || form.code || ""} 
+              onChange={e => setForm({...form, deptCode: e.target.value})} 
+              disabled={form.mode === 'edit'} 
+            />
+            <Input 
+              label="Tên khoa *" 
+              placeholder="Nhập tên khoa" 
+              value={form.deptName || form.name || ""} 
+              onChange={e => setForm({...form, deptName: e.target.value})} 
+            />
+            <Select 
+              label="Trạng thái" 
+              value={form.status !== undefined ? form.status : (form.statusStr === 'Vô hiệu hóa' ? 0 : 1)} 
+              onChange={e => setForm({...form, status: Number(e.target.value)})}
+            >
+              <option value={1}>Đang hoạt động</option>
+              <option value={0}>Vô hiệu hóa</option>
+            </Select>
+          </div>
+        </Modal>
+      )}
     
 
       <Modal open={colConfig} title="Cấu hình cột hiển thị" onClose={() => setColConfig(false)} footer={<Button variant="primary" onClick={() => setColConfig(false)}>Xong</Button>}>

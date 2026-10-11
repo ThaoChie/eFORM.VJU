@@ -36,12 +36,16 @@ public class DepartmentServiceImpl implements DepartmentService {
     
     public List<DepartmentResponse> findAll() {
         return repository.findAll().stream().map(d -> {
-            long classesCount = classRepository.countByDepartmentId(d.getId());
+            long classesCount = classRepository.countActiveByDepartmentId(d.getId());
             long usersCount = userRepository.countByDepartmentId(d.getId());
             String deanName = "Chưa chỉ định";
-            User dean = userRepository.findFirstByDepartmentIdAndRole(d.getId(), vn.edu.drl.backend.enu.Role.DEAN).orElse(null);
-            if (dean != null) deanName = dean.getFullName();
-            Long deanId = dean != null ? dean.getId() : null;
+            Long deanId = null;
+            List<User> deans = userRepository.findByDepartmentIdAndRole(d.getId(), vn.edu.drl.backend.enu.Role.DEAN);
+            if (!deans.isEmpty()) {
+                User dean = deans.stream().filter(u -> u.getStatus() != null && u.getStatus() == 1).findFirst().orElse(deans.get(0));
+                deanName = dean.getFullName();
+                deanId = dean.getId();
+            }
             return new DepartmentResponse(d, classesCount, usersCount, deanName, deanId);
         }).collect(Collectors.toList());
     }
@@ -55,14 +59,7 @@ public class DepartmentServiceImpl implements DepartmentService {
         d.setDeptCode(req.getDeptCode());
         d.setDeptName(req.getDeptName());
         d.setStatus(req.getStatus() != null ? req.getStatus() : 1);
-        Department saved = repository.save(d);
-        if (req.getDeanId() != null) {
-            userRepository.findById(req.getDeanId()).ifPresent(dean -> {
-                dean.setDepartment(saved);
-                userRepository.save(dean);
-            });
-        }
-        return saved;
+        return repository.save(d);
     }
 
     @Transactional
@@ -72,29 +69,7 @@ public class DepartmentServiceImpl implements DepartmentService {
         if (req.getStatus() != null) {
             d.setStatus(req.getStatus());
         }
-        Department saved = repository.save(d);
-
-        // Update dean assignment
-        User currentDean = userRepository.findFirstByDepartmentIdAndRole(saved.getId(), vn.edu.drl.backend.enu.Role.DEAN).orElse(null);
-        if (req.getDeanId() != null) {
-            if (currentDean == null || !currentDean.getId().equals(req.getDeanId())) {
-                if (currentDean != null) {
-                    currentDean.setDepartment(null);
-                    userRepository.save(currentDean);
-                }
-                userRepository.findById(req.getDeanId()).ifPresent(newDean -> {
-                    newDean.setDepartment(saved);
-                    userRepository.save(newDean);
-                });
-            }
-        } else {
-            if (currentDean != null) {
-                currentDean.setDepartment(null);
-                userRepository.save(currentDean);
-            }
-        }
-
-        return saved;
+        return repository.save(d);
     }
 
     public byte[] generateExcelTemplate() {
@@ -186,7 +161,7 @@ public class DepartmentServiceImpl implements DepartmentService {
     public Department toggleStatus(Long id) {
         Department d = repository.findById(id).orElseThrow(() -> new RuntimeException("Not found"));
         if (d.getStatus() == 1) {
-            long classesCount = classRepository.countByDepartmentId(d.getId());
+            long classesCount = classRepository.countActiveByDepartmentId(d.getId());
             if (classesCount > 0) {
                 throw new RuntimeException("Còn " + classesCount + " lớp trực thuộc đang hoạt động, hãy vô hiệu hóa lớp trước");
             }

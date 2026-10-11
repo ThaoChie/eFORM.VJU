@@ -11,6 +11,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface ClassRepository extends JpaRepository<ClassEntity, Long> {
+    @Query("SELECT COUNT(c) FROM ClassEntity c WHERE c.department.id = :departmentId AND (c.status = 1 OR c.status IS NULL)")
+    long countActiveByDepartmentId(@Param("departmentId") Long departmentId);
+
     @Query("SELECT COUNT(c) FROM ClassEntity c WHERE c.department.id = :departmentId")
     long countByDepartmentId(@Param("departmentId") Long departmentId);
     Optional<ClassEntity> findByClassCode(String code);
