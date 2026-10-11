@@ -98,7 +98,7 @@ export default function FieldCodeCreatePage() {
         title={isEdit ? "Chỉnh sửa trường thông tin" : "Thêm trường thông tin"}
         description="Thông tin sẽ được ghi nhận trực tiếp vào hệ thống."
       />
-      <div className="mx-auto max-w-4xl space-y-4">
+      <div className="space-y-4 w-full">
         <Card>
           <h2 className="mb-4 font-semibold">Thông tin chung</h2>
           <div className="grid gap-4 md:grid-cols-2">
