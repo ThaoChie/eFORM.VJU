@@ -55,10 +55,16 @@ public class UserServiceImpl implements UserService {
     
     @Transactional
     public UserResponse create(UserRequest req) {
+        if (req.getUserCode() != null && !req.getUserCode().trim().isEmpty() && repository.findByUserCode(req.getUserCode().trim()).isPresent()) {
+            throw new vn.edu.drl.backend.exception.BusinessException("Mã người dùng '" + req.getUserCode().trim() + "' đã tồn tại trong hệ thống. Vui lòng nhập mã khác.");
+        }
+        if (req.getEmail() != null && !req.getEmail().trim().isEmpty() && repository.findByEmail(req.getEmail().trim()).isPresent()) {
+            throw new vn.edu.drl.backend.exception.BusinessException("Email '" + req.getEmail().trim() + "' đã tồn tại trong hệ thống. Vui lòng nhập email khác.");
+        }
         User u = new User();
-        u.setEmail(req.getEmail());
-        u.setFullName(req.getFullName());
-        u.setUserCode(req.getUserCode());
+        u.setEmail(req.getEmail() != null ? req.getEmail().trim() : null);
+        u.setFullName(req.getFullName() != null ? req.getFullName().trim() : null);
+        u.setUserCode(req.getUserCode() != null ? req.getUserCode().trim() : null);
         try {
             u.setRole(Role.valueOf(req.getRole()));
         } catch (Exception e) {
@@ -80,9 +86,23 @@ public class UserServiceImpl implements UserService {
 
     @Transactional
     public UserResponse update(Long id, UserRequest req) {
-        User u = repository.findById(id).orElseThrow(() -> new RuntimeException("Not found"));
-        u.setFullName(req.getFullName());
-        u.setEmail(req.getEmail());
+        User u = repository.findById(id).orElseThrow(() -> new vn.edu.drl.backend.exception.BusinessException("Không tìm thấy người dùng"));
+        if (req.getUserCode() != null && !req.getUserCode().trim().isEmpty()) {
+            repository.findByUserCode(req.getUserCode().trim()).ifPresent(existing -> {
+                if (!existing.getId().equals(id)) {
+                    throw new vn.edu.drl.backend.exception.BusinessException("Mã người dùng '" + req.getUserCode().trim() + "' đã tồn tại trong hệ thống.");
+                }
+            });
+        }
+        if (req.getEmail() != null && !req.getEmail().trim().isEmpty()) {
+            repository.findByEmail(req.getEmail().trim()).ifPresent(existing -> {
+                if (!existing.getId().equals(id)) {
+                    throw new vn.edu.drl.backend.exception.BusinessException("Email '" + req.getEmail().trim() + "' đã tồn tại trong hệ thống.");
+                }
+            });
+        }
+        u.setFullName(req.getFullName() != null ? req.getFullName().trim() : u.getFullName());
+        u.setEmail(req.getEmail() != null ? req.getEmail().trim() : u.getEmail());
         if (req.getRole() != null) {
             try {
                 u.setRole(Role.valueOf(req.getRole()));

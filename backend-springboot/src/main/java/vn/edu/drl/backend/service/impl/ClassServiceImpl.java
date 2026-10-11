@@ -19,7 +19,10 @@ import java.io.InputStream;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
+@Transactional(readOnly = true)
 public class ClassServiceImpl implements ClassService {
     private final ClassRepository repository;
     private final DepartmentRepository deptRepo;
@@ -76,6 +79,7 @@ public class ClassServiceImpl implements ClassService {
     }
 
     @Override
+    @Transactional
     public ClassResponse create(ClassRequest req) {
         if (repository.findByClassCode(req.getClassCode()).isPresent()) {
             throw new vn.edu.drl.backend.exception.BusinessException("Mã lớp đã tồn tại");
@@ -92,6 +96,7 @@ public class ClassServiceImpl implements ClassService {
     }
 
     @Override
+    @Transactional
     public ClassResponse update(Long id, ClassRequest req) {
         ClassEntity c = repository.findById(id).orElseThrow(() -> new vn.edu.drl.backend.exception.BusinessException("Không tìm thấy lớp"));
         c.setClassName(req.getClassName());
@@ -143,6 +148,7 @@ public class ClassServiceImpl implements ClassService {
     }
 
     @Override
+    @Transactional
     public ClassResponse toggleStatus(Long id) {
         ClassEntity c = repository.findById(id).orElseThrow(() -> new vn.edu.drl.backend.exception.BusinessException("Không tìm thấy lớp"));
         if (c.getStatus() == 1) {
@@ -183,6 +189,7 @@ public class ClassServiceImpl implements ClassService {
     }
 
     @Override
+    @Transactional
     public Map<String, Object> importFromExcel(MultipartFile file, boolean dryRun) {
         int validRows = 0;
         int invalidRows = 0;
