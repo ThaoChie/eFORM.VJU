@@ -42,6 +42,7 @@ public class OfficeController {
     public ResponseEntity<byte[]> downloadTemplate() {
         byte[] data = service.generateExcelTemplate();
         return ResponseEntity.ok()
+            .contentType(org.springframework.http.MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
             .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=office_import_template.xlsx")
             .body(data);
     }

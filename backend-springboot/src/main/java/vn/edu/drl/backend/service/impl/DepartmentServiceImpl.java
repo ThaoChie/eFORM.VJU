@@ -78,10 +78,12 @@ public class DepartmentServiceImpl implements DepartmentService {
             Row header = sheet.createRow(0);
             header.createCell(0).setCellValue("Mã Khoa *");
             header.createCell(1).setCellValue("Tên Khoa *");
+            header.createCell(2).setCellValue("Trạng thái (1=Hoạt động, 0=Vô hiệu hóa)");
 
             Row sample = sheet.createRow(1);
             sample.createCell(0).setCellValue("CNTT");
             sample.createCell(1).setCellValue("Khoa Công nghệ Thông tin");
+            sample.createCell(2).setCellValue("1");
 
             workbook.write(out);
             return out.toByteArray();
