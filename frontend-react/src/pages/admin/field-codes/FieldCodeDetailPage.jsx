@@ -1,4 +1,4 @@
-import { ArrowLeft, Pencil, History, CheckCircle2, Clock, Eye, AlertCircle } from "lucide-react"
+import { ArrowLeft, Pencil, History, CheckCircle2, Clock, Eye, AlertCircle, CircleOff, CheckCircle } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { toast } from "react-hot-toast"
@@ -27,6 +27,26 @@ export default function FieldCodeDetailPage() {
   const [versions, setVersions] = useState([]);
   const [selectedVersion, setSelectedVersion] = useState("");
   const [loading, setLoading] = useState(true);
+  const [toggling, setToggling] = useState(false);
+
+  const handleToggleStatus = async () => {
+    if (toggling || !field) return;
+    setToggling(true);
+    try {
+      const res = await client.patch(`/fields/${id}/toggle-status`);
+      const newStatus = res?.isActive ?? res?.data?.isActive ?? !field.isActive;
+      toast.success(newStatus ? "Đã kích hoạt trường thông tin" : "Đã vô hiệu hóa trường thông tin");
+      setField(prev => ({ ...prev, isActive: newStatus }));
+      try {
+        const vRes = await client.get(`/fields/${id}/versions`);
+        if (Array.isArray(vRes)) setVersions(vRes);
+      } catch (err) {}
+    } catch(e) {
+      toast.error(e?.response?.data?.message || "Lỗi thay đổi trạng thái");
+    } finally {
+      setToggling(false);
+    }
+  };
 
   useEffect(() => {
     const loadField = async () => {
@@ -165,6 +185,14 @@ export default function FieldCodeDetailPage() {
             <Button onClick={() => navigate(-1)}>
               <ArrowLeft className="size-4" />
               Quay lại
+            </Button>
+            <Button
+              variant={field.isActive ? "danger" : "secondary"}
+              onClick={handleToggleStatus}
+              disabled={toggling}
+            >
+              {field.isActive ? <CircleOff className="size-4" /> : <CheckCircle className="size-4" />}
+              {field.isActive ? "Vô hiệu hóa" : "Kích hoạt"}
             </Button>
             <Button variant="primary" onClick={() => navigate(`/admin/field-codes/${id}/edit`)}>
               <Pencil className="size-4" />
@@ -327,6 +355,14 @@ export default function FieldCodeDetailPage() {
           <Button onClick={() => navigate(-1)}>
             <ArrowLeft className="size-4" />
             Quay lại danh sách
+          </Button>
+          <Button
+            variant={field.isActive ? "danger" : "secondary"}
+            onClick={handleToggleStatus}
+            disabled={toggling}
+          >
+            {field.isActive ? <CircleOff className="size-4" /> : <CheckCircle className="size-4" />}
+            {field.isActive ? "Vô hiệu hóa" : "Kích hoạt"}
           </Button>
           <Button variant="primary" onClick={() => navigate(`/admin/field-codes/${id}/edit`)}>
             <Pencil className="size-4" />

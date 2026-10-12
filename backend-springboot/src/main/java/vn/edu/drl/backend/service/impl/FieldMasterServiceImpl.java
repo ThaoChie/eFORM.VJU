@@ -1,7 +1,9 @@
 package vn.edu.drl.backend.service.impl;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.drl.backend.dao.CriteriaRepository;
@@ -43,6 +45,9 @@ public class FieldMasterServiceImpl implements FieldMasterService {
 
     @Override
     public Page<FieldMasterResponse> getAllFields(Pageable pageable) {
+        if (pageable.getSort().isUnsorted()) {
+            pageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by(Sort.Direction.ASC, "id"));
+        }
         return fieldMasterRepository.findAll(pageable).map(FieldMasterResponse::new);
     }
 
@@ -127,9 +132,11 @@ public class FieldMasterServiceImpl implements FieldMasterService {
     public FieldMasterResponse toggleStatus(Long id) {
         FieldMaster field = fieldMasterRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("NOT_FOUND"));
-        field.setIsActive(!field.getIsActive());
+        boolean current = field.getIsActive() != null ? field.getIsActive() : true;
+        field.setIsActive(!current);
         field.setUpdatedAt(Instant.now());
         field = fieldMasterRepository.save(field);
+        saveHistory(field);
         return new FieldMasterResponse(field);
     }
 
@@ -207,6 +214,9 @@ public class FieldMasterServiceImpl implements FieldMasterService {
         field.setMaxValue(request.getMaxValue());
         field.setRegexPattern(request.getRegexPattern());
         field.setDescription(request.getDescription());
+        if (request.getIsActive() != null) {
+            field.setIsActive(request.getIsActive());
+        }
     }
 
     @Override

@@ -3,6 +3,7 @@ package vn.edu.drl.backend.controller;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.drl.backend.Wrapper.ApiResponse;
@@ -33,7 +34,9 @@ public class FieldMasterController {
     public ApiResponse<PageWrapper<FieldMasterResponse>> getFields(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        Page<FieldMasterResponse> pageResult = fieldMasterService.getAllFields(PageRequest.of(page, size));
+        Page<FieldMasterResponse> pageResult = fieldMasterService.getAllFields(
+                PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "id"))
+        );
         return ApiResponse.success(new PageWrapper<>(pageResult));
     }
 

@@ -139,6 +139,7 @@ class FieldMasterServiceTest {
 
         assertFalse(response.getIsActive()); // Original was true, should be toggled to false
         verify(fieldMasterRepository, times(1)).save(any(FieldMaster.class));
+        verify(fieldMasterHistoryRepository, atLeastOnce()).save(any(FieldMasterHistory.class));
     }
 
     @Test

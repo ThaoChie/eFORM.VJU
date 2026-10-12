@@ -27,6 +27,7 @@ export default function FieldCodeCreatePage() {
     maxValue: "",
     regexPattern: "",
     description: "",
+    isActive: true,
   });
 
   const [loading, setLoading] = useState(false);
@@ -53,6 +54,7 @@ export default function FieldCodeCreatePage() {
               maxValue: item.maxValue || "",
               regexPattern: item.regexPattern || "",
               description: item.description || "",
+              isActive: item.isActive !== undefined ? item.isActive : true,
             });
           }
         } catch (e) {
@@ -135,6 +137,14 @@ export default function FieldCodeCreatePage() {
               <option value="BOOLEAN">BOOLEAN (Đúng/Sai)</option>
               <option value="FILE">FILE (Tập tin)</option>
               <option value="SIGNATURE">SIGNATURE (Chữ ký)</option>
+            </Select>
+            <Select 
+              label="Trạng thái hiệu lực"
+              value={form.isActive ? "ACTIVE" : "INACTIVE"}
+              onChange={e => setForm({...form, isActive: e.target.value === "ACTIVE"})}
+            >
+              <option value="ACTIVE">Đang hiệu lực</option>
+              <option value="INACTIVE">Vô hiệu hóa</option>
             </Select>
           </div>
         </Card>
