@@ -47,8 +47,7 @@ export default function FieldCodeListPage() {
 
   // Filters
   const [filters, setFilters] = useState({
-    code: "",
-    name: "",
+    keyword: "",
     category: "",
     dataType: "",
     status: ""
@@ -84,8 +83,12 @@ export default function FieldCodeListPage() {
 
   // Filter local processing since backend API doesn't have filter params yet
   const filteredData = data.filter(item => {
-    if (filters.code && !item.fieldCode?.toLowerCase().includes(filters.code.toLowerCase())) return false;
-    if (filters.name && !item.fieldName?.toLowerCase().includes(filters.name.toLowerCase())) return false;
+    if (filters.keyword) {
+      const q = filters.keyword.trim().toLowerCase();
+      const matchCode = item.fieldCode?.toLowerCase().includes(q);
+      const matchName = item.fieldName?.toLowerCase().includes(q);
+      if (!matchCode && !matchName) return false;
+    }
     if (filters.category && item.category !== filters.category) return false;
     if (filters.dataType && item.dataType !== filters.dataType) return false;
     if (filters.status) {
@@ -189,18 +192,14 @@ export default function FieldCodeListPage() {
       />
       <Card className="mb-4">
         <div className="grid gap-4 md:grid-cols-3">
-          <Input
-            label="Mã trường"
-            placeholder="Lọc gần đúng..."
-            value={filters.code}
-            onChange={e => setFilters({...filters, code: e.target.value})}
-          />
-          <Input
-            label="Tên trường"
-            placeholder="Lọc gần đúng..."
-            value={filters.name}
-            onChange={e => setFilters({...filters, name: e.target.value})}
-          />
+          <div className="md:col-span-2">
+            <Input
+              label="Mã - Tên trường"
+              placeholder="Nhập mã hoặc tên trường"
+              value={filters.keyword}
+              onChange={e => setFilters({...filters, keyword: e.target.value})}
+            />
+          </div>
           <Select label="Nhóm trường" value={filters.category} onChange={e => setFilters({...filters, category: e.target.value})}>
             <option value="">Tất cả nhóm</option>
             <option value="COMMON">COMMON</option>
@@ -223,7 +222,7 @@ export default function FieldCodeListPage() {
           </Select>
           
           <div className="flex items-end gap-3 md:justify-end">
-            <Button variant="ghost" onClick={() => setFilters({ code: "", name: "", category: "", dataType: "", status: "" })}>
+            <Button variant="ghost" onClick={() => setFilters({ keyword: "", category: "", dataType: "", status: "" })}>
               Xóa bộ lọc
             </Button>
             <Button variant="primary" onClick={() => { /* Filters are processed locally already */ }}>
