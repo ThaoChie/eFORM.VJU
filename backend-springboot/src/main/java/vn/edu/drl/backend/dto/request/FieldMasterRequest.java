@@ -25,4 +25,5 @@ public class FieldMasterRequest {
     private BigDecimal maxValue;
     private String regexPattern;
     private String description;
+    private Boolean isActive;
 }

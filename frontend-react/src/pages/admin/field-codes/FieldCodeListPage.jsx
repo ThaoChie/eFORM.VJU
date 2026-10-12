@@ -44,6 +44,7 @@ export default function FieldCodeListPage() {
   const [selectedFile, setSelectedFile] = useState(null)
   const [importData, setImportData] = useState(null)
   const [importing, setImporting] = useState(false)
+  const [togglingId, setTogglingId] = useState(null)
 
   // Filters
   const [filters, setFilters] = useState({
@@ -71,13 +72,24 @@ export default function FieldCodeListPage() {
   }, [page]);
 
   const toggleStatus = async (id) => {
+    if (togglingId) return;
+    setTogglingId(id);
     try {
       const res = await client.patch(`/fields/${id}/toggle-status`);
       const newStatus = res?.isActive ?? res?.data?.isActive;
       toast.success(newStatus ? "Đã kích hoạt trường thông tin" : "Đã vô hiệu hóa trường thông tin");
-      fetchFields();
+      // Cập nhật trạng thái chính xác cho riêng trường thông tin này
+      setData(prev => prev.map(item => {
+        if (item.id === id) {
+          return { ...item, isActive: newStatus !== undefined ? newStatus : !item.isActive };
+        }
+        return item;
+      }));
+      await fetchFields();
     } catch(e) {
       toast.error(e?.response?.data?.message || "Lỗi thay đổi trạng thái");
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -151,6 +163,7 @@ export default function FieldCodeListPage() {
           </IconButton>
           <IconButton
             label={r.isActive ? "Vô hiệu hóa" : "Kích hoạt"}
+            disabled={togglingId === r.id}
             onClick={() => toggleStatus(r.id)}
             className={r.isActive ? "text-red-600 hover:text-red-700" : "text-green-600 hover:text-green-700"}
           >
