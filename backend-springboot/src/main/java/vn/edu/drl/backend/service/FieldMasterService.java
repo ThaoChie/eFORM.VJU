@@ -15,4 +15,6 @@ public interface FieldMasterService {
     FieldMasterResponse createField(FieldMasterRequest request);
     FieldMasterResponse updateField(Long id, FieldMasterRequest request);
     FieldMasterResponse toggleStatus(Long id);
+    java.util.Map<String, Object> importFromExcel(org.springframework.web.multipart.MultipartFile file, boolean preview);
+    byte[] generateExcelTemplate();
 }

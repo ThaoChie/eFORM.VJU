@@ -1,4 +1,4 @@
-import { Eye, Pencil, Plus, MoreVertical, Search, Upload, Settings, Download } from "lucide-react"
+import { Eye, Pencil, Plus, Search, Upload, Settings, Download, CircleOff, CheckCircle } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { useEffect, useState } from "react"
 import { toast } from "react-hot-toast"
@@ -26,7 +26,7 @@ const formatDate = (dateStr) => {
 export default function FieldCodeListPage() {
   const handleDownloadTemplate = async () => {
     try {
-      await downloadExcelTemplate("field-codes");
+      await downloadExcelTemplate("field-codes", client);
       toast.success("Tải file mẫu thành công!");
     } catch (e) {
       console.error("Lỗi tải file mẫu:", e);
@@ -40,6 +40,10 @@ export default function FieldCodeListPage() {
   const [totalPages, setTotalPages] = useState(1)
   const [colConfig, setColConfig] = useState(false)
   const [hiddenCols, setHiddenCols] = useState({})
+  const [importExcel, setImportExcel] = useState(false)
+  const [selectedFile, setSelectedFile] = useState(null)
+  const [importData, setImportData] = useState(null)
+  const [importing, setImporting] = useState(false)
 
   // Filters
   const [filters, setFilters] = useState({
@@ -69,27 +73,24 @@ export default function FieldCodeListPage() {
 
   const toggleStatus = async (id) => {
     try {
-      await client.patch(`/fields/${id}/toggle-status`);
-      toast.success("Đã yêu cầu thay đổi trạng thái");
+      const res = await client.patch(`/fields/${id}/toggle-status`);
+      const newStatus = res?.isActive ?? res?.data?.isActive;
+      toast.success(newStatus ? "Đã kích hoạt trường thông tin" : "Đã vô hiệu hóa trường thông tin");
       fetchFields();
     } catch(e) {
-      toast.error("Lỗi thay đổi trạng thái");
+      toast.error(e?.response?.data?.message || "Lỗi thay đổi trạng thái");
     }
-  }
+  };
 
   // Filter local processing since backend API doesn't have filter params yet
   const filteredData = data.filter(item => {
-    if (filters.code && !item.fieldCode.toLowerCase().includes(filters.code.toLowerCase())) return false;
-    if (filters.name && !item.fieldName.toLowerCase().includes(filters.name.toLowerCase())) return false;
+    if (filters.code && !item.fieldCode?.toLowerCase().includes(filters.code.toLowerCase())) return false;
+    if (filters.name && !item.fieldName?.toLowerCase().includes(filters.name.toLowerCase())) return false;
     if (filters.category && item.category !== filters.category) return false;
     if (filters.dataType && item.dataType !== filters.dataType) return false;
     if (filters.status) {
-      // Mocking filter logic to match the mocked display
-      let mockStatus = item.isActive ? "ACTIVE" : "INACTIVE";
-      if (item.isActive && item.id % 3 === 0) mockStatus = "PENDING";
-      else if (!item.isActive && item.id % 4 === 0) mockStatus = "EXPIRED";
-      
-      if (filters.status !== mockStatus) return false;
+      if (filters.status === "ACTIVE" && !item.isActive) return false;
+      if (filters.status === "INACTIVE" && item.isActive) return false;
     }
     return true;
   });
@@ -112,23 +113,21 @@ export default function FieldCodeListPage() {
     { key: "category", title: "Nhóm trường", render: (r) => r.category || "COMMON" },
     { key: "type", title: "Kiểu dữ liệu", render: (r) => r.dataType },
     { key: "version", title: "Phiên bản", render: (r) => <span className="font-mono font-medium text-slate-700">v{r.version || "1.0"}</span> },
-    { key: "status", title: "Trạng thái hiệu lực", render: (r) => {
-        // Mocking statuses for UI demonstration since DB only has isActive
-        let statusText = r.isActive ? "Đang hiệu lực" : "Vô hiệu hóa";
-        let statusColor = r.isActive ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700";
-        if (r.isActive && r.id % 3 === 0) {
-            statusText = "Chờ hiệu lực";
-            statusColor = "bg-yellow-50 text-yellow-700";
-        } else if (!r.isActive && r.id % 4 === 0) {
-            statusText = "Hết hiệu lực";
-            statusColor = "bg-gray-100 text-gray-700";
-        }
-        return (
-          <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${statusColor}`}>
-            {statusText}
-          </span>
-        );
-    }},
+    {
+      key: "status",
+      title: "Trạng thái hiệu lực",
+      render: (r) => (
+        <span
+          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+            r.isActive
+              ? "bg-green-50 text-green-700 border border-green-200"
+              : "bg-red-50 text-red-700 border border-red-200"
+          }`}
+        >
+          {r.isActive ? "Đang hiệu lực" : "Vô hiệu hóa"}
+        </span>
+      ),
+    },
     { key: "updatedAt", title: "Cập nhật lần cuối", render: (r) => r.updatedAt ? formatDate(r.updatedAt) : formatDate(r.createdAt || Date.now()) },
     {
       key: "action",
@@ -148,11 +147,11 @@ export default function FieldCodeListPage() {
             <Pencil className="size-4" />
           </IconButton>
           <IconButton
-            label={r.isActive ? "Yêu cầu vô hiệu hóa" : "Yêu cầu kích hoạt"}
+            label={r.isActive ? "Vô hiệu hóa" : "Kích hoạt"}
             onClick={() => toggleStatus(r.id)}
-            className={!r.isActive ? "text-green-600" : "text-red-600"}
+            className={r.isActive ? "text-red-600 hover:text-red-700" : "text-green-600 hover:text-green-700"}
           >
-            <MoreVertical className="size-4" />
+            {r.isActive ? <CircleOff className="size-4" /> : <CheckCircle className="size-4" />}
           </IconButton>
         </div>
       ),
@@ -174,16 +173,9 @@ export default function FieldCodeListPage() {
               Tải file mẫu
             </Button>
             <Button onClick={() => {
-              const input = document.createElement('input');
-              input.type = 'file';
-              input.accept = '.xlsx, .xls';
-              input.onchange = (e) => {
-                if (e.target.files.length > 0) {
-                   toast.success("Đã nhập dữ liệu từ Excel thành công!");
-                   fetchFields();
-                }
-              };
-              input.click();
+              setSelectedFile(null);
+              setImportData(null);
+              setImportExcel(true);
             }}>
               <Upload className="size-4" />
               Thêm mới theo lô
@@ -227,8 +219,6 @@ export default function FieldCodeListPage() {
           <Select label="Trạng thái hiệu lực" value={filters.status} onChange={e => setFilters({...filters, status: e.target.value})}>
             <option value="">Tất cả trạng thái</option>
             <option value="ACTIVE">Đang hiệu lực</option>
-            <option value="PENDING">Chờ hiệu lực</option>
-            <option value="EXPIRED">Hết hiệu lực</option>
             <option value="INACTIVE">Vô hiệu hóa</option>
           </Select>
           
@@ -270,6 +260,146 @@ export default function FieldCodeListPage() {
               </label>
             ))}
           </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={importExcel}
+        wide={importData !== null}
+        title="Thêm mới theo lô (Nhập từ Excel)"
+        onClose={() => {
+          setImportExcel(false);
+          setImportData(null);
+          setSelectedFile(null);
+        }}
+        footer={
+          <>
+            <Button
+              onClick={() => {
+                setImportExcel(false);
+                setImportData(null);
+                setSelectedFile(null);
+              }}
+            >
+              Hủy
+            </Button>
+            {importData ? (
+              <Button
+                variant="primary"
+                loading={importing}
+                disabled={!importData || importData.validRows === 0}
+                onClick={async () => {
+                  setImporting(true);
+                  try {
+                    const formData = new FormData();
+                    formData.append("file", selectedFile);
+                    const res = await client.post("/fields/import?preview=false", formData, {
+                      headers: { "Content-Type": "multipart/form-data" }
+                    });
+                    const count = res?.validRows ?? res?.data?.validRows ?? importData.validRows;
+                    toast.success(`Thêm mới theo lô thành công (${count} trường thông tin)!`);
+                    setImportExcel(false);
+                    setImportData(null);
+                    setSelectedFile(null);
+                    fetchFields();
+                  } catch (err) {
+                    toast.error(err.response?.data?.message || err.message || "Có lỗi xảy ra khi nhập dữ liệu!");
+                  } finally {
+                    setImporting(false);
+                  }
+                }}
+              >
+                Xác nhận Nhập ({importData.validRows} trường)
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                disabled={!selectedFile}
+                loading={importing}
+                onClick={async () => {
+                  setImporting(true);
+                  try {
+                    const formData = new FormData();
+                    formData.append("file", selectedFile);
+                    const res = await client.post("/fields/import?preview=true", formData, {
+                      headers: { "Content-Type": "multipart/form-data" }
+                    });
+                    setImportData(res?.data || res);
+                  } catch (err) {
+                    toast.error(err.response?.data?.message || err.message || "Lỗi đọc file Excel!");
+                  } finally {
+                    setImporting(false);
+                  }
+                }}
+              >
+                Xem trước dữ liệu
+              </Button>
+            )}
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {!importData ? (
+            <>
+              <div
+                onClick={() => {
+                  const input = document.createElement("input");
+                  input.type = "file";
+                  input.accept = ".xlsx, .xls";
+                  input.onchange = (e) => {
+                    if (e.target.files.length > 0) setSelectedFile(e.target.files[0]);
+                  };
+                  input.click();
+                }}
+                className={`rounded-lg border-2 border-dashed p-8 text-center cursor-pointer transition ${
+                  selectedFile ? "border-brand bg-brand-soft" : "border-line hover:bg-canvas"
+                }`}
+              >
+                <Upload className={`size-8 mx-auto mb-3 ${selectedFile ? "text-brand" : "text-muted"}`} />
+                <p className={`font-medium ${selectedFile ? "text-brand" : ""}`}>
+                  {selectedFile ? selectedFile.name : "Click để chọn file từ máy tính"}
+                </p>
+                {!selectedFile && <p className="text-sm text-muted mt-1">hoặc kéo thả file Excel vào đây</p>}
+              </div>
+              <div className="flex justify-between items-center text-sm px-1">
+                <span className="text-muted">Chưa có file mẫu dữ liệu?</span>
+                <button
+                  type="button"
+                  onClick={handleDownloadTemplate}
+                  className="text-brand hover:underline font-medium inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Download className="size-4" /> Tải file mẫu trường thông tin
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex gap-4 mb-4">
+                <div className="flex-1 bg-green-50 text-green-700 p-4 rounded-lg border border-green-200">
+                  <p className="text-sm font-medium">Hợp lệ</p>
+                  <p className="text-2xl font-bold">{importData.validRows}</p>
+                </div>
+                <div className="flex-1 bg-red-50 text-red-700 p-4 rounded-lg border border-red-200">
+                  <p className="text-sm font-medium">Lỗi</p>
+                  <p className="text-2xl font-bold">{importData.invalidRows}</p>
+                </div>
+              </div>
+              {importData.invalidRows > 0 ? (
+                <div className="text-sm text-red-600">
+                  <p className="font-medium mb-2">Chi tiết lỗi:</p>
+                  <ul className="list-disc pl-5 space-y-1 max-h-48 overflow-y-auto">
+                    {importData.errors.map((err, idx) => (
+                      <li key={idx}>{err}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <p className="text-sm text-green-600 font-medium">
+                  Tất cả dữ liệu đều hợp lệ. Bạn có thể tiến hành nhập!
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </Modal>
     </>

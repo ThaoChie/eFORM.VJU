@@ -12,6 +12,10 @@ import vn.edu.drl.backend.dto.response.FieldMasterHistoryResponse;
 import vn.edu.drl.backend.dto.response.FieldMasterResponse;
 import vn.edu.drl.backend.service.FieldMasterService;
 
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 @RestController
@@ -84,5 +88,22 @@ public class FieldMasterController {
             if ("NOT_FOUND".equals(ex.getMessage())) return ApiResponse.error("NOT_FOUND", "Không tìm thấy dữ liệu");
             throw ex;
         }
+    }
+
+    @GetMapping("/template-excel")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<byte[]> downloadTemplate() {
+        byte[] data = fieldMasterService.generateExcelTemplate();
+        return ResponseEntity.ok()
+            .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=fields_template.xlsx")
+            .body(data);
+    }
+
+    @PostMapping("/import")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ApiResponse<?> importExcel(@RequestParam("file") MultipartFile file,
+                                      @RequestParam(defaultValue = "true") boolean preview) {
+        return ApiResponse.success(fieldMasterService.importFromExcel(file, preview));
     }
 }
