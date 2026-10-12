@@ -121,7 +121,7 @@ export const TEMPLATE_CONFIGS = {
   "field-codes": {
     fileName: "mau_nhap_truong_thong_tin",
     sheetName: "Truong_thong_tin",
-    backendPath: null,
+    backendPath: "/fields/template-excel",
     headers: ["Mã trường (*)", "Tên trường (*)", "Kiểu dữ liệu (*)", "Nhóm trường", "Bắt buộc (1/0)", "Giá trị min", "Giá trị max", "Regex kiểm tra", "Mô tả", "Trạng thái (1/0)"],
     sampleRows: [
       ["HO_TEN_SV", "Họ và tên sinh viên", "TEXT", "COMMON", "1", "", "100", "", "Họ tên đầy đủ theo hồ sơ sinh viên", "1"],
