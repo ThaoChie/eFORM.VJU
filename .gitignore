@@ -47,11 +47,15 @@ backend-springboot/add_*.cjs
 frontend-react/node_modules/
 frontend-react/dist/
 frontend-react/.cache/
+frontend-react/.figma/
+**/.figma/
 frontend-react/.env
 frontend-react/.env.*
 !frontend-react/.env.example
 
 # Script tạm sinh ra khi dev / AI codegen
+*.cjs
+**/*.cjs
 frontend-react/fix_*.cjs
 frontend-react/fix_*.js
 frontend-react/update_*.cjs
