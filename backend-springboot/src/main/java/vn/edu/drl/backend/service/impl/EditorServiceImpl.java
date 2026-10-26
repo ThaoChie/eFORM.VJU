@@ -49,18 +49,34 @@ public class EditorServiceImpl implements EditorService {
         Optional<ScoreForm> existingForm = scoreFormRepository.findByStudentIdAndSemesterId(userId, semesterId);
 
         if (existingForm.isPresent()) {
-            return mapToEditorResponse(existingForm.get());
+            ScoreForm form = existingForm.get();
+            List<ScoreFormDetail> existingDetails = scoreFormDetailRepository.findByScoreFormId(form.getId());
+            if (existingDetails.isEmpty()) {
+                List<Criteria> criteriaList = criteriaRepository.findBySemesterId(semesterId);
+                for (Criteria c : criteriaList) {
+                    ScoreFormDetail detail = new ScoreFormDetail();
+                    detail.setScoreForm(form);
+                    detail.setCriteria(c);
+                    detail.setStudentScore(BigDecimal.ZERO);
+                    scoreFormDetailRepository.save(detail);
+                }
+            }
+            return mapToEditorResponse(form);
         }
 
         if (!Boolean.TRUE.equals(semester.getIsActive())) {
             throw new RuntimeException("Semester is not active");
         }
 
-        FormVersion activeForm = formVersionRepository.findByFormCodeAndSemesterIdAndStatus("FORM_DRL", semesterId, FormVersionStatus.ACTIVE)
-                .orElseGet(() -> formVersionRepository.findAll().stream()
-                        .filter(f -> f.getSemester().getId().equals(semesterId) && f.getStatus() == FormVersionStatus.ACTIVE)
-                        .findFirst()
-                        .orElseThrow(() -> new RuntimeException("No ACTIVE form template found for this semester")));
+        FormVersion activeForm = formVersionRepository.findByFormCodeAndSemesterIdAndStatus("DRL-2026", semesterId, FormVersionStatus.ACTIVE)
+                .or(() -> formVersionRepository.findByFormCodeAndSemesterIdAndStatus("FORM_DRL", semesterId, FormVersionStatus.ACTIVE))
+                .or(() -> formVersionRepository.findAll().stream()
+                        .filter(f -> f.getSemester() != null && f.getSemester().getId().equals(semesterId) && f.getStatus() == FormVersionStatus.ACTIVE)
+                        .findFirst())
+                .or(() -> formVersionRepository.findAll().stream()
+                        .filter(f -> f.getStatus() == FormVersionStatus.ACTIVE)
+                        .findFirst())
+                .orElseThrow(() -> new RuntimeException("No ACTIVE form template found for this semester"));
 
         ScoreForm scoreForm = new ScoreForm();
         scoreForm.setStudent(user);

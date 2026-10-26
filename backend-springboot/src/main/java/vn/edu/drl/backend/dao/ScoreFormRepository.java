@@ -21,4 +21,7 @@ public interface ScoreFormRepository extends JpaRepository<ScoreForm, Long> {
     java.util.List<ScoreForm> findByStudentDepartmentIdAndStatus(Long deptId, vn.edu.drl.backend.enu.ScoreFormStatus status);
     java.util.List<ScoreForm> findByStudentClassEntityIdAndStatus(Long classId, vn.edu.drl.backend.enu.ScoreFormStatus status);
     Optional<ScoreForm> findTopByStudentIdOrderByCreatedAtDesc(Long studentId);
+
+    @org.springframework.data.jpa.repository.Query("SELECT COUNT(s) FROM ScoreForm s WHERE s.formVersion.id = :formVersionId AND s.status != vn.edu.drl.backend.enu.ScoreFormStatus.DEAN_APPROVED")
+    long countUnfinishedByFormVersionId(@org.springframework.data.repository.query.Param("formVersionId") Long formVersionId);
 }

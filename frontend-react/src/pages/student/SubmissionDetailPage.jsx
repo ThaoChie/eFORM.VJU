@@ -2,11 +2,13 @@ import { useNavigate } from "react-router-dom"
 import PdfViewer from "../../components/ui/PdfViewer"
 import ProgressStepper from "../../components/ui/ProgressStepper"
 import { Button, Card, PageTitle } from "../../components/ui/Primitives"
+import { useAuthStore } from "../../stores/useAuthStore"
 import { useSubmissionStore } from "../../stores/useSubmissionStore"
 import { criteriaGroups } from "../../services/submission-service"
 
 export default function SubmissionDetailPage() {
   const navigate = useNavigate()
+  const user = useAuthStore((state) => state.user)
   const { scores, status } = useSubmissionStore()
   const total = Object.values(scores).reduce((s, v) => s + Number(v || 0), 0)
   const current =
@@ -50,7 +52,7 @@ export default function SubmissionDetailPage() {
             </div>
           ))}
         </Card>
-        <PdfViewer score={total} />
+        <PdfViewer score={total} total={total} user={user} scores={scores} />
       </div>
     </>
   )

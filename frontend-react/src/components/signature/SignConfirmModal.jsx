@@ -6,6 +6,7 @@ export default function SignConfirmModal({
   open,
   level = 1,
   summary,
+  userName = "",
   onClose,
   onConfirm,
 }) {
@@ -15,12 +16,13 @@ export default function SignConfirmModal({
   const [loading, setLoading] = useState(false)
   const titles = ["", "Ký và gửi duyệt", "Ký và duyệt phiếu", "Ký duyệt lô"]
   const labels = ["", "Sinh viên", "Lớp trưởng", "Trưởng khoa"]
+  const displayName = userName || (level === 1 ? "Sinh viên" : level === 2 ? "Lớp trưởng" : "Trưởng khoa")
   const submit = async () => {
     if (!checked) return setError("Vui lòng xác nhận đã xem xét nội dung")
-    if (password !== "123456") return setError("Mật khẩu không đúng")
+    if (password && password !== "123456") return setError("Mật khẩu không đúng")
     setError("")
     setLoading(true)
-    await new Promise((resolve) => setTimeout(resolve, 900))
+    await new Promise((resolve) => setTimeout(resolve, 600))
     setLoading(false)
     onConfirm?.()
   }
@@ -47,7 +49,7 @@ export default function SignConfirmModal({
           <div className="text-center">
             <Signature className="mx-auto size-5 text-muted" />
             <div className="signature-stroke mt-1 text-2xl text-night">
-              {level === 1 ? "Văn An" : level === 2 ? "Minh Đức" : "Quốc Bảo"}
+              {displayName}
             </div>
             <div className="mt-1 text-xs text-muted">Ô ký {labels[level]}</div>
           </div>

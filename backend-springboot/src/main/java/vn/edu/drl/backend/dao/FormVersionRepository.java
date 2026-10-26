@@ -10,4 +10,5 @@ public interface FormVersionRepository extends JpaRepository<FormVersion, Long> 
     Optional<FormVersion> findByFormCodeAndSemesterIdAndStatus(String formCode, Long semesterId, FormVersionStatus status);
     List<FormVersion> findByFormCodeAndSemesterId(String formCode, Long semesterId);
     Optional<FormVersion> findTopByFormCodeAndSemesterIdOrderByCreatedAtDesc(String formCode, Long semesterId);
+    List<FormVersion> findByFormCodeOrderByCreatedAtDesc(String formCode);
 }

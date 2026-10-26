@@ -1,54 +1,288 @@
 import { client } from "../lib/axios/client"
 import { API_PATHS } from "../lib/axios/api-paths"
 
-export const criteriaGroups = [
+// 5 NHÓM TIÊU CHÍ CHUẨN (100Đ) THEO BIỂU MẪU DRL-2026 VERSION 1.0 (VJU)
+export const OFFICIAL_DRL_2026_BLOCKS = [
   {
-    title: "I. Ý thức tham gia học tập",
-    max: 20,
-    items: [
-      ["study_attendance", "Đi học đầy đủ, đúng giờ", 8],
-      ["study_results", "Nỗ lực trong học tập", 7],
-      ["study_club", "Tham gia câu lạc bộ học thuật", 5],
+    id: "group_1",
+    type: "CRITERIA_GROUP",
+    fieldCode: "total_section_1",
+    title: "1. Ý thức và kết quả học tập, nghiên cứu khoa học",
+    description: "Đánh giá ý thức thái độ trên lớp, tham gia NCKH, thi học thuật, vượt khó và kết quả GPA.",
+    maxScore: 20,
+    calculationMode: "CLAMPED_SUM",
+    children: [
+      {
+        id: "crit_1_1",
+        type: "CRITERIA",
+        fieldCode: "score_1_1",
+        title: "1.1. Ý thức và thái độ trong học tập",
+        description: "Đi học đầy đủ, nghiêm túc trong giờ học, hoàn thành bài tập khi lên lớp.",
+        maxScore: 3,
+        isRequired: true,
+        requiresProof: false,
+      },
+      {
+        id: "crit_1_2",
+        type: "CRITERIA",
+        fieldCode: "score_1_2",
+        title: "1.2. Ý thức, thái độ tham gia các CLB học thuật, hoạt động ngoại khóa, giao lưu, NCKH",
+        description: "Tham gia tích cực một hoặc nhiều hoạt động giao lưu học thuật, NCKH, Ngoại ngữ.",
+        maxScore: 3,
+        isRequired: false,
+        requiresProof: true,
+      },
+      {
+        id: "crit_1_3",
+        type: "CRITERIA",
+        fieldCode: "score_1_3",
+        title: "1.3. Ý thức và thái độ tham gia các kỳ thi, cuộc thi",
+        description: "Chấp hành tốt quy chế thi và các quy định phòng thi.",
+        maxScore: 3,
+        isRequired: true,
+        requiresProof: false,
+      },
+      {
+        id: "crit_1_4",
+        type: "CRITERIA",
+        fieldCode: "score_1_4",
+        title: "1.4. Tinh thần vượt khó, có nỗ lực phấn đấu vươn lên trong học tập",
+        description: "+ GPA duy trì ≥ 3.6 hoặc kết quả kỳ này cao hơn kỳ trước: 3đ\n+ GPA giảm trong khoảng 0.1đ – 0.3đ: 2đ\n+ GPA giảm trong khoảng 0.3đ – 0.5đ: 1đ",
+        maxScore: 3,
+        isRequired: false,
+        requiresProof: false,
+      },
+      {
+        id: "crit_1_5",
+        type: "CRITERIA",
+        fieldCode: "score_1_5",
+        title: "1.5. Kết quả học tập, nghiên cứu khoa học (Tối đa 8đ)",
+        description: "- Điểm kết quả học tập (GPA):\n  + Khá (2.5 ≤ GPA < 3.2): 2đ\n  + Giỏi (3.2 ≤ GPA < 3.6): 3đ\n  + Xuất sắc (GPA ≥ 3.6): 4đ\n- Đạt giải Nghiên cứu khoa học:\n  + Cấp Khoa: 2đ | Cấp Trường: 3đ | Cấp ĐHQGHN: 4đ",
+        maxScore: 8,
+        isRequired: true,
+        requiresProof: true,
+      },
     ],
   },
   {
-    title: "II. Chấp hành nội quy, quy chế",
-    max: 25,
-    items: [
-      ["rules_compliance", "Chấp hành quy chế đào tạo", 10],
-      ["rules_campus", "Giữ gìn nếp sống văn minh", 8],
-      ["rules_duty", "Thực hiện nghĩa vụ sinh viên", 7],
+    id: "group_2",
+    type: "CRITERIA_GROUP",
+    fieldCode: "total_section_2",
+    title: "2. Ý thức chấp hành các nội quy, quy chế, quy định của Trường và ĐHQGHN",
+    description: "Chấp hành chủ trương của Đảng, Nhà nước và nội quy, quy chế thi cử, kỷ luật của Trường.",
+    maxScore: 25,
+    calculationMode: "CLAMPED_SUM",
+    children: [
+      {
+        id: "crit_2_1",
+        type: "CRITERIA",
+        fieldCode: "score_2_1",
+        title: "2.1. Ý thức chấp hành các văn bản chỉ đạo của Đảng, Nhà nước, Bộ GD&ĐT và ĐHQGHN",
+        description: "Nghiêm chỉnh chấp hành pháp luật, các chủ trương chính sách và quy định chung.",
+        maxScore: 15,
+        isRequired: true,
+        requiresProof: false,
+      },
+      {
+        id: "crit_2_2",
+        type: "CRITERIA",
+        fieldCode: "score_2_2",
+        title: "2.2. Ý thức chấp hành các nội quy, quy chế, quy định của Khoa, Trường và đơn vị",
+        description: "- Vi phạm quy chế thi bị lập biên bản nhưng không bị đình chỉ thi: trừ 10đ\n- Vi phạm quy chế thi bị lập biên bản và bị đình chỉ thi: trừ 20đ\n- Kỷ luật mức Khiển trách: trừ 20đ | Cảnh cáo: trừ 25đ",
+        maxScore: 10,
+        isRequired: true,
+        requiresProof: false,
+      },
     ],
   },
   {
-    title: "III. Hoạt động chính trị, xã hội",
-    max: 20,
-    items: [
-      ["activity_union", "Tham gia hoạt động Đoàn - Hội", 8],
-      ["proof_volunteer", "Hoạt động tình nguyện", 7],
-      ["activity_sport", "Văn hóa, văn nghệ, thể thao", 5],
+    id: "group_3",
+    type: "CRITERIA_GROUP",
+    fieldCode: "total_section_3",
+    title: "3. Ý thức tham gia các hoạt động chính trị - xã hội, văn hoá, thể thao, phòng chống TNXH",
+    description: "Tham gia tuần sinh hoạt công dân, hoạt động rèn luyện chính trị xã hội, tình nguyện công ích.",
+    maxScore: 20,
+    calculationMode: "CLAMPED_SUM",
+    children: [
+      {
+        id: "crit_3_1",
+        type: "CRITERIA",
+        fieldCode: "score_3_1",
+        title: "3.1. Ý thức và hiệu quả tham gia hoạt động chính trị, xã hội, văn hóa, thể thao",
+        description: "- Không tham gia Tuần Sinh hoạt công dân sinh viên: trừ 10đ\n- Không tham gia hoạt động khác do Trường tổ chức/yêu cầu: vắng 1 lần trừ 5đ, từ 2 lần trở lên trừ 10đ",
+        maxScore: 10,
+        isRequired: true,
+        requiresProof: false,
+      },
+      {
+        id: "crit_3_2",
+        type: "CRITERIA",
+        fieldCode: "score_3_2",
+        title: "3.2. Tham gia các hoạt động công ích, tình nguyện, công tác xã hội, hỗ trợ sự kiện",
+        description: "Có minh chứng kèm theo: danh sách tham dự, giấy chứng nhận, giấy khen...",
+        maxScore: 5,
+        isRequired: false,
+        requiresProof: true,
+      },
+      {
+        id: "crit_3_3",
+        type: "CRITERIA",
+        fieldCode: "score_3_3",
+        title: "3.3. Ý thức tham gia tuyên truyền, phòng chống tội phạm và các tệ nạn xã hội",
+        description: "Tích cực tham gia giữ gìn an ninh trật tự, phòng chống tệ nạn học đường và xã hội.",
+        maxScore: 5,
+        isRequired: true,
+        requiresProof: false,
+      },
     ],
   },
   {
-    title: "IV. Phẩm chất công dân và cộng đồng",
-    max: 25,
-    items: [
-      ["citizen_ethics", "Có phẩm chất đạo đức tốt", 10],
-      ["citizen_relation", "Quan hệ tốt với cộng đồng", 8],
-      ["citizen_support", "Hỗ trợ bạn bè trong học tập", 7],
+    id: "group_4",
+    type: "CRITERIA_GROUP",
+    fieldCode: "total_section_4",
+    title: "4. Ý thức công dân và quan hệ với cộng đồng",
+    description: "Tuyên truyền chủ trương pháp luật, hoạt động tình nguyện Đoàn TN, tinh thần tương thân tương ái.",
+    maxScore: 25,
+    calculationMode: "CLAMPED_SUM",
+    children: [
+      {
+        id: "crit_4_1",
+        type: "CRITERIA",
+        fieldCode: "score_4_1",
+        title: "4.1. Ý thức chấp hành và tuyên truyền chủ trương của Đảng, chính sách pháp luật trong cộng đồng",
+        description: "Gương mẫu chấp hành pháp luật tại nơi cư trú và cộng đồng xã hội.",
+        maxScore: 10,
+        isRequired: true,
+        requiresProof: false,
+      },
+      {
+        id: "crit_4_2",
+        type: "CRITERIA",
+        fieldCode: "score_4_2",
+        title: "4.2. Ý thức tham gia hoạt động xã hội có thành tích, hoạt động tình nguyện Đoàn TN",
+        description: "Mùa đông ấm, Mùa hè xanh, Hiến máu nhân đạo...\n+ Tham gia tình nguyện trực tiếp: 10đ\n+ Chuẩn bị cho các chiến dịch nhưng không tham dự: 5đ\n(Có minh chứng kèm theo: giấy chứng nhận, giấy khen...)",
+        maxScore: 10,
+        isRequired: false,
+        requiresProof: true,
+      },
+      {
+        id: "crit_4_3",
+        type: "CRITERIA",
+        fieldCode: "score_4_3",
+        title: "4.3. Tinh thần chia sẻ, giúp đỡ bạn bè, người thân, người gặp khó khăn hoạn nạn",
+        description: "Có hành động giúp đỡ bạn bè vượt khó, tham gia quyên góp ủng hộ cộng đồng.",
+        maxScore: 5,
+        isRequired: false,
+        requiresProof: false,
+      },
     ],
   },
   {
-    title: "V. Công tác lớp, đoàn thể",
-    max: 10,
-    items: [
-      ["class_duty", "Tham gia công tác lớp", 5],
-      ["class_leadership", "Hoàn thành nhiệm vụ được giao", 5],
+    id: "group_5",
+    type: "CRITERIA_GROUP",
+    fieldCode: "total_section_5",
+    title: "5. Ý thức và kết quả tham gia công tác lớp, đoàn thể, thành tích đặc biệt",
+    description: "Đảm nhận nhiệm vụ cán bộ lớp, Đoàn - Hội, kỹ năng tổ chức và thành tích đặc biệt cho ĐHQGHN.",
+    maxScore: 10,
+    calculationMode: "CLAMPED_SUM",
+    children: [
+      {
+        id: "crit_5_1",
+        type: "CRITERIA",
+        fieldCode: "score_5_1",
+        title: "5.1. Ý thức, tinh thần, uy tín và hiệu quả công việc khi được phân công quản lý lớp, đoàn thể",
+        description: "+ Chủ nhiệm, Bí thư, BĐH, BĐP, Ban Chấp hành: 3đ\n+ Phó Chủ nhiệm, Phó Bí thư, Lớp phó: 2đ\n+ Trưởng ban các CLB: 1đ",
+        maxScore: 3,
+        isRequired: false,
+        requiresProof: false,
+      },
+      {
+        id: "crit_5_2",
+        type: "CRITERIA",
+        fieldCode: "score_5_2",
+        title: "5.2. Kỹ năng tổ chức, quản lý lớp, quản lý các tổ chức Đảng, Đoàn TN, Hội SV, CLB",
+        description: "+ Chủ nhiệm, Bí thư, BĐH, BĐP, Ban Chấp hành: 2đ\n+ Phó Chủ nhiệm, Phó Bí thư, Lớp phó: 2đ\n+ Trưởng ban: 1đ",
+        maxScore: 2,
+        isRequired: false,
+        requiresProof: false,
+      },
+      {
+        id: "crit_5_3",
+        type: "CRITERIA",
+        fieldCode: "score_5_3",
+        title: "5.3. Hỗ trợ và tham gia tích cực vào các hoạt động chung của lớp, khoa và đơn vị",
+        description: "Nhiệt tình tham gia chuẩn bị, điều phối các buổi sinh hoạt lớp và sự kiện.",
+        maxScore: 2,
+        isRequired: true,
+        requiresProof: false,
+      },
+      {
+        id: "crit_5_4",
+        type: "CRITERIA",
+        fieldCode: "score_5_4",
+        title: "5.4. Thành tích đặc biệt trong học tập, rèn luyện góp phần quảng bá hình ảnh ĐHQGHN",
+        description: "Có giải thưởng văn thể mỹ, học thuật cấp Quốc gia/Quốc tế hoặc khen thưởng đặc biệt (Có minh chứng kèm theo).",
+        maxScore: 3,
+        isRequired: false,
+        requiresProof: true,
+      },
     ],
   },
 ]
 
+// Adapter tương thích với các view hiển thị criteriaGroups cũ
+export const criteriaGroups = OFFICIAL_DRL_2026_BLOCKS.map((g) => ({
+  title: g.title,
+  max: g.maxScore,
+  items: g.children.map((c) => [c.fieldCode, c.title, c.maxScore, c.requiresProof, c.description]),
+}))
+
 export const submissionService = {
+  // Lấy danh sách học kỳ
+  async getAllSemesters() {
+    return (await client.get("/semesters")).data
+  },
+
+  // Lấy học kỳ đang mở (active)
+  async getActiveSemester() {
+    const list = await this.getAllSemesters()
+    if (!Array.isArray(list) || list.length === 0) return null
+    return list.find((s) => s.isActive) || list[0]
+  },
+
+  // Lấy phiếu của sinh viên theo học kỳ (nếu chưa có, backend tự sinh theo FormVersion DRL-2026 active)
+  async getMyForm(semesterId) {
+    return (await client.get("/editor/my-form", { params: { semesterId } })).data
+  },
+
+  // Lưu nháp điểm và minh chứng
+  async saveDraft(payload) {
+    return (await client.post("/editor/save-draft", payload)).data
+  },
+
+  // Upload file minh chứng lên S3/MinIO
+  async uploadProof(semesterId, file) {
+    const formData = new FormData()
+    formData.append("file", file)
+    return (
+      await client.post("/editor/upload-proof", formData, {
+        params: { semesterId },
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+    ).data
+  },
+
+  // Đẩy duyệt kèm chữ ký điện tử
+  async submitAndSign(payload) {
+    return (await client.post("/editor/submit-and-sign", payload)).data
+  },
+
+  // Hủy bản nháp
+  async cancelDraft(semesterId) {
+    return (await client.delete("/editor/cancel-draft", { params: { semesterId } })).data
+  },
+
+  // Các phương thức legacy hỗ trợ list/save
   async list(page = 1) {
     const servicePage = page - 1
     return (
@@ -57,6 +291,7 @@ export const submissionService = {
       })
     ).data
   },
+
   async save(payload) {
     return (
       await client.post(API_PATHS.SUBMISSIONS, payload, { mockData: payload })

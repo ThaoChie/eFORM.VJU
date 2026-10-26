@@ -121,7 +121,13 @@ export default function AppLayout() {
             </div>
           </div>
         </header>
-        <main className="mx-auto max-w-[1280px] p-4 md:p-6">
+        <main
+          className={
+            location.pathname.includes("/design")
+              ? "h-[calc(100vh-3.5rem)] w-full max-w-none m-0 p-0 overflow-hidden"
+              : "mx-auto max-w-[1280px] p-4 md:p-6"
+          }
+        >
           <Outlet />
         </main>
       </div>
