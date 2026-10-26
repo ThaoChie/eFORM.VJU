@@ -72,16 +72,16 @@ export function Select({ label, children, className = "", ...props }) {
   )
 }
 
-export function Textarea({ label, value = "", maxLength, error, ...props }) {
+export function Textarea({ label, value = "", maxLength, error, className = "", ...props }) {
   return (
     <label className="block space-y-1.5">
       {label && <span className="text-xs font-medium text-muted">{label}</span>}
       <textarea
         value={value}
         maxLength={maxLength}
-        className={`min-h-24 w-full resize-y rounded-lg border bg-white p-3 outline-none focus:border-brand focus:ring-2 focus:ring-brand-soft ${
+        className={`min-h-24 w-full resize-y rounded-lg border bg-white p-2.5 text-xs outline-none transition focus:border-brand focus:ring-2 focus:ring-brand-soft leading-relaxed ${
           error ? "border-brand" : "border-line"
-        }`}
+        } ${className}`}
         {...props}
       />
       <span
@@ -195,21 +195,32 @@ export function Table({ columns, rows, onRow }) {
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, index) => (
-            <tr
-              key={row.id ?? index}
-              onClick={() => onRow?.(row)}
-              className={`${
-                onRow ? "cursor-pointer" : ""
-              } h-12 border-b border-line last:border-0 hover:bg-canvas`}
-            >
-              {columns.map((column) => (
-                <td key={column.key} className="px-4 py-3">
-                  {column.render ? column.render(row, index) : row[column.key]}
-                </td>
-              ))}
+          {rows.length === 0 ? (
+            <tr>
+              <td
+                colSpan={columns.length}
+                className="h-32 text-center text-sm text-slate-500 py-8"
+              >
+                Không có dữ liệu
+              </td>
             </tr>
-          ))}
+          ) : (
+            rows.map((row, index) => (
+              <tr
+                key={row.id ?? index}
+                onClick={() => onRow?.(row)}
+                className={`${
+                  onRow ? "cursor-pointer" : ""
+                } h-12 border-b border-line last:border-0 hover:bg-canvas`}
+              >
+                {columns.map((column) => (
+                  <td key={column.key} className="px-4 py-3">
+                    {column.render ? column.render(row, index) : row[column.key]}
+                  </td>
+                ))}
+              </tr>
+            ))
+          )}
         </tbody>
       </table>
     </div>

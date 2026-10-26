@@ -1,4 +1,4 @@
-import { Eye, Pencil, Plus, Search, Upload, Settings, Download, CircleOff, CheckCircle } from "lucide-react"
+import { Eye, Pencil, Plus, Search, Upload, Settings, Download, CircleOff, CheckCircle, ChevronLeft, ChevronRight } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { useEffect, useState } from "react"
 import { toast } from "react-hot-toast"
@@ -252,11 +252,24 @@ export default function FieldCodeListPage() {
         />
         
         {totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-line px-4 py-3 bg-white mt-4 rounded-md shadow-sm">
-            <span className="text-sm text-muted">Trang {page} / {totalPages}</span>
-            <div className="flex gap-2">
-              <Button disabled={page === 1} onClick={() => setPage(p => p - 1)}>Trước</Button>
-              <Button disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>Sau</Button>
+          <div className="flex items-center justify-between border-t border-line px-4 py-3 bg-white mt-4 rounded-lg border shadow-sm">
+            <span className="text-sm text-muted">Tổng số {filteredData.length} trường dữ liệu</span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                disabled={page === 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                <ChevronLeft className="size-4" />
+              </Button>
+              <span className="text-sm font-medium px-2">Trang {page} / {totalPages}</span>
+              <Button
+                variant="ghost"
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              >
+                <ChevronRight className="size-4" />
+              </Button>
             </div>
           </div>
         )}

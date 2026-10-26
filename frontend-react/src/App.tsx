@@ -30,6 +30,8 @@ import AdminDashboard from "./pages/admin/AdminDashboard"
 import FormVersionListPage from "./pages/admin/form-versions/FormVersionListPage"
 import FieldCodeListPage from "./pages/admin/field-codes/FieldCodeListPage"
 import FormVersionCreatePage from "./pages/admin/form-versions/FormVersionCreatePage"
+import FormVersionEditPage from "./pages/admin/form-versions/FormVersionEditPage"
+import FormDesignerPage from "./pages/admin/form-versions/FormDesignerPage"
 import FieldCodeCreatePage from "./pages/admin/field-codes/FieldCodeCreatePage"
 import FieldCodeDetailPage from "./pages/admin/field-codes/FieldCodeDetailPage"
 import DirectoryPage from "./pages/admin/directory/DirectoryPage"
@@ -148,11 +150,15 @@ export default function App() {
           />
           <Route
             path="/admin/form-versions/:id/edit"
-            element={<FormVersionCreatePage />}
+            element={<FormVersionEditPage />}
+          />
+          <Route
+            path="/admin/form-versions/new/design"
+            element={<FormDesignerPage />}
           />
           <Route
             path="/admin/form-versions/:id/design"
-            element={<FormVersionCreatePage />}
+            element={<FormDesignerPage />}
           />
           <Route
             path="/admin/field-codes"

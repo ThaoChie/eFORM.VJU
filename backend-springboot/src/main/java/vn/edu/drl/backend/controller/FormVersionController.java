@@ -27,6 +27,17 @@ public class FormVersionController {
         return ApiResponse.success(formVersionService.getTemplateById(id));
     }
 
+    @GetMapping("/{id}/versions")
+    public ApiResponse<List<FormVersionResponse>> getTemplateVersions(@PathVariable Long id) {
+        return ApiResponse.success(formVersionService.getTemplateVersions(id));
+    }
+
+    @GetMapping("/{id}/check-deactivate")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<java.util.Map<String, Object>> checkDeactivate(@PathVariable Long id) {
+        return ApiResponse.success(formVersionService.checkDeactivate(id));
+    }
+
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<FormVersionResponse> createTemplate(@Valid @RequestBody FormTemplateRequest request) {
@@ -41,7 +52,15 @@ public class FormVersionController {
 
     @PatchMapping("/{id}/activate")
     @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<FormVersionResponse> activateTemplate(@PathVariable Long id) {
-        return ApiResponse.success(formVersionService.activateTemplate(id));
+    public ApiResponse<FormVersionResponse> activateTemplate(@PathVariable Long id, @RequestBody(required = false) java.util.Map<String, String> body) {
+        String reason = body != null ? body.get("reason") : null;
+        return ApiResponse.success(formVersionService.activateTemplate(id, reason));
+    }
+
+    @PatchMapping("/{id}/deactivate")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<FormVersionResponse> deactivateTemplate(@PathVariable Long id, @RequestBody(required = false) java.util.Map<String, String> body) {
+        String reason = body != null ? body.get("reason") : null;
+        return ApiResponse.success(formVersionService.deactivateTemplate(id, reason));
     }
 }

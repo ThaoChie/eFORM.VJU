@@ -109,6 +109,8 @@ scripts/
 # File tài liệu Word nội bộ
 *.doc
 *.docx
+~$*
+*.xlsx
 
 # Codegen script tạm
 codegen.py

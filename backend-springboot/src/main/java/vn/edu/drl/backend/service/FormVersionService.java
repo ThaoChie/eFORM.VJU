@@ -26,7 +26,11 @@ import java.util.stream.Collectors;
 public interface FormVersionService {
     List<FormVersionResponse> getTemplates();
     FormVersionResponse getTemplateById(Long id);
+    List<FormVersionResponse> getTemplateVersions(Long id);
+    java.util.Map<String, Object> checkDeactivate(Long id);
     FormVersionResponse createTemplate(FormTemplateRequest request);
     FormVersionResponse updateTemplate(Long id, FormTemplateRequest request);
     FormVersionResponse activateTemplate(Long id);
+    FormVersionResponse activateTemplate(Long id, String reason);
+    FormVersionResponse deactivateTemplate(Long id, String reason);
 }

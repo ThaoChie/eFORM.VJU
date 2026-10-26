@@ -11,6 +11,10 @@ public class FormVersionResponse {
     private String formName;
     private String versionNo;
     private Long semesterId;
+    private String semesterName;
+    private String scope;
+    private java.time.LocalDate effectiveFrom;
+    private java.time.LocalDate effectiveTo;
     private String templateLayoutJson;
     private FormVersionStatus status;
     private Instant createdAt;

@@ -12,9 +12,11 @@ public class FormTemplateRequest {
     @NotBlank(message = "Form name is required")
     private String formName;
 
-    @NotNull(message = "Semester ID is required")
     private Long semesterId;
 
-    @NotBlank(message = "Template layout JSON is required")
     private String templateLayoutJson;
+
+    private String versionNo;
+    private vn.edu.drl.backend.enu.FormVersionStatus status;
+    private String description;
 }
