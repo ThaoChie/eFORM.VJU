@@ -17,4 +17,5 @@ public interface UserService {
     byte[] generateExcelTemplate();
     Map<String, Object> importFromExcel(MultipartFile file, boolean preview);
     byte[] exportToExcel(Long deptId, Long classId, String cohort, String role);
+    void updateSignatureSpecimen(Long userId, String signatureUrl);
 }

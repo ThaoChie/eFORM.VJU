@@ -3,6 +3,8 @@ import { useState, useEffect } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { toast } from "react-hot-toast"
 import {
+  ActionViewButton,
+  BackButton,
   Button,
   Card,
   PageTitle,
@@ -163,14 +165,13 @@ export default function FieldCodeDetailPage() {
       key: "action",
       title: "Thao tác",
       render: (v) => (
-        <Button
-          size="sm"
-          variant={v.version === selectedVersion ? "primary" : "ghost"}
-          onClick={() => setSelectedVersion(v.version)}
-        >
-          <Eye className="size-3.5 mr-1" />
-          {v.version === selectedVersion ? "Đang xem" : "Xem bản này"}
-        </Button>
+        <div className="flex items-center gap-1">
+          <ActionViewButton
+            label={v.version === selectedVersion ? "Đang xem phiên bản này" : "Xem phiên bản này"}
+            onClick={() => setSelectedVersion(v.version)}
+            className={v.version === selectedVersion ? "text-brand bg-brand-soft" : ""}
+          />
+        </div>
       )
     }
   ];
@@ -182,16 +183,13 @@ export default function FieldCodeDetailPage() {
         description={`Xem chi tiết cấu hình và lịch sử phiên bản của trường ${field.fieldCode}`}
         action={
           <div className="flex items-center gap-2">
-            <Button onClick={() => navigate(-1)}>
-              <ArrowLeft className="size-4" />
-              Quay lại
-            </Button>
+            <BackButton onClick={() => navigate(-1)} />
             <Button
               variant={field.isActive ? "danger" : "secondary"}
               onClick={handleToggleStatus}
               disabled={toggling}
             >
-              {field.isActive ? <CircleOff className="size-4" /> : <CheckCircle className="size-4" />}
+              {field.isActive ? <CircleOff className="size-4" /> : <CheckCircle className="size-4 text-emerald-500" />}
               {field.isActive ? "Vô hiệu hóa" : "Kích hoạt"}
             </Button>
             <Button variant="primary" onClick={() => navigate(`/admin/field-codes/${id}/edit`)}>

@@ -34,6 +34,7 @@ import {
 } from "../../../components/ui/Primitives"
 import { formService } from "../../../services/form-service"
 import { client } from "../../../lib/axios/client"
+import { extractFieldsAndSlotsFromTemplate } from "./formVersionUtils"
 
 export default function FormVersionCreatePage() {
   const navigate = useNavigate()
@@ -285,20 +286,33 @@ export default function FormVersionCreatePage() {
   // 9: Sao chép từ biểu mẫu khác
   const handleCopyFromOther = (template) => {
     try {
-      if (template.templateLayoutJson) {
-        const layout = JSON.parse(template.templateLayoutJson);
-        if (layout.fields && Array.isArray(layout.fields)) {
-          // Map back to active fields
-          const fieldCodesInTpl = new Set(layout.fields.map((f) => f.fieldCode));
-          const matched = allFieldCodes.filter((f) => fieldCodesInTpl.has(f.fieldCode));
-          setSelectedFields(matched);
-          analyzePlaceholders(templateFile, matched);
+      const { fields, signatureSlots: extractedSlots, rawLayout, scope } = extractFieldsAndSlotsFromTemplate(template, allFieldCodes);
+      if (fields.length > 0) {
+        setSelectedFields(fields);
+        analyzePlaceholders(templateFile, fields);
+      }
+      if (extractedSlots && extractedSlots.length > 0) {
+        setSignatureSlots(extractedSlots);
+      }
+      if (rawLayout) {
+        setCustomLayoutJson(rawLayout);
+      }
+      if (scope) {
+        if (scope === "ALL" || scope === "Toàn hệ thống") {
+          setScopeType("Toàn hệ thống");
+        } else if (Array.isArray(scope)) {
+          setScopeType("Đơn vị cụ thể");
+          setSelectedDepts(scope);
         }
+      }
+      if (template.description && !description) {
+        setDescription(template.description);
       }
       setCopyModalOpen(false);
       markDirty();
-      toast.success(`Đã sao chép cấu hình từ ${template.formCode} (${template.versionNo})!`);
+      toast.success(`Đã sao chép thành công ${fields.length} trường thông tin và cấu hình từ ${template.formCode} (${template.versionNo})!`);
     } catch (e) {
+      console.error("Lỗi sao chép biểu mẫu:", e);
       toast.error("Không thể đọc cấu hình của biểu mẫu nguồn");
     }
   };

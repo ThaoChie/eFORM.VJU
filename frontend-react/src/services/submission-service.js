@@ -237,49 +237,97 @@ export const criteriaGroups = OFFICIAL_DRL_2026_BLOCKS.map((g) => ({
   items: g.children.map((c) => [c.fieldCode, c.title, c.maxScore, c.requiresProof, c.description]),
 }))
 
+const unwrap = (res) => {
+  if (res && typeof res === "object" && "data" in res && !Array.isArray(res)) {
+    return res.data
+  }
+  return res
+}
+
 export const submissionService = {
+  // Lấy kỳ đánh giá đang mở (active evaluation period)
+  async getActivePeriod() {
+    const res = await client.get("/evaluation-periods/active")
+    return unwrap(res)
+  },
+
   // Lấy danh sách học kỳ
   async getAllSemesters() {
-    return (await client.get("/semesters")).data
+    const res = await client.get("/semesters")
+    return unwrap(res)
   },
 
   // Lấy học kỳ đang mở (active)
   async getActiveSemester() {
+    try {
+      const activePeriod = await this.getActivePeriod()
+      if (activePeriod && activePeriod.semesterId) {
+        return {
+          id: activePeriod.semesterId,
+          semesterName: activePeriod.semesterName,
+          academicYear: activePeriod.academicYear,
+          isActive: true,
+          deadline: activePeriod.submissionDeadline,
+          remainingDays: activePeriod.remainingDays,
+          formVersionId: activePeriod.formVersionId,
+          formName: activePeriod.formName,
+          formCode: activePeriod.formCode,
+        }
+      }
+    } catch (e) {
+      console.warn("Could not fetch active evaluation period, checking semesters...", e)
+    }
+
     const list = await this.getAllSemesters()
     if (!Array.isArray(list) || list.length === 0) return null
-    return list.find((s) => s.isActive) || list[0]
+    return list.find((s) => s.isActive === true) || null
+  },
+
+  // Lấy danh sách lịch sử phiếu của sinh viên
+  async getHistory() {
+    const res = await client.get("/editor/history")
+    return unwrap(res)
+  },
+
+  // Lấy phiếu của sinh viên theo ID phiếu
+  async getMyFormById(formId) {
+    const res = await client.get(`/editor/form/${formId}`)
+    return unwrap(res)
   },
 
   // Lấy phiếu của sinh viên theo học kỳ (nếu chưa có, backend tự sinh theo FormVersion DRL-2026 active)
   async getMyForm(semesterId) {
-    return (await client.get("/editor/my-form", { params: { semesterId } })).data
+    const res = await client.get("/editor/my-form", { params: { semesterId } })
+    return unwrap(res)
   },
 
   // Lưu nháp điểm và minh chứng
   async saveDraft(payload) {
-    return (await client.post("/editor/save-draft", payload)).data
+    const res = await client.post("/editor/save-draft", payload)
+    return unwrap(res)
   },
 
   // Upload file minh chứng lên S3/MinIO
   async uploadProof(semesterId, file) {
     const formData = new FormData()
     formData.append("file", file)
-    return (
-      await client.post("/editor/upload-proof", formData, {
-        params: { semesterId },
-        headers: { "Content-Type": "multipart/form-data" },
-      })
-    ).data
+    const res = await client.post("/editor/upload-proof", formData, {
+      params: { semesterId },
+      headers: { "Content-Type": "multipart/form-data" },
+    })
+    return unwrap(res)
   },
 
   // Đẩy duyệt kèm chữ ký điện tử
   async submitAndSign(payload) {
-    return (await client.post("/editor/submit-and-sign", payload)).data
+    const res = await client.post("/editor/submit-and-sign", payload)
+    return unwrap(res)
   },
 
   // Hủy bản nháp
   async cancelDraft(semesterId) {
-    return (await client.delete("/editor/cancel-draft", { params: { semesterId } })).data
+    const res = await client.delete("/editor/cancel-draft", { params: { semesterId } })
+    return unwrap(res)
   },
 
   // Các phương thức legacy hỗ trợ list/save

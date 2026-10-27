@@ -27,6 +27,7 @@ import BatchListPage from "./pages/dean/BatchListPage"
 import BatchDetailPage from "./pages/dean/BatchDetailPage"
 import DeanReportPage from "./pages/dean/DeanReportPage"
 import AdminDashboard from "./pages/admin/AdminDashboard"
+import EvaluationPeriodListPage from "./pages/admin/evaluation-periods/EvaluationPeriodListPage"
 import FormVersionListPage from "./pages/admin/form-versions/FormVersionListPage"
 import FieldCodeListPage from "./pages/admin/field-codes/FieldCodeListPage"
 import FormVersionCreatePage from "./pages/admin/form-versions/FormVersionCreatePage"
@@ -123,6 +124,10 @@ export default function App() {
             path="/class-leader/review/:id"
             element={<ReviewDetailPage />}
           />
+          <Route
+            path="/class-leader/signature"
+            element={<MySignaturePage level={2} />}
+          />
         </Route>
         <Route element={<Guard roles={["dean"]} />}>
           <Route path="/dean/dashboard" element={<DeanDashboard />} />
@@ -136,6 +141,10 @@ export default function App() {
         </Route>
         <Route element={<Guard roles={["admin"]} />}>
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <Route
+            path="/admin/evaluation-periods"
+            element={<EvaluationPeriodListPage />}
+          />
           <Route
             path="/admin/form-versions"
             element={<FormVersionListPage />}

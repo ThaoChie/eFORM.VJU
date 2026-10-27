@@ -1,25 +1,22 @@
 import { client } from "../lib/axios/client"
 import { API_PATHS } from "../lib/axios/api-paths"
 
-const seed = [
-  "Kỳ chấm điểm rèn luyện đã mở",
-  "Phiếu của bạn đã được lưu nháp",
-  "Có 12 phiếu đang chờ lớp duyệt",
-  "Lô BCSE2023 đã sẵn sàng ký",
-  "Biểu mẫu v2.0 đang chờ phê duyệt",
-]
-
 export const notificationService = {
-  async list() {
-    return (
-      await client.get(API_PATHS.NOTIFICATIONS, {
-        mockData: seed.map((text, id) => ({
-          id,
-          text,
-          read: id > 1,
-          time: `${id + 1} giờ trước`,
-        })),
-      })
-    ).data
+  // Lấy danh sách thông báo phân trang + số lượng chưa đọc từ API
+  async list(page = 0, size = 20) {
+    const res = await client.get(API_PATHS.NOTIFICATIONS, {
+      params: { page, size },
+    })
+    return res || { data: [], total: 0, unreadCount: 0 }
+  },
+
+  // Đánh dấu một thông báo đã đọc
+  async markAsRead(id) {
+    return await client.patch(`${API_PATHS.NOTIFICATIONS}/${id}/read`)
+  },
+
+  // Đánh dấu tất cả thông báo là đã đọc
+  async markAllAsRead() {
+    return await client.patch(`${API_PATHS.NOTIFICATIONS}/read-all`)
   },
 }

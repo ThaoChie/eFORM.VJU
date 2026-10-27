@@ -17,6 +17,10 @@ public class AuditLog {
     private ScoreForm scoreForm;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "period_id")
+    private EvaluationPeriod evaluationPeriod;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;
 

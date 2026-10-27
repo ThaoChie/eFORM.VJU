@@ -66,4 +66,19 @@ public class UserController {
             .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=users_export.xlsx")
             .body(data);
     }
+
+    @PostMapping("/signature")
+    public ApiResponse<java.util.Map<String, Object>> updateSignature(@RequestBody java.util.Map<String, String> body) {
+        Long currentUserId = vn.edu.drl.backend.security.SecurityUtils.getCurrentUserId();
+        if (currentUserId == null) {
+            throw new RuntimeException("UNAUTHORIZED");
+        }
+        String signature = body.get("signature");
+        signature = vn.edu.drl.backend.service.engine.ImageConversionUtils.ensureStandardWebImage(signature);
+        service.updateSignatureSpecimen(currentUserId, signature);
+        java.util.Map<String, Object> res = new java.util.HashMap<>();
+        res.put("signature", signature);
+        res.put("isSignatureLocked", true);
+        return ApiResponse.success(res);
+    }
 }

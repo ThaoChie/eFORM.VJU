@@ -12,6 +12,7 @@ public class SaveDraftRequest {
     @Data
     public static class DraftDetail {
         private Long criteriaId;
+        private String criteriaCode;
         private BigDecimal studentScore;
         private String proofUrl;
     }

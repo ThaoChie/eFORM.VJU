@@ -41,7 +41,7 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     public Map<String, Object> getNotifications(Long userId, Pageable pageable) {
-        Page<Notification> page = notificationRepository.findByUserId(userId, pageable);
+        Page<Notification> page = notificationRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
         long unreadCount = notificationRepository.countByUserIdAndIsReadFalse(userId);
         
         Map<String, Object> response = new HashMap<>();

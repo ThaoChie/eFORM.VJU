@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.drl.backend.dao.*;
 import vn.edu.drl.backend.dto.response.dashboard.*;
+import vn.edu.drl.backend.enu.EvaluationPeriodStatus;
 import vn.edu.drl.backend.enu.FormVersionStatus;
 import vn.edu.drl.backend.enu.Role;
 import vn.edu.drl.backend.enu.ScoreFormStatus;
@@ -14,6 +15,7 @@ import vn.edu.drl.backend.service.DashboardService;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -29,6 +31,7 @@ public class DashboardServiceImpl implements DashboardService {
     private final FormVersionRepository formVersionRepository;
     private final ScoreFormRepository scoreFormRepository;
     private final NotificationRepository notificationRepository;
+    private final EvaluationPeriodRepository evaluationPeriodRepository;
 
     private static final List<Role> STUDENT_ROLES = List.of(Role.STUDENT, Role.CLASS_LEADER, Role.CLASS_DEPUTY);
 
@@ -316,26 +319,36 @@ public class DashboardServiceImpl implements DashboardService {
             pendingReviews = scoreFormRepository.countByStatusAndStudentClassEntityId(ScoreFormStatus.SUBMITTED, user.getClassEntity().getId());
         }
 
-        Semester semester = semesterRepository.findByIsActiveTrue().orElse(null);
+        EvaluationPeriod activePeriod = evaluationPeriodRepository.findFirstByStatusOrderByCreatedAtDesc(EvaluationPeriodStatus.DANG_MO).orElse(null);
+        Semester semester = activePeriod != null ? activePeriod.getSemester() : semesterRepository.findByIsActiveTrue().orElse(null);
         LocalDate today = LocalDate.now();
-        long remDays = 15;
-        String deadlineStr = "30/11/2026";
-        if (semester != null && semester.getEndDate() != null) {
-            remDays = Math.max(0, ChronoUnit.DAYS.between(today, semester.getEndDate()));
-            deadlineStr = semester.getEndDate().getDayOfMonth() + "/" + semester.getEndDate().getMonthValue() + "/" + semester.getEndDate().getYear();
-        }
 
-        StudentDashboardResponse.SemesterInfoDto semDto = StudentDashboardResponse.SemesterInfoDto.builder()
-                .id(semester != null ? semester.getId() : 1L)
-                .name(semester != null ? semester.getSemesterName() : "Học kỳ 1")
-                .academicYear(semester != null ? semester.getAcademicYear() : "2026-2027")
-                .deadline(deadlineStr)
-                .remainingDays(remDays)
-                .build();
+        StudentDashboardResponse.SemesterInfoDto semDto = null;
+        String fvName = "Biểu mẫu ĐRL";
 
-        // Active form version
-        String fvName = "Biểu mẫu ĐRL " + (semester != null ? semester.getAcademicYear() : "2026-2027");
-        if (semester != null) {
+        if (activePeriod != null) {
+            long remDays = Math.max(0, ChronoUnit.DAYS.between(today, activePeriod.getSubmissionDeadline()));
+            String deadlineStr = activePeriod.getSubmissionDeadline().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+            semDto = StudentDashboardResponse.SemesterInfoDto.builder()
+                    .id(semester != null ? semester.getId() : null)
+                    .name(semester != null ? semester.getSemesterName() : "Học kỳ")
+                    .academicYear(semester != null ? semester.getAcademicYear() : "")
+                    .deadline(deadlineStr)
+                    .remainingDays(remDays)
+                    .build();
+            if (activePeriod.getFormVersion() != null) {
+                fvName = activePeriod.getFormVersion().getFormName() + " (v" + activePeriod.getFormVersion().getVersionNo() + ")";
+            }
+        } else if (semester != null && Boolean.TRUE.equals(semester.getIsActive())) {
+            long remDays = semester.getEndDate() != null ? Math.max(0, ChronoUnit.DAYS.between(today, semester.getEndDate())) : 0;
+            String deadlineStr = semester.getEndDate() != null ? semester.getEndDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) : "";
+            semDto = StudentDashboardResponse.SemesterInfoDto.builder()
+                    .id(semester.getId())
+                    .name(semester.getSemesterName())
+                    .academicYear(semester.getAcademicYear())
+                    .deadline(deadlineStr)
+                    .remainingDays(remDays)
+                    .build();
             Optional<FormVersion> fvOpt = formVersionRepository.findByFormCodeAndSemesterIdAndStatus("FORM_DRL", semester.getId(), FormVersionStatus.ACTIVE);
             if (fvOpt.isPresent()) {
                 fvName = fvOpt.get().getFormName() + " (v" + fvOpt.get().getVersionNo() + ")";
@@ -383,12 +396,15 @@ public class DashboardServiceImpl implements DashboardService {
         }
 
         // Recent Notifications
-        List<Notification> notifs = notificationRepository.findByUserId(userId, PageRequest.of(0, 5)).getContent();
+        List<Notification> notifs = notificationRepository.findByUserIdOrderByCreatedAtDesc(userId, PageRequest.of(0, 5)).getContent();
         List<StudentDashboardResponse.NotificationDto> notifDtos = notifs.stream()
                 .map(n -> StudentDashboardResponse.NotificationDto.builder()
                         .id(n.getId())
+                        .title(n.getTitle())
+                        .content(n.getContent())
                         .text(n.getTitle() != null ? n.getTitle() + ": " + n.getContent() : n.getContent())
                         .time(n.getCreatedAt() != null ? n.getCreatedAt().toString() : "Vừa xong")
+                        .linkUrl(n.getLinkUrl())
                         .read(Boolean.TRUE.equals(n.getIsRead()))
                         .build())
                 .collect(Collectors.toList());

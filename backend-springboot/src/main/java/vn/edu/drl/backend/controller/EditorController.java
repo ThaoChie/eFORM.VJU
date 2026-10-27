@@ -20,14 +20,28 @@ public class EditorController {
     private final EditorService editorService;
 
     @GetMapping("/my-form")
-    @PreAuthorize("hasRole('STUDENT')")
+    @PreAuthorize("hasAnyRole('STUDENT', 'CLASS_LEADER', 'CLASS_DEPUTY')")
     public ApiResponse<EditorFormResponse> getMyForm(@RequestParam Long semesterId) {
         Long userId = SecurityUtils.getCurrentUserId();
         return ApiResponse.success(editorService.getMyForm(userId, semesterId));
     }
 
+    @GetMapping("/form/{id}")
+    @PreAuthorize("hasAnyRole('STUDENT', 'CLASS_LEADER', 'CLASS_DEPUTY')")
+    public ApiResponse<EditorFormResponse> getMyFormById(@PathVariable Long id) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        return ApiResponse.success(editorService.getMyFormById(userId, id));
+    }
+
+    @GetMapping("/history")
+    @PreAuthorize("hasAnyRole('STUDENT', 'CLASS_LEADER', 'CLASS_DEPUTY')")
+    public ApiResponse<java.util.List<vn.edu.drl.backend.dto.response.StudentHistoryResponse>> getMyHistory() {
+        Long userId = SecurityUtils.getCurrentUserId();
+        return ApiResponse.success(editorService.getMyHistory(userId));
+    }
+
     @PostMapping("/save-draft")
-    @PreAuthorize("hasRole('STUDENT')")
+    @PreAuthorize("hasAnyRole('STUDENT', 'CLASS_LEADER', 'CLASS_DEPUTY')")
     public ApiResponse<Void> saveDraft(@RequestBody SaveDraftRequest request) {
         Long userId = SecurityUtils.getCurrentUserId();
         editorService.saveDraft(userId, request);
@@ -35,7 +49,7 @@ public class EditorController {
     }
 
     @PostMapping("/upload-proof")
-    @PreAuthorize("hasRole('STUDENT')")
+    @PreAuthorize("hasAnyRole('STUDENT', 'CLASS_LEADER', 'CLASS_DEPUTY')")
     public ApiResponse<String> uploadProof(@RequestParam Long semesterId, @RequestParam("file") MultipartFile file) throws Exception {
         Long userId = SecurityUtils.getCurrentUserId();
         String objectKey = editorService.uploadProof(userId, semesterId, file);
@@ -43,7 +57,7 @@ public class EditorController {
     }
 
     @PostMapping("/submit-and-sign")
-    @PreAuthorize("hasRole('STUDENT')")
+    @PreAuthorize("hasAnyRole('STUDENT', 'CLASS_LEADER', 'CLASS_DEPUTY')")
     public ApiResponse<Void> submitAndSign(@Valid @RequestBody SubmitFormRequest request, HttpServletRequest httpRequest) {
         Long userId = SecurityUtils.getCurrentUserId();
         String ipAddress = httpRequest.getRemoteAddr();
@@ -52,7 +66,7 @@ public class EditorController {
     }
 
     @DeleteMapping("/cancel-draft")
-    @PreAuthorize("hasRole('STUDENT')")
+    @PreAuthorize("hasAnyRole('STUDENT', 'CLASS_LEADER', 'CLASS_DEPUTY')")
     public ApiResponse<Void> cancelDraft(@RequestParam Long semesterId) {
         Long userId = SecurityUtils.getCurrentUserId();
         editorService.cancelDraft(userId, semesterId);

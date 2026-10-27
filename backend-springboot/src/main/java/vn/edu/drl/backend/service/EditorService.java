@@ -21,6 +21,8 @@ import java.util.stream.Collectors;
 
 public interface EditorService {
     EditorFormResponse getMyForm(Long userId, Long semesterId);
+    EditorFormResponse getMyFormById(Long userId, Long formId);
+    java.util.List<vn.edu.drl.backend.dto.response.StudentHistoryResponse> getMyHistory(Long userId);
     void saveDraft(Long userId, SaveDraftRequest request);
     String uploadProof(Long userId, Long semesterId, MultipartFile file) throws Exception;
     void submitAndSign(Long userId, SubmitFormRequest request, String ipAddress);

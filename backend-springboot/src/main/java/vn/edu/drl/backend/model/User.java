@@ -56,6 +56,15 @@ public class User {
     @Column(name = "signature_specimen_url", columnDefinition = "TEXT")
     private String signatureSpecimenUrl;
 
+    @Column(name = "signature_hash", length = 64)
+    private String signatureHash;
+
+    @Column(name = "signature_registered_at")
+    private Instant signatureRegisteredAt;
+
+    @Column(name = "is_signature_locked")
+    private Boolean isSignatureLocked = false;
+
     @Column(name = "is_active")
     private Boolean isActive = true;
 

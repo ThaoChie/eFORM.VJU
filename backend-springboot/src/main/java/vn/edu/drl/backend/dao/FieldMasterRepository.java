@@ -7,4 +7,5 @@ import java.util.Optional;
 public interface FieldMasterRepository extends JpaRepository<FieldMaster, Long> {
     boolean existsByFieldCode(String fieldCode);
     Optional<FieldMaster> findByFieldCode(String fieldCode);
+    java.util.List<FieldMaster> findByIsActive(Boolean isActive);
 }
