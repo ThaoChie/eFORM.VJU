@@ -12,4 +12,8 @@ public class AuthUserResponse {
     private String role;
     private String facultyName;
     private String className;
+    private String signatureSpecimenUrl;
+    private String signatureHash;
+    private java.time.Instant signatureRegisteredAt;
+    private Boolean isSignatureLocked;
 }

@@ -43,6 +43,17 @@ import Renderer from "../../../components/form-builder/Renderer"
 import { formService } from "../../../services/form-service"
 import { client } from "../../../lib/axios/client"
 
+const formatDescription = (desc) => {
+  if (!desc) return ""
+  return String(desc)
+    .replace(/\\r\\n/g, "\n")
+    .replace(/\\n/g, "\n")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .replace(/\s*\/n\s*/g, "\n")
+    .replace(/\/n(?=[+\-•\d\s]|$)/g, "\n")
+}
+
 // CẤU TRÚC 5 NHÓM TIÊU CHÍ CHUẨN (100Đ) THEO ĐÚNG PHÔI WORD (Phoi_Mau_Phieu_DRL_2026.docx)
 const OFFICIAL_DRL_2026_BLOCKS = [
   {
@@ -917,27 +928,9 @@ export default function FormDesignerPage() {
           className="flex-1 overflow-y-auto p-6"
         >
           <div className="mx-auto max-w-3xl space-y-4">
-            {/* Header Canvas Tối giản & Tinh tế */}
-            <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-xs">
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                  Cấu trúc biểu mẫu
-                </span>
-                <span className="rounded-full bg-slate-100 px-2.5 py-0.5 font-mono text-[11px] font-semibold text-slate-600">
-                  {blocks.length} nhóm tiêu chí
-                </span>
-                <span
-                  className={`rounded-full px-2.5 py-0.5 font-mono text-[11px] font-bold ${
-                    totalMaxScore === 100
-                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                      : "bg-slate-100 text-slate-600 border border-slate-200"
-                  }`}
-                >
-                  {totalMaxScore} / 100đ
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2">
+            {/* Nút tác vụ thêm nhóm trên canvas (khi đã có tiêu chí) */}
+            {blocks.length > 0 && (
+              <div className="flex items-center justify-end">
                 <Button
                   variant="secondary"
                   onClick={handleAddCriteriaGroup}
@@ -946,24 +939,6 @@ export default function FormDesignerPage() {
                   <FolderPlus className="size-3.5" />
                   + Thêm nhóm
                 </Button>
-                <button
-                  type="button"
-                  onClick={handleLoadOfficialTemplate}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-brand hover:border-brand/40 transition"
-                >
-                  <FileText className="size-3.5 text-brand" />
-                  Nạp phôi DRL 2026
-                </button>
-              </div>
-            </div>
-
-            {/* Nhắc nhở quy chế (Chỉ hiện khi đã có tiêu chí và chưa đạt 100đ) */}
-            {blocks.length > 0 && totalMaxScore !== 100 && (
-              <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50/70 px-3.5 py-2 text-xs text-amber-800">
-                <AlertTriangle className="size-3.5 shrink-0 text-amber-600" />
-                <span>
-                  Tổng điểm hiện tại: <strong>{totalMaxScore}đ</strong> (Quy chế quy định 100 điểm để có thể kích hoạt).
-                </span>
               </div>
             )}
 
@@ -1000,13 +975,6 @@ export default function FormDesignerPage() {
               </div>
             ) : (
               <>
-                {/* TIÊU ĐỀ CÁC CỘT (CHỈ HIỂN THỊ KHI CÓ KHỐI) */}
-                <div className="hidden sm:grid grid-cols-[1fr_85px_150px_75px] items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2 text-[11px] font-bold uppercase tracking-wider text-slate-600">
-                  <span>Nội dung đánh giá / Hướng dẫn chấm</span>
-                  <span className="text-center">Điểm trần</span>
-                  <span className="text-center">Phân quyền</span>
-                  <span className="text-center text-slate-400">Thao tác</span>
-                </div>
 
                 {/* Danh sách các khối trong Canvas */}
                 <div className="space-y-3">
@@ -1038,10 +1006,10 @@ export default function FormDesignerPage() {
                           console.warn("Drop error into group:", err);
                         }
                       }}
-                      className={`group relative rounded-xl border-2 transition cursor-pointer bg-white overflow-hidden ${
+                      className={`group relative rounded-xl border transition cursor-pointer bg-white overflow-hidden ${
                         isGroupSelected
-                          ? "border-brand shadow-md ring-2 ring-brand-soft"
-                          : "border-slate-300 hover:border-slate-400"
+                          ? "border-slate-800 shadow-sm ring-1 ring-slate-800/10"
+                          : "border-slate-200 hover:border-slate-300"
                       }`}
                     >
                       {/* Header Nhóm Tiêu chí */}
@@ -1062,7 +1030,7 @@ export default function FormDesignerPage() {
                               </div>
                               {block.description && (
                                 <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-line">
-                                  {block.description}
+                                  {formatDescription(block.description)}
                                 </p>
                               )}
                               <div className="flex flex-wrap items-center gap-2 pt-0.5 font-mono text-[11px] text-muted">
@@ -1138,7 +1106,7 @@ export default function FormDesignerPage() {
                                 }}
                                 className={`grid sm:grid-cols-[1fr_95px_160px_85px] gap-2 items-center rounded-lg border p-2.5 transition cursor-pointer bg-white ${
                                   isChildSelected
-                                    ? "border-brand shadow-sm ring-1 ring-brand-soft"
+                                    ? "border-slate-800 shadow-xs ring-1 ring-slate-800/10"
                                     : "border-line hover:border-slate-300"
                                 }`}
                               >
@@ -1160,7 +1128,7 @@ export default function FormDesignerPage() {
                                     </div>
                                     {child.description && (
                                       <p className="text-[11px] text-slate-500 whitespace-pre-line leading-relaxed">
-                                        {child.description}
+                                        {formatDescription(child.description)}
                                       </p>
                                     )}
                                     <div className="flex items-center gap-2 font-mono text-[10px] text-muted">
@@ -1231,10 +1199,10 @@ export default function FormDesignerPage() {
                   <div
                     key={block.id}
                     onClick={() => setSelectedBlockId(block.id)}
-                    className={`group relative rounded-xl border-2 p-3.5 transition cursor-pointer bg-white ${
+                    className={`group relative rounded-xl border p-3.5 transition cursor-pointer bg-white ${
                       isSelected
-                        ? "border-brand shadow-md ring-2 ring-brand-soft"
-                        : "border-slate-300 hover:border-slate-400"
+                        ? "border-slate-800 shadow-sm ring-1 ring-slate-800/10"
+                        : "border-slate-200 hover:border-slate-300"
                     }`}
                   >
                     <div className="grid sm:grid-cols-[1fr_95px_160px_85px] gap-2 items-center">
@@ -1254,7 +1222,7 @@ export default function FormDesignerPage() {
                             )}
                           </div>
                           <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-line">
-                            {block.description}
+                            {formatDescription(block.description)}
                           </p>
                           <div className="flex items-center gap-2 pt-0.5 font-mono text-[11px] text-muted">
                             <span>Mã: <strong className="text-slate-700">{block.fieldCode}</strong></span>
@@ -1315,36 +1283,14 @@ export default function FormDesignerPage() {
               })}
                 </div>
 
-                {/* HÀNG TỔNG KẾT BIỂU MẪU (NỀN SÁNG, THIẾT KẾ TINH TẾ) */}
+                {/* HÀNG TỔNG KẾT BIỂU MẪU */}
                 <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs shadow-xs">
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-slate-800">TỔNG ĐIỂM BIỂU MẪU:</span>
                     <span className={`font-mono font-bold text-sm ${totalMaxScore === 100 ? "text-emerald-700" : "text-amber-700"}`}>
                       {totalMaxScore} / 100đ
                     </span>
-                    {totalMaxScore === 100 ? (
-                      <span className="rounded bg-emerald-100 text-emerald-800 px-2 py-0.5 text-[10px] font-bold">
-                        Đạt chuẩn 100đ
-                      </span>
-                    ) : (
-                      <span className="rounded bg-amber-100 text-amber-800 px-2 py-0.5 text-[10px] font-bold">
-                        Quy chế 100đ
-                      </span>
-                    )}
                   </div>
-                  <span className="text-[11px] text-muted font-medium">
-                    {blocks.length} nhóm tiêu chí • Tách 2 JSON độc lập khi chấm
-                  </span>
-                </div>
-
-                {/* VÙNG KÝ HỆ THỐNG GỌN GÀNG */}
-                <div className="flex items-center justify-between rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-4 py-2.5 text-xs text-muted">
-                  <div className="flex items-center gap-2">
-                    <Lock className="size-3.5 text-slate-400" />
-                    <span className="font-semibold text-slate-700 text-[11px]">3 Chữ ký điện tử quy chuẩn:</span>
-                    <span className="text-[11px]">Sinh viên tự chấm • Cán bộ lớp thẩm định • Trưởng Khoa duyệt</span>
-                  </div>
-                  <span className="font-mono text-[10px] text-slate-400">Fixed Signatures</span>
                 </div>
               </>
             )}
@@ -1447,9 +1393,6 @@ export default function FormDesignerPage() {
                         />
                         <span className="text-xs font-semibold text-slate-600">điểm</span>
                       </div>
-                      <span className="text-[11px] text-muted block mt-1">
-                        Điểm đóng góp của cả nhóm vào tổng 100đ của biểu mẫu.
-                      </span>
                     </div>
 
                     {/* Chế độ tính điểm nhóm */}
@@ -1465,11 +1408,6 @@ export default function FormDesignerPage() {
                         <option value="CLAMPED_SUM">Tự động chặn trần (Capped Sum)</option>
                         <option value="STRICT_SUM">Ràng buộc cứng (Tổng con ≤ Trần nhóm)</option>
                       </select>
-                      <div className="rounded-md bg-white border border-line/70 p-2 text-[11px] text-slate-600 leading-relaxed">
-                        {selectedInfo.block.calculationMode === "STRICT_SUM"
-                          ? "Báo lỗi nếu tổng điểm các mục con vượt quá trần nhóm."
-                          : "Tổng điểm các con có thể vượt trần, hệ thống tự động lấy tối đa bằng trần nhóm."}
-                      </div>
                     </div>
 
                     {/* Nút thêm nhanh mục con vào nhóm */}
@@ -1562,9 +1500,6 @@ export default function FormDesignerPage() {
                         <option value="STUDENT_ONLY">Chỉ Sinh viên tự chấm</option>
                         <option value="CLASS_ONLY">Chỉ Ban cán sự lớp chấm</option>
                       </Select>
-                      <span className="text-[10px] text-muted block mt-1">
-                        Hệ thống sẽ tự động tách trường này vào JSON tương ứng của vai trò khi chấm.
-                      </span>
                     </div>
 
                     {/* Bắt buộc */}

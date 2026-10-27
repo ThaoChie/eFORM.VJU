@@ -11,6 +11,15 @@ public class WorkflowDetailResponse {
     private String studentName;
     private String studentCode;
     private String className;
+    private String departmentName;
+    private String academicCohort;
+    private String semesterName;
+    private String ranking;
+    private String studentSignature;
+    private String classSignature;
+    private String deanSignature;
+    private String classLeaderName;
+    private String deanName;
     private ScoreFormStatus status;
     private BigDecimal studentTotal;
     private BigDecimal classTotal;

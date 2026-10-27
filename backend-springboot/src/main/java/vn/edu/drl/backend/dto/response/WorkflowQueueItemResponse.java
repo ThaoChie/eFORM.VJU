@@ -15,5 +15,10 @@ public class WorkflowQueueItemResponse {
     private ScoreFormStatus status;
     private BigDecimal studentTotal;
     private BigDecimal classTotal;
+    private BigDecimal finalTotal;
+    private String departmentName;
+    private String academicCohort;
+    private String ranking;
+    private String pdfFileUrl;
     private Instant submittedAt; // Map to createdAt or updatedAt depending on the business logic
 }

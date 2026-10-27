@@ -21,6 +21,17 @@ import {
   ExternalLink
 } from "lucide-react"
 
+const formatDescription = (desc) => {
+  if (!desc) return ""
+  return String(desc)
+    .replace(/\\r\\n/g, "\n")
+    .replace(/\\n/g, "\n")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .replace(/\s*\/n\s*/g, "\n")
+    .replace(/\/n(?=[+\-•\d\s]|$)/g, "\n")
+}
+
 export default function Renderer({
   layout = {},
   rankingScale = [
@@ -498,7 +509,7 @@ export default function Renderer({
                         </div>
                         {block.description && (
                           <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-line">
-                            {block.description}
+                            {formatDescription(block.description)}
                           </p>
                         )}
                       </div>
@@ -603,7 +614,7 @@ export default function Renderer({
                               </div>
                               {child.description && (
                                 <p className="text-[11px] text-slate-500 whitespace-pre-line leading-relaxed">
-                                  {child.description}
+                                  {formatDescription(child.description)}
                                 </p>
                               )}
                               <div className="flex flex-wrap items-center gap-2 pt-0.5 text-[10px] text-muted">
@@ -791,7 +802,7 @@ export default function Renderer({
                     </div>
                     {block.description && (
                       <p className="text-[11px] text-slate-500 whitespace-pre-line leading-relaxed">
-                        {block.description}
+                        {formatDescription(block.description)}
                       </p>
                     )}
                     <div className="flex items-center gap-2 pt-0.5 text-[10px] text-muted">

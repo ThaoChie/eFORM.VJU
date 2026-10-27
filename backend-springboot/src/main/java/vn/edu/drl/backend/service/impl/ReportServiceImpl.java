@@ -5,6 +5,7 @@ import vn.edu.drl.backend.service.*;
 import vn.edu.drl.backend.service.ReportService;
 
 import lombok.RequiredArgsConstructor;
+import java.math.BigDecimal;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -76,14 +77,31 @@ public class ReportServiceImpl implements ReportService {
         List<WorkflowQueueItemResponse> dtos = results.stream().map(f -> {
             WorkflowQueueItemResponse dto = new WorkflowQueueItemResponse();
             dto.setId(f.getId());
-            dto.setStudentId(f.getStudent().getId());
-            dto.setStudentCode(f.getStudent().getUserCode());
-            dto.setStudentName(f.getStudent().getFullName());
-            dto.setClassName(f.getStudent().getClassEntity() != null ? f.getStudent().getClassEntity().getClassName() : "");
+            dto.setStudentId(f.getStudent() != null ? f.getStudent().getId() : null);
+            dto.setStudentCode(f.getStudent() != null ? f.getStudent().getUserCode() : "");
+            dto.setStudentName(f.getStudent() != null ? f.getStudent().getFullName() : "");
+            dto.setClassName(f.getStudent() != null && f.getStudent().getClassEntity() != null ? f.getStudent().getClassEntity().getClassName() : "");
+            dto.setDepartmentName(f.getStudent() != null && f.getStudent().getDepartment() != null ? f.getStudent().getDepartment().getDeptName() : "");
+            dto.setAcademicCohort(f.getStudent() != null ? f.getStudent().getAcademicCohort() : "");
             dto.setStatus(f.getStatus());
             dto.setStudentTotal(f.getStudentTotal());
             dto.setClassTotal(f.getClassTotal());
-            dto.setSubmittedAt(f.getCreatedAt());
+
+            BigDecimal finalScore = f.getFinalTotal() != null ? f.getFinalTotal() : (f.getClassTotal() != null ? f.getClassTotal() : f.getStudentTotal());
+            dto.setFinalTotal(finalScore);
+
+            String rank = f.getRanking();
+            if (rank == null && finalScore != null) {
+                double val = finalScore.doubleValue();
+                if (val >= 90) rank = "Xuất sắc";
+                else if (val >= 80) rank = "Tốt";
+                else if (val >= 65) rank = "Khá";
+                else if (val >= 50) rank = "Trung bình";
+                else rank = "Yếu";
+            }
+            dto.setRanking(rank);
+            dto.setPdfFileUrl(f.getPdfFileUrl());
+            dto.setSubmittedAt(f.getUpdatedAt() != null ? f.getUpdatedAt() : f.getCreatedAt());
             return dto;
         }).collect(Collectors.toList());
 
@@ -128,8 +146,19 @@ public class ReportServiceImpl implements ReportService {
                 row.createCell(3).setCellValue(form.getStudent().getAcademicCohort() != null ? form.getStudent().getAcademicCohort() : "");
                 row.createCell(4).setCellValue(form.getStudent().getDepartment() != null ? form.getStudent().getDepartment().getDeptName() : "");
                 row.createCell(5).setCellValue(form.getStudent().getClassEntity() != null ? form.getStudent().getClassEntity().getClassName() : "");
-                row.createCell(6).setCellValue(form.getFinalTotal() != null ? form.getFinalTotal().doubleValue() : 0.0);
-                row.createCell(7).setCellValue(form.getRanking() != null ? form.getRanking() : "");
+                BigDecimal finalScore = form.getFinalTotal() != null ? form.getFinalTotal() : (form.getClassTotal() != null ? form.getClassTotal() : form.getStudentTotal());
+                row.createCell(6).setCellValue(finalScore != null ? finalScore.doubleValue() : 0.0);
+
+                String rank = form.getRanking();
+                if (rank == null && finalScore != null) {
+                    double val = finalScore.doubleValue();
+                    if (val >= 90) rank = "Xuất sắc";
+                    else if (val >= 80) rank = "Tốt";
+                    else if (val >= 65) rank = "Khá";
+                    else if (val >= 50) rank = "Trung bình";
+                    else rank = "Yếu";
+                }
+                row.createCell(7).setCellValue(rank != null ? rank : "");
             }
 
             workbook.write(out);
@@ -155,8 +184,12 @@ public class ReportServiceImpl implements ReportService {
         }
 
         // Filters
-        if (studentCode != null && !studentCode.isEmpty()) {
-            predicates.add(cb.equal(root.get("student").get("userCode"), studentCode));
+        if (studentCode != null && !studentCode.trim().isEmpty()) {
+            String kw = "%" + studentCode.trim().toLowerCase() + "%";
+            predicates.add(cb.or(
+                cb.like(cb.lower(root.get("student").get("userCode")), kw),
+                cb.like(cb.lower(root.get("student").get("fullName")), kw)
+            ));
         }
         if (classId != null) {
             predicates.add(cb.equal(root.get("student").get("classEntity").get("id"), classId));

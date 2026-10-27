@@ -22,7 +22,13 @@ public class AuthController {
         try {
             return ApiResponse.success(authService.login(request));
         } catch (RuntimeException ex) {
-            ex.printStackTrace();
+            String msg = ex.getMessage();
+            if (msg != null && (msg.startsWith("ACCOUNT_DISABLED") || msg.contains("vô hiệu hóa"))) {
+                return ApiResponse.error("ACCOUNT_DISABLED", "Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.");
+            }
+            if (msg != null && (msg.startsWith("FORBIDDEN") || msg.contains("bị khóa"))) {
+                return ApiResponse.error("FORBIDDEN", "Tài khoản đã bị vô hiệu hóa hoặc bị khóa.");
+            }
             return ApiResponse.error("UNAUTHORIZED", "Sai email hoặc mật khẩu");
         }
     }

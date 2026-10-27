@@ -1,104 +1,289 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { toast } from "react-hot-toast"
+import { CheckCircle2, XCircle, AlertCircle, RefreshCw } from "lucide-react"
 import {
+  ActionViewButton,
   Button,
+  CancelButton,
+  ConfirmButton,
   Modal,
   PageTitle,
   Table,
   Textarea,
 } from "../../../components/ui/Primitives"
+import { client } from "../../../lib/axios/client"
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return "—"
+  try {
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return dateStr
+    const pad = (n) => n.toString().padStart(2, "0")
+    return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+  } catch (e) {
+    return dateStr
+  }
+}
 
 export default function ApprovalQueuePage() {
+  const [activeTab, setActiveTab] = useState("PENDING") // PENDING | ALL
+  const [data, setData] = useState([])
+  const [loading, setLoading] = useState(true)
   const [detail, setDetail] = useState(null)
   const [reason, setReason] = useState("")
-  const rows = Array.from({ length: 6 }, (_, i) => ({
-    id: i,
-    type: i % 2 ? "Trường thông tin" : "Phiên bản biểu mẫu",
-    code: i % 2 ? `field_code_${i}` : `DRL-2026-v${i}`,
-    name: i % 2 ? "Điểm tham gia hoạt động" : "Phiếu ĐRL 2026",
-    request: ["Tạo mới", "Sửa", "Vô hiệu hóa"][i % 3],
-    owner: i < 2 ? "Lê Thu Hà" : "Nguyễn Hải Nam",
-    date: `${10 + i}/10/2026`,
-    own: i < 2,
-  }))
+  const [processing, setProcessing] = useState(false)
+
+  const fetchQueue = async () => {
+    setLoading(true)
+    try {
+      const res = await client.get("/admin/pending-queue", {
+        params: { tab: activeTab },
+      })
+      setData(Array.isArray(res) ? res : res?.data || [])
+    } catch (err) {
+      console.error("Lỗi nạp danh sách chờ xử lý:", err)
+      toast.error("Không thể tải danh sách chờ xử lý")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchQueue()
+  }, [activeTab])
+
+  const handleApprove = async () => {
+    if (!detail) return
+    setProcessing(true)
+    try {
+      await client.post(`/admin/pending-queue/${detail.type}/${detail.id}/approve`, {
+        reason: reason.trim() || undefined,
+      })
+      toast.success(`Đã phê duyệt "${detail.name}" thành công!`)
+      setDetail(null)
+      setReason("")
+      fetchQueue()
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || "Lỗi khi phê duyệt"
+      toast.error(msg)
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  const handleReject = async () => {
+    if (!detail) return
+    if (!reason.trim()) {
+      return toast.error("Vui lòng nhập ghi chú / lý do từ chối")
+    }
+    setProcessing(true)
+    try {
+      await client.post(`/admin/pending-queue/${detail.type}/${detail.id}/reject`, {
+        reason: reason.trim(),
+      })
+      toast.success(`Đã từ chối yêu cầu "${detail.name}"`)
+      setDetail(null)
+      setReason("")
+      fetchQueue()
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || "Lỗi khi từ chối yêu cầu"
+      toast.error(msg)
+    } finally {
+      setProcessing(false)
+    }
+  }
+
   return (
     <>
       <PageTitle
         title="Danh sách chờ xử lý"
-        description="Duyệt yêu cầu cấu hình theo nguyên tắc Maker – Checker."
+        description="Quản lý và phê duyệt các yêu cầu cấu hình và phiếu điểm rèn luyện trong hệ thống."
+        action={
+          <Button
+            variant="secondary"
+            className="text-xs"
+            onClick={fetchQueue}
+            loading={loading}
+          >
+            <RefreshCw className="size-3.5 mr-1" />
+            Làm mới
+          </Button>
+        }
       />
-      <div className="mb-4 flex gap-1 border-b border-line">
-        <button className="px-4 py-3 text-muted">Đang xử lý</button>
-        <button className="border-b-2 border-brand px-4 py-3 font-medium text-brand">
-          Chờ tôi duyệt (6)
+
+      <div className="mb-4 flex gap-4 border-b border-slate-200 text-sm">
+        <button
+          type="button"
+          onClick={() => setActiveTab("PENDING")}
+          className={`pb-3 font-medium transition-colors ${
+            activeTab === "PENDING"
+              ? "border-b-2 border-slate-900 text-slate-900"
+              : "text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          Chờ xử lý ({data.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("ALL")}
+          className={`pb-3 font-medium transition-colors ${
+            activeTab === "ALL"
+              ? "border-b-2 border-slate-900 text-slate-900"
+              : "text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          Tất cả yêu cầu
         </button>
       </div>
+
       <Table
-        rows={rows}
-        onRow={setDetail}
+        loading={loading}
+        rows={data}
+        onRow={(r) => {
+          setDetail(r)
+          setReason("")
+        }}
         columns={[
           { key: "stt", title: "STT", render: (_, i) => i + 1 },
-          { key: "type", title: "Loại đối tượng" },
-          { key: "code", title: "Mã", render: (r) => <code>{r.code}</code> },
-          { key: "name", title: "Tên" },
-          { key: "request", title: "Loại yêu cầu" },
-          { key: "owner", title: "Người yêu cầu" },
-          { key: "date", title: "Ngày gửi" },
+          {
+            key: "type",
+            title: "Loại đối tượng",
+            render: (r) => (
+              <span className="text-xs text-slate-600">
+                {r.typeName}
+              </span>
+            ),
+          },
+          {
+            key: "code",
+            title: "Mã",
+            render: (r) => (
+              <code className="text-xs bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded">
+                {r.code}
+              </code>
+            ),
+          },
+          {
+            key: "name",
+            title: "Tên / Nội dung",
+            render: (r) => (
+              <span className="font-medium text-slate-800">
+                {r.name}
+              </span>
+            ),
+          },
+          {
+            key: "request",
+            title: "Loại yêu cầu",
+            render: (r) => (
+              <span className="text-xs text-slate-600 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">
+                {r.requestType}
+              </span>
+            ),
+          },
+          {
+            key: "owner",
+            title: "Người gửi yêu cầu",
+            render: (r) => (
+              <span className="text-xs text-slate-700">
+                {r.owner}
+              </span>
+            ),
+          },
+          {
+            key: "date",
+            title: "Ngày gửi",
+            render: (r) => (
+              <span className="text-xs text-slate-500">
+                {formatDate(r.date)}
+              </span>
+            ),
+          },
           {
             key: "action",
             title: "Thao tác",
             render: (r) => (
-              <Button
-                disabled={r.own}
-                title={r.own ? "Không thể tự duyệt bản ghi của chính mình" : ""}
-                onClick={() => setDetail(r)}
-              >
-                Xem
-              </Button>
+              <div className="flex items-center gap-1">
+                <ActionViewButton
+                  label="Xem chi tiết & Duyệt"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setDetail(r)
+                    setReason("")
+                  }}
+                />
+              </div>
             ),
           },
         ]}
       />
+
+      {/* Modal chi tiết & phê duyệt */}
       <Modal
         open={!!detail}
-        title="Chi tiết yêu cầu"
-        onClose={() => setDetail(null)}
+        title="Chi tiết yêu cầu phê duyệt"
+        onClose={() => !processing && setDetail(null)}
         footer={
-          <>
+          <div className="flex items-center justify-end w-full gap-2">
+            <CancelButton
+              disabled={processing}
+              onClick={() => setDetail(null)}
+            >
+              Đóng
+            </CancelButton>
             <Button
               variant="danger"
-              disabled={detail?.own}
-              onClick={() => setDetail(null)}
+              disabled={processing}
+              loading={processing}
+              onClick={handleReject}
             >
+              <XCircle className="size-4 mr-1" />
               Từ chối
             </Button>
-            <Button
-              variant="primary"
-              disabled={detail?.own}
-              onClick={() => setDetail(null)}
+            <ConfirmButton
+              disabled={processing}
+              loading={processing}
+              onClick={handleApprove}
             >
               Phê duyệt
-            </Button>
-          </>
+            </ConfirmButton>
+          </div>
         }
       >
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3 rounded-lg bg-canvas p-4 text-sm">
-            <span className="text-muted">Mã</span>
-            <code>{detail?.code}</code>
-            <span className="text-muted">Người yêu cầu</span>
-            <b>{detail?.owner}</b>
-          </div>
-          {detail?.own && (
-            <div className="rounded-lg border border-brand-line bg-brand-soft p-3 text-sm">
-              Bạn không thể tự duyệt bản ghi do chính mình tạo.
+        <div className="space-y-4 text-xs text-slate-600">
+          <div className="grid grid-cols-2 gap-3 rounded-lg bg-slate-50 border border-slate-200 p-4">
+            <div>
+              <span className="text-slate-400 block text-[11px]">Loại đối tượng</span>
+              <p className="font-medium text-slate-800 mt-0.5">{detail?.typeName}</p>
             </div>
-          )}
-          <Textarea
-            label="Ghi chú xử lý"
-            value={reason}
-            maxLength={1000}
-            onChange={(e) => setReason(e.target.value)}
-          />
+            <div>
+              <span className="text-slate-400 block text-[11px]">Mã định danh</span>
+              <code className="text-slate-800 font-mono mt-0.5 block">{detail?.code}</code>
+            </div>
+            <div>
+              <span className="text-slate-400 block text-[11px]">Tên / Tiêu đề</span>
+              <p className="font-medium text-slate-800 mt-0.5">{detail?.name}</p>
+            </div>
+            <div>
+              <span className="text-slate-400 block text-[11px]">Người gửi yêu cầu</span>
+              <p className="font-medium text-slate-800 mt-0.5">{detail?.owner}</p>
+            </div>
+            <div className="col-span-2 border-t border-slate-200 pt-2">
+              <span className="text-slate-400 block text-[11px]">Thông tin bổ sung</span>
+              <p className="text-slate-700 mt-0.5">{detail?.description || "—"}</p>
+            </div>
+          </div>
+
+          <div>
+            <Textarea
+              label="Ghi chú xử lý / Lý do (bắt buộc khi từ chối)"
+              placeholder="Nhập nhận xét hoặc lý do xử lý..."
+              value={reason}
+              maxLength={1000}
+              onChange={(e) => setReason(e.target.value)}
+              disabled={processing}
+            />
+          </div>
         </div>
       </Modal>
     </>

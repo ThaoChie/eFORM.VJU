@@ -27,7 +27,7 @@ public class WorkflowController {
     private final WorkflowService workflowService;
 
     @GetMapping("/pending-queue")
-    @PreAuthorize("hasAnyRole('CLASS_LEADER', 'DEAN')")
+    @PreAuthorize("hasAnyRole('CLASS_LEADER', 'CLASS_DEPUTY', 'DEAN', 'ADMIN')")
     public ApiResponse<PageWrapper<WorkflowQueueItemResponse>> getPendingQueue(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
@@ -38,14 +38,14 @@ public class WorkflowController {
     }
 
     @GetMapping("/forms/{id}")
-    @PreAuthorize("hasAnyRole('CLASS_LEADER', 'DEAN', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('CLASS_LEADER', 'CLASS_DEPUTY', 'DEAN', 'ADMIN')")
     public ApiResponse<WorkflowDetailResponse> getFormDetail(@PathVariable Long id) {
         Long userId = SecurityUtils.getCurrentUserId();
         return ApiResponse.success(workflowService.getFormDetail(userId, id));
     }
 
     @PostMapping("/{id}/class/approve")
-    @PreAuthorize("hasRole('CLASS_LEADER')")
+    @PreAuthorize("hasAnyRole('CLASS_LEADER', 'CLASS_DEPUTY')")
     public ApiResponse<Void> classApprove(@PathVariable Long id, @Valid @RequestBody ClassApproveRequest request, HttpServletRequest httpRequest) {
         Long userId = SecurityUtils.getCurrentUserId();
         String ipAddress = httpRequest.getRemoteAddr();
@@ -54,8 +54,8 @@ public class WorkflowController {
     }
 
     @PostMapping("/{id}/reject")
-    @PreAuthorize("hasAnyRole('CLASS_LEADER', 'DEAN')")
-    public ApiResponse<Void> rejectForm(@PathVariable Long id, @Valid @RequestBody RejectRequest request) {
+    @PreAuthorize("hasAnyRole('CLASS_LEADER', 'CLASS_DEPUTY', 'DEAN', 'ADMIN')")
+    public ApiResponse<Void> rejectForm(@PathVariable Long id, @RequestBody RejectRequest request) {
         Long userId = SecurityUtils.getCurrentUserId();
         workflowService.rejectForm(userId, id, request);
         return ApiResponse.success(null);

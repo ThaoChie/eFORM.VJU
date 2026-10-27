@@ -33,9 +33,11 @@ public class AuthServiceImpl implements AuthService {
         
         System.out.println("User found: " + user.getEmail());
         
-        if (!user.getIsActive()) {
-            System.out.println("User is not active!");
-            throw new RuntimeException("FORBIDDEN: Tài khoản bị khóa");
+        boolean isUserDisabled = (user.getStatus() != null && user.getStatus() == 0)
+                || Boolean.FALSE.equals(user.getIsActive());
+        if (isUserDisabled) {
+            System.out.println("User is deactivated/disabled: " + user.getEmail());
+            throw new RuntimeException("ACCOUNT_DISABLED: Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.");
         }
 
         System.out.println("Checking password. Request pwd: " + request.getPassword() + ", DB hash: " + user.getPasswordHash());
@@ -55,6 +57,12 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("USER_NOT_FOUND"));
         
+        boolean isUserDisabled = (user.getStatus() != null && user.getStatus() == 0)
+                || Boolean.FALSE.equals(user.getIsActive());
+        if (isUserDisabled) {
+            throw new RuntimeException("ACCOUNT_DISABLED: Tài khoản của bạn đã bị vô hiệu hóa.");
+        }
+        
         return vn.edu.drl.backend.dto.response.AuthUserResponse.builder()
             .id(user.getId())
             .userID(user.getUserCode())
@@ -63,6 +71,10 @@ public class AuthServiceImpl implements AuthService {
             .role(user.getRole().name())
             .facultyName(user.getDepartment() != null ? user.getDepartment().getDeptName() : null)
             .className(user.getClassEntity() != null ? user.getClassEntity().getClassName() : null)
+            .signatureSpecimenUrl(user.getSignatureSpecimenUrl())
+            .signatureHash(user.getSignatureHash())
+            .signatureRegisteredAt(user.getSignatureRegisteredAt())
+            .isSignatureLocked(Boolean.TRUE.equals(user.getIsSignatureLocked()))
             .build();
     }
 }

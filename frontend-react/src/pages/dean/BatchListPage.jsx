@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom"
 import StatusTag from "../../components/ui/StatusTag"
-import { Button, PageTitle, Table } from "../../components/ui/Primitives"
+import { ActionViewButton, PageTitle, Table } from "../../components/ui/Primitives"
 
 export default function BatchListPage() {
   const navigate = useNavigate()
@@ -41,9 +41,12 @@ export default function BatchListPage() {
             key: "action",
             title: "Thao tác",
             render: (r) => (
-              <Button onClick={() => navigate(`/dean/batches/${r.id}`)}>
-                Mở lô
-              </Button>
+              <div className="flex items-center gap-1">
+                <ActionViewButton
+                  label="Mở xét duyệt lô"
+                  onClick={() => navigate(`/dean/batches/${r.id}`)}
+                />
+              </div>
             ),
           },
         ]}

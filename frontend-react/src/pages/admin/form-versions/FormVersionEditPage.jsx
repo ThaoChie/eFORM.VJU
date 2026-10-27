@@ -38,6 +38,7 @@ import {
 } from "../../../components/ui/Primitives"
 import { formService } from "../../../services/form-service"
 import { client } from "../../../lib/axios/client"
+import { extractFieldsAndSlotsFromTemplate } from "./formVersionUtils"
 
 export default function FormVersionEditPage() {
   const navigate = useNavigate()
@@ -91,6 +92,8 @@ export default function FormVersionEditPage() {
   const [confirmModalOpen, setConfirmModalOpen] = useState(false)
   const [cancelModalOpen, setCancelModalOpen] = useState(false)
   const [diffModalOpen, setDiffModalOpen] = useState(false)
+  const [copyModalOpen, setCopyModalOpen] = useState(false)
+  const [availableTemplates, setAvailableTemplates] = useState([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDirty, setIsDirty] = useState(false)
 
@@ -104,11 +107,12 @@ export default function FormVersionEditPage() {
     const initData = async () => {
       setLoading(true);
       try {
-        const [semRes, deptRes, fieldsRes, tplRes] = await Promise.allSettled([
+        const [semRes, deptRes, fieldsRes, tplRes, allTplsRes] = await Promise.allSettled([
           client.get("/semesters"),
           client.get("/departments"),
           client.get("/fields?size=100"),
-          formService.getTemplateById(id)
+          formService.getTemplateById(id),
+          formService.getTemplates()
         ]);
 
         if (semRes.status === "fulfilled" && semRes.value) {
@@ -119,6 +123,11 @@ export default function FormVersionEditPage() {
         if (deptRes.status === "fulfilled" && deptRes.value) {
           const list = Array.isArray(deptRes.value) ? deptRes.value : deptRes.value.content || [];
           setDepartments(list);
+        }
+
+        if (allTplsRes.status === "fulfilled" && allTplsRes.value) {
+          const tpls = Array.isArray(allTplsRes.value) ? allTplsRes.value : allTplsRes.value.content || [];
+          setAvailableTemplates(tpls);
         }
 
         let loadedFields = [];
@@ -140,49 +149,26 @@ export default function FormVersionEditPage() {
           setEffectiveTo(tpl.effectiveTo || "");
           setIsAutoActivate(tpl.status === "ACTIVE");
 
-          // Parse templateLayoutJson if present
+          // Extract fields, slots, and layout reliably
           if (tpl.templateLayoutJson) {
-            setCustomLayoutJson(
-              typeof tpl.templateLayoutJson === "string" 
-                ? tpl.templateLayoutJson 
-                : JSON.stringify(tpl.templateLayoutJson, null, 2)
-            );
-            try {
-              const layout = typeof tpl.templateLayoutJson === "string" 
-                ? JSON.parse(tpl.templateLayoutJson) 
-                : tpl.templateLayoutJson;
-
-              if (layout.scope) {
-                if (layout.scope === "ALL" || layout.scope === "Toàn hệ thống") {
-                  setScopeType("Toàn hệ thống");
-                } else if (Array.isArray(layout.scope)) {
-                  setScopeType("Đơn vị cụ thể");
-                  setSelectedDepts(layout.scope);
-                }
+            const { fields, signatureSlots: extractedSlots, rawLayout, scope } = extractFieldsAndSlotsFromTemplate(tpl, loadedFields);
+            if (rawLayout) {
+              setCustomLayoutJson(rawLayout);
+            }
+            if (fields.length > 0) {
+              setSelectedFields(fields);
+              setOriginalFields(fields);
+            }
+            if (extractedSlots && extractedSlots.length > 0) {
+              setSignatureSlots(extractedSlots);
+            }
+            if (scope) {
+              if (scope === "ALL" || scope === "Toàn hệ thống") {
+                setScopeType("Toàn hệ thống");
+              } else if (Array.isArray(scope)) {
+                setScopeType("Đơn vị cụ thể");
+                setSelectedDepts(scope);
               }
-
-              if (layout.fields && Array.isArray(layout.fields)) {
-                // Match with full field code objects
-                const matched = layout.fields.map((f) => {
-                  const found = loadedFields.find((lf) => lf.fieldCode === f.fieldCode);
-                  return found || {
-                    id: f.fieldCode,
-                    fieldCode: f.fieldCode,
-                    fieldName: f.fieldName || f.fieldCode,
-                    dataType: f.dataType || "STRING",
-                    category: f.category || "COMMON",
-                    isRequired: !!f.isRequired
-                  };
-                });
-                setSelectedFields(matched);
-                setOriginalFields(matched);
-              }
-
-              if (layout.signatureSlots && Array.isArray(layout.signatureSlots)) {
-                setSignatureSlots(layout.signatureSlots);
-              }
-            } catch (err) {
-              console.warn("Could not parse template layout json:", err);
             }
           }
 
@@ -313,6 +299,39 @@ export default function FormVersionEditPage() {
     const next = selectedFields.filter((f) => f.id !== id);
     setSelectedFields(next);
     markDirty();
+  };
+
+  // Sao chép từ biểu mẫu khác
+  const handleCopyFromOther = (template) => {
+    try {
+      const { fields, signatureSlots: extractedSlots, rawLayout, scope } = extractFieldsAndSlotsFromTemplate(template, allFieldCodes);
+      if (fields.length > 0) {
+        setSelectedFields(fields);
+      }
+      if (extractedSlots && extractedSlots.length > 0) {
+        setSignatureSlots(extractedSlots);
+      }
+      if (rawLayout) {
+        setCustomLayoutJson(rawLayout);
+      }
+      if (scope) {
+        if (scope === "ALL" || scope === "Toàn hệ thống") {
+          setScopeType("Toàn hệ thống");
+        } else if (Array.isArray(scope)) {
+          setScopeType("Đơn vị cụ thể");
+          setSelectedDepts(scope);
+        }
+      }
+      if (template.description && !description) {
+        setDescription(template.description);
+      }
+      setCopyModalOpen(false);
+      markDirty();
+      toast.success(`Đã sao chép thành công ${fields.length} trường thông tin và cấu hình từ ${template.formCode} (${template.versionNo})!`);
+    } catch (e) {
+      console.error("Lỗi sao chép biểu mẫu:", e);
+      toast.error("Không thể đọc cấu hình của biểu mẫu nguồn");
+    }
   };
 
   // Compute differences for "So sánh với phiên bản hiện hành"
@@ -731,6 +750,14 @@ export default function FormVersionEditPage() {
               </h2>
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => setCopyModalOpen(true)}
+                className="text-xs h-9"
+              >
+                <Copy className="size-3.5" />
+                Sao chép từ biểu mẫu khác
+              </Button>
               <Button
                 variant="secondary"
                 onClick={() => setDiffModalOpen(true)}
@@ -1278,6 +1305,50 @@ export default function FormVersionEditPage() {
           <p className="text-xs text-slate-600">
             Hệ thống sẽ tiến hành kiểm tra dữ liệu và lưu cấu hình biểu mẫu. Bạn có chắc chắn muốn tiếp tục?
           </p>
+        </div>
+      </Modal>
+
+      {/* MODAL 5: SAO CHÉP TỪ BIỂU MẪU KHÁC */}
+      <Modal
+        open={copyModalOpen}
+        title="Sao chép cấu hình từ biểu mẫu khác"
+        onClose={() => setCopyModalOpen(false)}
+        footer={
+          <Button variant="secondary" onClick={() => setCopyModalOpen(false)}>Đóng</Button>
+        }
+      >
+        <div className="space-y-3">
+          <p className="text-xs text-slate-500">
+            Chọn một phiên bản biểu mẫu có sẵn để sao chép toàn bộ danh sách trường dữ liệu và vị trí ô ký:
+          </p>
+
+          <div className="max-h-[320px] overflow-y-auto space-y-2">
+            {availableTemplates.length === 0 ? (
+              <p className="text-xs text-slate-400 text-center py-4">Không có biểu mẫu nào để sao chép.</p>
+            ) : (
+              availableTemplates.map((tpl) => (
+                <div
+                  key={tpl.id}
+                  className="flex items-center justify-between rounded-lg border border-slate-200 p-3 hover:border-slate-400 bg-white transition"
+                >
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-sm text-slate-800">{tpl.formCode}</span>
+                      <span className="font-mono text-xs text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">{tpl.versionNo}</span>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-0.5">{tpl.formName}</p>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    className="text-xs h-8 px-2.5"
+                    onClick={() => handleCopyFromOther(tpl)}
+                  >
+                    Sao chép
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </Modal>
     </>

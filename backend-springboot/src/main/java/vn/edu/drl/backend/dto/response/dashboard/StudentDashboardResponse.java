@@ -51,8 +51,11 @@ public class StudentDashboardResponse {
     @AllArgsConstructor
     public static class NotificationDto {
         private Long id;
+        private String title;
+        private String content;
         private String text;
         private String time;
+        private String linkUrl;
         private boolean read;
     }
 }

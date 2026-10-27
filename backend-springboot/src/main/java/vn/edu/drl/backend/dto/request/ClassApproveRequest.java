@@ -13,6 +13,7 @@ public class ClassApproveRequest {
     @Data
     public static class DraftDetail {
         private Long criteriaId;
+        private String criteriaCode;
         private BigDecimal classScore;
         private String note;
     }

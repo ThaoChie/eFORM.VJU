@@ -49,6 +49,13 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({RuntimeException.class, vn.edu.drl.backend.exception.BusinessException.class})
     public ResponseEntity<ApiResponse<Void>> handleBusinessException(RuntimeException ex) {
+        String msg = ex.getMessage();
+        if (msg != null && msg.contains("409")) {
+            return new ResponseEntity<>(ApiResponse.error("CONFLICT", msg.replace("409 CONFLICT: ", "")), HttpStatus.CONFLICT);
+        }
+        if (msg != null && msg.contains("422")) {
+            return new ResponseEntity<>(ApiResponse.error("INVALID_TRANSITION", msg.replace("422: ", "")), HttpStatus.UNPROCESSABLE_ENTITY);
+        }
         return new ResponseEntity<>(ApiResponse.error("BAD_REQUEST", ex.getMessage()), HttpStatus.BAD_REQUEST);
     }
 

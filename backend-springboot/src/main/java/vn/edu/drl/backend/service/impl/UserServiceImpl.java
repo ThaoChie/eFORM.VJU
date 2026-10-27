@@ -87,7 +87,9 @@ public class UserServiceImpl implements UserService {
                 }
             });
         }
-        u.setStatus(req.getStatus() != null ? req.getStatus() : 1);
+        int st = req.getStatus() != null ? req.getStatus() : 1;
+        u.setStatus(st);
+        u.setIsActive(st == 1);
         User saved = repository.save(u);
         return new UserResponse(saved);
     }
@@ -139,6 +141,7 @@ public class UserServiceImpl implements UserService {
         }
         if (req.getStatus() != null) {
             u.setStatus(req.getStatus());
+            u.setIsActive(req.getStatus() == 1);
         }
         User saved = repository.save(u);
         return new UserResponse(saved);
@@ -147,7 +150,9 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public UserResponse toggleStatus(Long id) {
         User u = repository.findById(id).orElseThrow(() -> new RuntimeException("Not found"));
-        u.setStatus(u.getStatus() != null && u.getStatus() == 1 ? 0 : 1);
+        int newStatus = (u.getStatus() != null && u.getStatus() == 1) ? 0 : 1;
+        u.setStatus(newStatus);
+        u.setIsActive(newStatus == 1);
         User saved = repository.save(u);
         return new UserResponse(saved);
     }
@@ -280,7 +285,9 @@ public class UserServiceImpl implements UserService {
                     }
                     
                     u.setAcademicCohort(cohort.isEmpty() ? null : cohort);
-                    u.setStatus("0".equals(statusStr) || "Vô hiệu hóa".equalsIgnoreCase(statusStr) ? 0 : 1);
+                    int importStatus = ("0".equals(statusStr) || "Vô hiệu hóa".equalsIgnoreCase(statusStr)) ? 0 : 1;
+                    u.setStatus(importStatus);
+                    u.setIsActive(importStatus == 1);
                     
                     usersToSave.add(u);
                     validRows++;
@@ -345,5 +352,43 @@ public class UserServiceImpl implements UserService {
     private String getCellString(DataFormatter formatter, Cell cell) {
         if (cell == null) return "";
         return formatter.formatCellValue(cell).trim();
+    }
+
+    @Override
+    @Transactional
+    public void updateSignatureSpecimen(Long userId, String signatureUrl) {
+        User user = repository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("USER_NOT_FOUND"));
+
+        if (Boolean.TRUE.equals(user.getIsSignatureLocked()) && user.getSignatureSpecimenUrl() != null && !user.getSignatureSpecimenUrl().trim().isEmpty()) {
+            throw new RuntimeException("Chữ ký điện tử đã được khóa bảo mật vĩnh viễn, không thể sửa đổi.");
+        }
+
+        if (signatureUrl == null || signatureUrl.trim().isEmpty()) {
+            throw new RuntimeException("Vui lòng tải lên ảnh chữ ký hợp lệ.");
+        }
+
+        signatureUrl = vn.edu.drl.backend.service.engine.ImageConversionUtils.ensureStandardWebImage(signatureUrl);
+
+        // 1. Compute cryptographic SHA-256 fingerprint of signature data
+        String hashHex = "";
+        try {
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] digest = md.digest(signatureUrl.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : digest) {
+                sb.append(String.format("%02x", b));
+            }
+            hashHex = sb.toString();
+        } catch (Exception e) {
+            hashHex = java.util.UUID.randomUUID().toString().replace("-", "");
+        }
+
+        // 2. Persist signature and permanently lock it to prevent modifications
+        user.setSignatureSpecimenUrl(signatureUrl);
+        user.setSignatureHash(hashHex);
+        user.setSignatureRegisteredAt(java.time.Instant.now());
+        user.setIsSignatureLocked(true);
+        repository.saveAndFlush(user);
     }
 }

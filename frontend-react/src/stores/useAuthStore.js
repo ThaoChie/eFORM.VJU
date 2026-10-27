@@ -28,6 +28,7 @@ export const useAuthStore = create((set) => ({
     }
   },
   async checkAuth() {
+    localStorage.removeItem('user_signature'); // Remove legacy unscoped key
     const token = localStorage.getItem('token');
     if (token) {
       try {
@@ -42,6 +43,7 @@ export const useAuthStore = create((set) => ({
   },
   logout: () => {
     localStorage.removeItem('token')
+    localStorage.removeItem('user_signature')
     set({ user: null, token: null })
   },
 }))

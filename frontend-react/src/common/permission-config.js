@@ -1,5 +1,6 @@
 import {
   BookOpenCheck,
+  CalendarDays,
   ChartNoAxesColumnIncreasing,
   ClipboardCheck,
   Clock3,
@@ -39,7 +40,6 @@ export const menus = {
           label: "Duyệt phiếu lớp",
           path: "/class-leader/review",
           icon: ClipboardCheck,
-          badge: 12,
         },
       ],
     },
@@ -58,7 +58,6 @@ export const menus = {
           label: "Duyệt phiếu lớp",
           path: "/class-leader/review",
           icon: ClipboardCheck,
-          badge: 12,
         },
       ],
     },
@@ -89,6 +88,11 @@ export const menus = {
       items: [
         { label: "Tổng quan", path: "/admin/dashboard", icon: LayoutDashboard },
         {
+          label: "Quản lý kỳ chấm ĐRL",
+          path: "/admin/evaluation-periods",
+          icon: CalendarDays,
+        },
+        {
           label: "Phiên bản biểu mẫu",
           path: "/admin/form-versions",
           icon: FileStack,
@@ -107,7 +111,6 @@ export const menus = {
           label: "Danh sách chờ xử lý",
           path: "/admin/pending",
           icon: ListChecks,
-          badge: 6,
         },
         {
           label: "Báo cáo toàn trường",

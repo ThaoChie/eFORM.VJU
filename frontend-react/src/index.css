@@ -62,3 +62,8 @@ button:disabled {
   font-family: cursive;
   font-style: italic;
 }
+
+.pdf-times-roman,
+.pdf-times-roman * {
+  font-family: "Times New Roman", Times, "Liberation Serif", serif !important;
+}

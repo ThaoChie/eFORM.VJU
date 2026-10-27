@@ -111,6 +111,8 @@ scripts/
 *.docx
 ~$*
 *.xlsx
+*.pptx
+*.ppt
 
 # Codegen script tạm
 codegen.py

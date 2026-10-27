@@ -22,6 +22,9 @@ public class UserResponse {
     private String academicCohort;
     private Boolean isSigner;
     private String signatureSpecimenUrl;
+    private String signatureHash;
+    private Instant signatureRegisteredAt;
+    private Boolean isSignatureLocked;
     private Boolean isActive;
     private Instant createdAt;
 
@@ -86,6 +89,9 @@ public class UserResponse {
         this.academicCohort = user.getAcademicCohort();
         this.isSigner = user.getIsSigner();
         this.signatureSpecimenUrl = user.getSignatureSpecimenUrl();
+        this.signatureHash = user.getSignatureHash();
+        this.signatureRegisteredAt = user.getSignatureRegisteredAt();
+        this.isSignatureLocked = user.getIsSignatureLocked();
         this.isActive = user.getIsActive();
         this.createdAt = user.getCreatedAt();
 
