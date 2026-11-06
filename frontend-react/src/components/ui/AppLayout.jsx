@@ -1,5 +1,5 @@
-import { LogOut, Menu, UserRound, X } from "lucide-react"
-import { useState } from "react"
+import { LogOut, Menu, PanelLeftClose, PanelLeftOpen, UserRound, X } from "lucide-react"
+import { useEffect, useState } from "react"
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom"
 import { menus } from "../../common/permission-config"
 import { useAuthStore } from "../../stores/useAuthStore"
@@ -7,7 +7,65 @@ import { IconButton } from "./Primitives"
 import NotificationBell from "./NotificationBell"
 
 export default function AppLayout() {
-  const [mobile, setMobile] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("sidebar_open")
+      if (saved !== null) return saved === "true"
+      return window.innerWidth >= 768
+    }
+    return true
+  })
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window !== "undefined") {
+      return window.innerWidth < 768
+    }
+    return false
+  })
+
+  useEffect(() => {
+    const handleResize = () => {
+      const mobileView = window.innerWidth < 768
+      setIsMobile(mobileView)
+    }
+    window.addEventListener("resize", handleResize)
+    return () => window.removeEventListener("resize", handleResize)
+  }, [])
+
+  // Keyboard shortcut Cmd+B / Ctrl+B to toggle sidebar
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b") {
+        e.preventDefault()
+        setSidebarOpen((prev) => {
+          const next = !prev
+          if (window.innerWidth >= 768) {
+            localStorage.setItem("sidebar_open", String(next))
+          }
+          return next
+        })
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [])
+
+  const toggleSidebar = () => {
+    setSidebarOpen((prev) => {
+      const next = !prev
+      if (!isMobile) {
+        localStorage.setItem("sidebar_open", String(next))
+      }
+      return next
+    })
+  }
+
+  const closeSidebar = () => {
+    setSidebarOpen(false)
+    if (!isMobile) {
+      localStorage.setItem("sidebar_open", "false")
+    }
+  }
+
   const user = useAuthStore((state) => state.user)
   const logout = useAuthStore((state) => state.logout)
   const navigate = useNavigate()
@@ -23,31 +81,37 @@ export default function AppLayout() {
   }
   return (
     <div className="min-h-screen bg-canvas">
-      {mobile && (
+      {/* Mobile backdrop */}
+      {isMobile && sidebarOpen && (
         <button
           aria-label="Đóng menu"
-          className="fixed inset-0 z-30 bg-night/30 md:hidden"
-          onClick={() => setMobile(false)}
+          className="fixed inset-0 z-30 bg-night/30 backdrop-blur-xs transition-opacity"
+          onClick={closeSidebar}
         />
       )}
+
+      {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-[248px] flex-col border-r border-line bg-white transition-transform md:translate-x-0 ${
-          mobile ? "translate-x-0" : "-translate-x-full"
+        className={`fixed inset-y-0 left-0 z-40 flex w-[248px] flex-col border-r border-line bg-white transition-transform duration-300 ease-in-out ${
+          sidebarOpen ? "translate-x-0 shadow-lg md:shadow-none" : "-translate-x-full"
         }`}
       >
-        <div className="flex h-16 items-center gap-3 border-b border-line px-5">
-          <img src="/logoVJU.png" alt="VJU Logo" className="h-[46px] object-contain" />
-          <span className="min-w-0 font-semibold leading-5 text-brand">
-            E-Form Chấm Điểm
-            <br />
-            Rèn Luyện
-          </span>
+        <div className="flex h-16 items-center justify-between border-b border-line px-4">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <img src="/logoVJU.png" alt="VJU Logo" className="h-[42px] object-contain shrink-0" />
+            <span className="min-w-0 font-semibold text-xs leading-4 text-brand">
+              E-Form Chấm Điểm
+              <br />
+              Rèn Luyện
+            </span>
+          </div>
           <IconButton
-            label="Đóng menu"
-            className="ml-auto md:hidden"
-            onClick={() => setMobile(false)}
+            label="Thu gọn thanh bên"
+            tooltipAlign="right"
+            className="text-muted hover:text-brand hover:bg-brand-soft rounded-lg transition"
+            onClick={closeSidebar}
           >
-            <X className="size-5" />
+            {isMobile ? <X className="size-5" /> : <PanelLeftClose className="size-5" />}
           </IconButton>
         </div>
         <nav className="flex-1 overflow-y-auto py-4">
@@ -64,7 +128,11 @@ export default function AppLayout() {
                   <NavLink
                     key={item.path}
                     to={item.path}
-                    onClick={() => setMobile(false)}
+                    onClick={() => {
+                      if (isMobile) {
+                        closeSidebar()
+                      }
+                    }}
                     className={({ isActive }) =>
                       `mx-2 flex h-11 items-center gap-3 rounded-r-lg border-l-[3px] px-4 transition ${
                         isActive
@@ -94,14 +162,25 @@ export default function AppLayout() {
           Đăng xuất
         </button>
       </aside>
-      <div className="md:pl-[248px]">
+
+      {/* Main content wrapper */}
+      <div
+        className={`transition-all duration-300 ease-in-out ${
+          sidebarOpen ? "md:pl-[248px]" : "md:pl-0"
+        }`}
+      >
         <header className="sticky top-0 z-20 flex h-14 items-center border-b border-line bg-white px-4 md:px-6">
           <IconButton
-            label="Mở menu"
-            className="mr-2 md:hidden"
-            onClick={() => setMobile(true)}
+            label={sidebarOpen ? "Thu gọn thanh bên" : "Mở thanh bên"}
+            tooltipAlign="left"
+            className="mr-3 text-muted hover:text-brand hover:bg-brand-soft"
+            onClick={toggleSidebar}
           >
-            <Menu className="size-5" />
+            {sidebarOpen ? (
+              <PanelLeftClose className="size-5" />
+            ) : (
+              <PanelLeftOpen className="size-5 text-brand" />
+            )}
           </IconButton>
           <span className="truncate font-semibold">
             {activeItem?.label ?? ""}

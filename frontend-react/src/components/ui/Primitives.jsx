@@ -64,8 +64,13 @@ export function IconButton({
     left: "left-3 translate-x-0",
   }
 
+  const isMlAuto = className.includes("ml-auto")
+  const isMrAuto = className.includes("mr-auto")
+  const isMr2 = className.includes("mr-2")
+  const isMr3 = className.includes("mr-3")
+
   return (
-    <div className="relative inline-flex items-center justify-center group/btn">
+    <div className={`relative inline-flex items-center justify-center shrink-0 group/btn ${isMlAuto ? "ml-auto" : ""} ${isMrAuto ? "mr-auto" : ""} ${isMr2 ? "mr-2" : ""} ${isMr3 ? "mr-3" : ""}`}>
       <button
         type="button"
         aria-label={tooltipText}
