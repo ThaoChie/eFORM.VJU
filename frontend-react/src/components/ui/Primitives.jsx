@@ -39,16 +39,65 @@ export function Button({
   )
 }
 
-export function IconButton({ label, children, className = "", ...props }) {
+export function IconButton({
+  label,
+  title,
+  children,
+  className = "",
+  tooltipPlacement = "top",
+  tooltipAlign = "center",
+  disabled,
+  ...props
+}) {
+  const tooltipText = label || title
+  const isBottom = tooltipPlacement === "bottom"
+
+  const alignStyles = {
+    center: "left-1/2 -translate-x-1/2",
+    right: "right-0 translate-x-0",
+    left: "left-0 translate-x-0",
+  }
+
+  const arrowAlignStyles = {
+    center: "left-1/2 -translate-x-1/2",
+    right: "right-3 translate-x-0",
+    left: "left-3 translate-x-0",
+  }
+
   return (
-    <button
-      aria-label={label}
-      title={label}
-      className={`inline-flex size-9 items-center justify-center rounded-lg text-muted hover:bg-canvas hover:text-ink transition disabled:opacity-45 ${className}`}
-      {...props}
-    >
-      {children}
-    </button>
+    <div className="relative inline-flex items-center justify-center group/btn">
+      <button
+        type="button"
+        aria-label={tooltipText}
+        title={tooltipText}
+        disabled={disabled}
+        className={`inline-flex size-9 items-center justify-center rounded-lg text-muted hover:bg-canvas hover:text-ink transition disabled:opacity-45 ${className}`}
+        {...props}
+      >
+        {children}
+      </button>
+      {tooltipText && (
+        <span
+          role="tooltip"
+          className={`pointer-events-none absolute ${
+            isBottom ? "top-full mt-1.5" : "bottom-full mb-1.5"
+          } ${
+            alignStyles[tooltipAlign] || alignStyles.center
+          } hidden group-hover/btn:inline-flex items-center justify-center whitespace-nowrap rounded-md bg-slate-900 px-2.5 py-1 text-[11px] font-medium text-white shadow-xl ring-1 ring-white/10 z-[100]`}
+        >
+          {tooltipText}
+          <span
+            className={`absolute ${
+              isBottom
+                ? "bottom-full -mb-0.5 border-b-slate-900 border-t-transparent"
+                : "top-full -mt-0.5 border-t-slate-900 border-b-transparent"
+            } ${
+              arrowAlignStyles[tooltipAlign] || arrowAlignStyles.center
+            } border-4 border-l-transparent border-r-transparent`}
+          />
+        </span>
+      )}
+    </div>
   )
 }
 

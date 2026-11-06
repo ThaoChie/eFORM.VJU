@@ -165,6 +165,7 @@ export default function FieldCodeListPage() {
             label={r.isActive ? "Vô hiệu hóa" : "Kích hoạt"}
             disabled={togglingId === r.id}
             onClick={() => toggleStatus(r.id)}
+            tooltipAlign="right"
             className={r.isActive ? "text-red-600 hover:text-red-700" : "text-green-600 hover:text-green-700"}
           >
             {r.isActive ? <CircleOff className="size-4" /> : <CheckCircle className="size-4" />}
