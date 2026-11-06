@@ -75,9 +75,10 @@ public class UserController {
         }
         String signature = body.get("signature");
         signature = vn.edu.drl.backend.service.engine.ImageConversionUtils.ensureStandardWebImage(signature);
-        service.updateSignatureSpecimen(currentUserId, signature);
+        String hashHex = service.updateSignatureSpecimen(currentUserId, signature);
         java.util.Map<String, Object> res = new java.util.HashMap<>();
         res.put("signature", signature);
+        res.put("signatureHash", hashHex);
         res.put("isSignatureLocked", true);
         return ApiResponse.success(res);
     }

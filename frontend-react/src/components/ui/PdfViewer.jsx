@@ -40,7 +40,8 @@ export function normalizeSignatureImage(sig, fallbackName = "Nguyễn Văn A") {
       s.startsWith("data:image/") ||
       s.startsWith("http://") ||
       s.startsWith("https://") ||
-      s.startsWith("blob:")
+      s.startsWith("blob:") ||
+      s.startsWith("/")
     ) {
       return s
     }
@@ -498,14 +499,24 @@ export default function PdfViewer({
     if (uploadedStudentSig) return uploadedStudentSig
     if (studentSignature) return studentSignature
     if (user?.signatureSpecimenUrl) return user.signatureSpecimenUrl
-    const uId = user?.id || user?.studentId
-    if (uId) {
+    const uIds = [user?.id, user?.studentId, user?.userID, user?.userCode].filter(Boolean)
+    for (const id of uIds) {
       try {
-        return localStorage.getItem(`user_signature_${uId}`) || null
-      } catch {
-        return null
-      }
+        const local = localStorage.getItem(`user_signature_${id}`)
+        if (local) return local
+      } catch {}
     }
+    try {
+      const stored = JSON.parse(localStorage.getItem("user") || "{}")
+      if (stored?.signatureSpecimenUrl) return stored.signatureSpecimenUrl
+      if (stored?.id && localStorage.getItem(`user_signature_${stored.id}`)) {
+        return localStorage.getItem(`user_signature_${stored.id}`)
+      }
+    } catch {}
+    try {
+      const legacy = localStorage.getItem("user_signature")
+      if (legacy) return legacy
+    } catch {}
     return null
   }, [uploadedStudentSig, studentSignature, user])
 

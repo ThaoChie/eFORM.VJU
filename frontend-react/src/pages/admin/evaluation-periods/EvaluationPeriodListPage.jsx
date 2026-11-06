@@ -19,8 +19,13 @@ import {
 import toast from "react-hot-toast"
 import { evaluationPeriodService } from "../../../services/evaluation-period-service"
 import {
+  ActionViewButton,
   Button,
+  CancelButton,
+  ConfirmButton,
+  CreateButton,
   IconButton,
+  SearchButton,
   Card,
   PageTitle,
   Modal,
@@ -381,41 +386,39 @@ export default function EvaluationPeriodListPage() {
       title: "Thao tác",
       render: (item) => (
         <div className="flex items-center gap-1">
-          <IconButton
-            label="Chi tiết"
+          <ActionViewButton
+            label="Chi tiết kỳ chấm"
             onClick={() => handleViewDetail(item)}
-          >
-            <Eye className="size-4" />
-          </IconButton>
+          />
           {item.status === "CHUA_MO" && (
             <IconButton
-              label="Mở kỳ"
+              label="Mở kỳ ngay"
               onClick={() => {
                 setSelectedPeriod(item)
                 setOpenConfirmModalOpen(true)
               }}
-              className="text-emerald-600 hover:text-emerald-700"
+              className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
             >
               <Play className="size-4" />
             </IconButton>
           )}
           {item.status === "DANG_MO" && (
             <IconButton
-              label="Gia hạn"
+              label="Gia hạn hạn nộp"
               onClick={() => handleOpenExtendModal(item)}
-              className="text-amber-600 hover:text-amber-700"
+              className="text-amber-600 hover:bg-amber-50 hover:text-amber-700"
             >
               <CalendarClock className="size-4" />
             </IconButton>
           )}
           {item.status === "DANG_MO" && (
             <IconButton
-              label="Đóng kỳ"
+              label="Đóng kỳ sớm"
               onClick={() => {
                 setSelectedPeriod(item)
                 setCloseConfirmModalOpen(true)
               }}
-              className="text-rose-600 hover:text-rose-700"
+              className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
             >
               <Ban className="size-4" />
             </IconButton>
@@ -432,13 +435,9 @@ export default function EvaluationPeriodListPage() {
         title="Quản lý kỳ chấm điểm rèn luyện"
         description="Mở kỳ chấm mới, phân bổ biểu mẫu áp dụng, theo dõi tiến độ nộp và đóng kỳ chấm điểm."
         action={
-          <Button
-            variant="primary"
-            onClick={handleOpenCreateModal}
-          >
-            <Plus className="size-4" />
+          <CreateButton onClick={handleOpenCreateModal}>
             Mở kỳ mới
-          </Button>
+          </CreateButton>
         }
       />
 
@@ -481,10 +480,9 @@ export default function EvaluationPeriodListPage() {
 
           {/* Action Buttons */}
           <div className="flex gap-2">
-            <Button type="submit" variant="primary" className="flex-1 h-10">
-              <Search className="size-4" />
+            <SearchButton className="flex-1 h-10">
               Tìm kiếm
-            </Button>
+            </SearchButton>
             <Button
               type="button"
               variant="secondary"
@@ -521,16 +519,15 @@ export default function EvaluationPeriodListPage() {
         wide={false}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setCreateModalOpen(false)}>
+            <CancelButton onClick={() => setCreateModalOpen(false)}>
               Hủy
-            </Button>
-            <Button
-              className="bg-slate-900 hover:bg-slate-800 border-slate-900 text-white"
+            </CancelButton>
+            <ConfirmButton
               loading={creating}
               onClick={handleCreatePeriod}
             >
               Lưu kỳ (Chưa mở)
-            </Button>
+            </ConfirmButton>
           </>
         }
       >
@@ -761,16 +758,15 @@ export default function EvaluationPeriodListPage() {
         wide={false}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setExtendModalOpen(false)}>
+            <CancelButton onClick={() => setExtendModalOpen(false)}>
               Hủy
-            </Button>
-            <Button
-              className="bg-slate-900 hover:bg-slate-800 border-slate-900 text-white"
+            </CancelButton>
+            <ConfirmButton
               loading={extending}
               onClick={handleConfirmExtendDeadline}
             >
               Xác nhận gia hạn
-            </Button>
+            </ConfirmButton>
           </>
         }
       >
@@ -818,16 +814,15 @@ export default function EvaluationPeriodListPage() {
         wide={false}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setOpenConfirmModalOpen(false)}>
+            <CancelButton onClick={() => setOpenConfirmModalOpen(false)}>
               Hủy
-            </Button>
-            <Button
-              className="bg-slate-900 hover:bg-slate-800 border-slate-900 text-white"
+            </CancelButton>
+            <ConfirmButton
               loading={actionLoading}
               onClick={handleConfirmOpenPeriod}
             >
               Xác nhận mở kỳ
-            </Button>
+            </ConfirmButton>
           </>
         }
       >
@@ -860,11 +855,11 @@ export default function EvaluationPeriodListPage() {
         wide={false}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setCloseConfirmModalOpen(false)}>
+            <CancelButton onClick={() => setCloseConfirmModalOpen(false)}>
               Hủy
-            </Button>
+            </CancelButton>
             <Button
-              className="bg-slate-900 hover:bg-slate-800 border-slate-900 text-white"
+              variant="danger"
               loading={actionLoading}
               onClick={handleConfirmClosePeriod}
             >

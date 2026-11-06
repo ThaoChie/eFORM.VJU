@@ -30,11 +30,27 @@ export default function SignConfirmModal({
   const displayName = userName || (level === 1 ? "Sinh viên" : level === 2 ? "Lớp trưởng" : "Trưởng khoa")
 
   const renderedSig = useMemo(() => {
-    if (currentSig) {
-      return normalizeSignatureImage(currentSig, displayName)
+    const sig = currentSig || signatureImage
+    if (sig) {
+      return normalizeSignatureImage(sig, displayName)
     }
+    try {
+      const stored = JSON.parse(localStorage.getItem("user") || "{}")
+      if (stored?.signatureSpecimenUrl) {
+        return normalizeSignatureImage(stored.signatureSpecimenUrl, displayName)
+      }
+      const uIds = [stored?.id, stored?.userID, stored?.userCode].filter(Boolean)
+      for (const id of uIds) {
+        const local = localStorage.getItem(`user_signature_${id}`)
+        if (local) return normalizeSignatureImage(local, displayName)
+      }
+    } catch {}
+    try {
+      const legacy = localStorage.getItem("user_signature")
+      if (legacy) return normalizeSignatureImage(legacy, displayName)
+    } catch {}
     return generateSignatureSvg(displayName)
-  }, [currentSig, displayName])
+  }, [currentSig, signatureImage, displayName])
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0]

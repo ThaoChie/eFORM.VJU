@@ -356,7 +356,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public void updateSignatureSpecimen(Long userId, String signatureUrl) {
+    public String updateSignatureSpecimen(Long userId, String signatureUrl) {
         User user = repository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("USER_NOT_FOUND"));
 
@@ -390,5 +390,6 @@ public class UserServiceImpl implements UserService {
         user.setSignatureRegisteredAt(java.time.Instant.now());
         user.setIsSignatureLocked(true);
         repository.saveAndFlush(user);
+        return hashHex;
     }
 }

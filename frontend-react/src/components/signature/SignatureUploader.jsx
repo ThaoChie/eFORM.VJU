@@ -4,7 +4,89 @@ import { toast } from "react-hot-toast"
 import { useSubmissionStore } from "../../stores/useSubmissionStore"
 import { useAuthStore } from "../../stores/useAuthStore"
 import { client } from "../../lib/axios/client"
-import { Button, Card, Modal } from "../ui/Primitives"
+import { Button, Card, Modal, CancelButton } from "../ui/Primitives"
+import { normalizeSignatureImage } from "../ui/PdfViewer"
+
+/**
+ * Xử lý ảnh chữ ký tải lên (JPEG, PNG, WEBP):
+ * - Đảm bảo MIME type hợp lệ dạng data URL
+ * - Tự động tách nền giấy trắng/xám để có nền trong suốt chuẩn chữ ký số
+ * - Chuyển đổi thành định dạng PNG chuẩn hiển thị mọi trình duyệt
+ */
+async function processSignatureFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onerror = () => reject(new Error("Không thể đọc file ảnh"))
+    reader.onload = () => {
+      const raw = reader.result
+      if (typeof raw !== "string") {
+        return reject(new Error("Dữ liệu ảnh không hợp lệ"))
+      }
+
+      // 1. Chuẩn hóa tiền tố Data URL nếu thiếu hoặc sai MIME type
+      const ext = file.name ? file.name.split(".").pop().toLowerCase() : ""
+      let safeDataUrl = raw
+      if (!safeDataUrl.startsWith("data:image/")) {
+        const mime = (ext === "jpg" || ext === "jpeg") ? "image/jpeg" : ext === "webp" ? "image/webp" : "image/png"
+        safeDataUrl = safeDataUrl.replace(/^data:[^;]*;/, `data:${mime};`)
+      }
+
+      // 2. Nạp ảnh vào canvas để tách nền giấy tự động và xuất PNG trong suốt
+      const img = new Image()
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas")
+          let w = img.naturalWidth || img.width || 600
+          let h = img.naturalHeight || img.height || 200
+          const maxW = 900
+          const maxH = 450
+          if (w > maxW || h > maxH) {
+            const ratio = Math.min(maxW / w, maxH / h)
+            w = Math.round(w * ratio)
+            h = Math.round(h * ratio)
+          }
+          canvas.width = w
+          canvas.height = h
+          const ctx = canvas.getContext("2d", { willReadFrequently: true })
+          if (!ctx) return resolve(safeDataUrl)
+
+          ctx.drawImage(img, 0, 0, w, h)
+          const imgData = ctx.getImageData(0, 0, w, h)
+          const d = imgData.data
+
+          // Tách nền giấy trắng/sáng: biến các điểm ảnh nền giấy sáng màu thành trong suốt
+          for (let i = 0; i < d.length; i += 4) {
+            const r = d[i]
+            const g = d[i + 1]
+            const b = d[i + 2]
+            const a = d[i + 3]
+            if (a === 0) continue
+
+            const lum = 0.299 * r + 0.587 * g + 0.114 * b
+            if (lum > 215) {
+              d[i + 3] = 0 // Trong suốt hoàn toàn cho nền giấy
+            } else if (lum > 165) {
+              const factor = (215 - lum) / 50
+              d[i + 3] = Math.round(a * Math.max(0, Math.min(1, factor)))
+            }
+          }
+
+          ctx.putImageData(imgData, 0, 0)
+          const cleanPng = canvas.toDataURL("image/png")
+          resolve(cleanPng)
+        } catch (err) {
+          console.warn("Canvas tách nền warning:", err)
+          resolve(safeDataUrl)
+        }
+      }
+      img.onerror = () => {
+        resolve(safeDataUrl)
+      }
+      img.src = safeDataUrl
+    }
+    reader.readAsDataURL(file)
+  })
+}
 
 export default function SignatureUploader({ level = 1 }) {
   const inputRef = useRef(null)
@@ -27,14 +109,12 @@ export default function SignatureUploader({ level = 1 }) {
   useEffect(() => {
     const existing = user?.signatureSpecimenUrl || (userStorageKey ? localStorage.getItem(userStorageKey) : null)
     if (existing) {
-      setPreview(existing)
+      setPreview((prev) => prev || existing)
       registerSignature()
-    } else {
-      setPreview(null)
     }
-  }, [user, userStorageKey, registerSignature])
+  }, [user?.signatureSpecimenUrl, userStorageKey, registerSignature])
 
-  const select = (file) => {
+  const select = async (file) => {
     if (!file) return
 
     const ext = file.name ? file.name.split(".").pop().toLowerCase() : ""
@@ -45,18 +125,19 @@ export default function SignatureUploader({ level = 1 }) {
       "image/webp",
       "image/heic",
       "image/heif",
-    ].includes(file.type) || ["png", "jpg", "jpeg", "webp", "heic", "heif"].includes(ext)
+    ].includes(file.type?.toLowerCase()) || ["png", "jpg", "jpeg", "webp", "heic", "heif"].includes(ext)
 
     if (!isAcceptedFormat || file.size > 10 * 1024 * 1024) {
-      return setError("Chỉ nhận file ảnh PNG, JPG, WEBP hoặc HEIC với dung lượng tối đa 10 MB.")
+      return setError("Chỉ nhận file ảnh PNG, JPG, JPEG hoặc WEBP với dung lượng tối đa 10 MB.")
     }
     setError("")
 
-    const reader = new FileReader()
-    reader.onload = () => {
-      setPreview(reader.result)
+    try {
+      const processed = await processSignatureFile(file)
+      setPreview(processed)
+    } catch (err) {
+      setError(err.message || "Không thể xử lý ảnh chữ ký")
     }
-    reader.readAsDataURL(file)
   }
 
   const handleConfirmSaveAndLock = async () => {
@@ -81,6 +162,16 @@ export default function SignatureUploader({ level = 1 }) {
       if (userStorageKey) {
         localStorage.setItem(userStorageKey, finalSignature)
       }
+      if (user?.id) {
+        localStorage.setItem(`user_signature_${user.id}`, finalSignature)
+      }
+      if (user?.userID) {
+        localStorage.setItem(`user_signature_${user.userID}`, finalSignature)
+      }
+      if (user?.userCode) {
+        localStorage.setItem(`user_signature_${user.userCode}`, finalSignature)
+      }
+      localStorage.setItem("user_signature", finalSignature)
       if (level === 2 || user?.role === "CLASS_LEADER" || user?.role === "CLASS_DEPUTY") {
         localStorage.setItem("user_signature_3", finalSignature)
       } else if (level === 3 || user?.role === "DEAN") {
@@ -178,9 +269,25 @@ export default function SignatureUploader({ level = 1 }) {
           ) : (
             /* TRẠNG THÁI TẢI LÊN / ĐỔI ẢNH CHỮ KÝ */
             <div className="space-y-4">
-              <button
-                type="button"
+              <div
+                role="button"
+                tabIndex={0}
                 onClick={() => inputRef.current?.click()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    inputRef.current?.click()
+                  }
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                }}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  const file = e.dataTransfer.files?.[0]
+                  if (file) select(file)
+                }}
                 className="flex min-h-52 w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50/50 p-6 text-center hover:border-brand hover:bg-brand-soft/20 transition-all cursor-pointer"
               >
                 {preview ? (
@@ -190,6 +297,12 @@ export default function SignatureUploader({ level = 1 }) {
                       alt="Xem trước chữ ký"
                       className="max-h-24 max-w-[280px] object-contain mx-auto drop-shadow-xs"
                       style={{ mixBlendMode: "multiply" }}
+                      onError={(e) => {
+                        const fallback = normalizeSignatureImage(preview, user?.fullName || "Sinh viên")
+                        if (e.currentTarget.src !== fallback) {
+                          e.currentTarget.src = fallback
+                        }
+                      }}
                     />
                     <span className="text-xs text-brand font-medium block">
                       Bấm vào đây nếu muốn chọn file ảnh khác từ máy tính
@@ -204,18 +317,22 @@ export default function SignatureUploader({ level = 1 }) {
                       Bấm để chọn hoặc kéo thả ảnh chữ ký của bạn vào đây
                     </span>
                     <span className="mt-1 text-xs text-muted">
-                      Định dạng PNG, JPG, WEBP, HEIC (hệ thống tự động tách nền trong suốt), tối đa 10 MB
+                      Định dạng PNG, JPG, JPEG, WEBP (hệ thống tự động tách nền trong suốt), tối đa 10 MB
                     </span>
                   </>
                 )}
-              </button>
+              </div>
 
               <input
                 ref={inputRef}
                 type="file"
-                accept=".png,.jpg,.jpeg,.webp"
+                accept="image/png,image/jpeg,image/jpg,image/webp,.png,.jpg,.jpeg,.webp"
                 className="hidden"
-                onChange={(event) => select(event.target.files?.[0])}
+                onChange={(event) => {
+                  const file = event.target.files?.[0]
+                  if (file) select(file)
+                  event.target.value = ""
+                }}
               />
 
               {error && (
@@ -330,10 +447,14 @@ export default function SignatureUploader({ level = 1 }) {
         onClose={() => setConfirmLockModalOpen(false)}
         footer={
           <div className="flex items-center justify-end gap-2 w-full">
-            <Button variant="secondary" onClick={() => setConfirmLockModalOpen(false)}>
+            <CancelButton onClick={() => setConfirmLockModalOpen(false)}>
               Xem lại
-            </Button>
-            <Button className="bg-slate-900 hover:bg-slate-800 text-white border-slate-900" loading={saving} onClick={handleConfirmSaveAndLock}>
+            </CancelButton>
+            <Button
+              variant="primary"
+              loading={saving}
+              onClick={handleConfirmSaveAndLock}
+            >
               <Lock className="size-4" />
               Tôi đồng ý khóa chữ ký này
             </Button>
@@ -341,8 +462,23 @@ export default function SignatureUploader({ level = 1 }) {
         }
       >
         <div className="space-y-3 py-2 text-xs text-slate-600">
-          <div className="flex items-center justify-center p-3 bg-slate-50 border border-slate-200 rounded-lg">
-            <img src={preview} alt="Xem trước" className="max-h-20 object-contain" />
+          <div className="flex items-center justify-center p-4 bg-slate-50 border border-slate-200 rounded-lg min-h-[90px]">
+            {preview ? (
+              <img
+                src={preview}
+                alt="Xem trước chữ ký"
+                className="max-h-24 max-w-[320px] object-contain drop-shadow-xs"
+                style={{ mixBlendMode: "multiply" }}
+                onError={(e) => {
+                  const fallback = normalizeSignatureImage(preview, user?.fullName || "Sinh viên")
+                  if (e.currentTarget.src !== fallback) {
+                    e.currentTarget.src = fallback
+                  }
+                }}
+              />
+            ) : (
+              <span className="text-xs text-slate-400 italic">Chưa có ảnh xem trước</span>
+            )}
           </div>
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-slate-700 leading-relaxed">
             <span className="font-medium block mb-1 text-slate-900">Lưu ý về tính cố định:</span>

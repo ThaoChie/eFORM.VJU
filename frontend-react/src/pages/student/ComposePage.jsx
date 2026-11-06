@@ -29,6 +29,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import toast from "react-hot-toast"
 import { useAuthStore } from "../../stores/useAuthStore"
+import { authService } from "../../services/auth-service"
 import { useSubmissionStore } from "../../stores/useSubmissionStore"
 import { submissionService } from "../../services/submission-service"
 import SignConfirmModal from "../../components/signature/SignConfirmModal"
@@ -78,6 +79,7 @@ export default function ComposePage() {
     save,
     submit,
     hasSignature,
+    studentSignature,
     classSignature,
     deanSignature,
     classLeaderName,
@@ -99,6 +101,23 @@ export default function ComposePage() {
   // File input ref for upload
   const fileInputRef = useRef(null)
   const currentCritTargetRef = useRef(null)
+
+  // Đồng bộ thông tin user & chữ ký chính xác nhất từ /auth/me
+  useEffect(() => {
+    authService.getMe().then((freshUser) => {
+      if (freshUser) {
+        useAuthStore.setState((s) => ({
+          user: { ...s.user, ...freshUser, role: s.user?.role || freshUser.role?.toLowerCase()?.replace("_", "-") }
+        }))
+        if (freshUser.signatureSpecimenUrl && freshUser.id) {
+          try {
+            localStorage.setItem(`user_signature_${freshUser.id}`, freshUser.signatureSpecimenUrl)
+            localStorage.setItem("user", JSON.stringify({ ...freshUser, role: freshUser.role?.toLowerCase()?.replace("_", "-") }))
+          } catch {}
+        }
+      }
+    }).catch(() => {})
+  }, [])
 
   // Fetch form data on mount or when route param changes
   useEffect(() => {
@@ -188,9 +207,29 @@ export default function ComposePage() {
 
   // Current active signature image specimen (strictly scoped to current user account)
   const userStorageKey = user?.id ? `user_signature_${user.id}` : null
-  const currentSignatureImg =
-    user?.signatureSpecimenUrl ||
-    (userStorageKey ? localStorage.getItem(userStorageKey) : null)
+  const currentSignatureImg = useMemo(() => {
+    if (user?.signatureSpecimenUrl) return user.signatureSpecimenUrl
+    if (studentSignature) return studentSignature
+    const uIds = [user?.id, user?.studentId, user?.userID, user?.userCode].filter(Boolean)
+    for (const id of uIds) {
+      try {
+        const val = localStorage.getItem(`user_signature_${id}`)
+        if (val) return val
+      } catch {}
+    }
+    try {
+      const stored = JSON.parse(localStorage.getItem("user") || "{}")
+      if (stored?.signatureSpecimenUrl) return stored.signatureSpecimenUrl
+      if (stored?.id && localStorage.getItem(`user_signature_${stored.id}`)) {
+        return localStorage.getItem(`user_signature_${stored.id}`)
+      }
+    } catch {}
+    try {
+      const legacy = localStorage.getItem("user_signature")
+      if (legacy) return legacy
+    } catch {}
+    return null
+  }, [user, userStorageKey, studentSignature])
 
   // Toolbar Action 3: Đẩy duyệt (Pre-submission validation & signature check)
   const handleSubmitClick = () => {
@@ -938,6 +977,8 @@ export default function ComposePage() {
         <div className="w-full pb-16">
           <PdfViewer
             user={{
+              id: user?.id,
+              studentId: user?.id,
               fullName: studentFullName,
               userID: studentCode,
               userCode: studentCode,
@@ -945,14 +986,14 @@ export default function ComposePage() {
               majorName: "Công nghệ Thông tin",
               facultyName: studentFaculty,
               academicCohort: "2023 - 2027",
-              signatureSpecimenUrl: currentSignatureImg || user?.signatureSpecimenUrl,
+              signatureSpecimenUrl: currentSignatureImg || studentSignature || user?.signatureSpecimenUrl,
             }}
             semesterName={semesterTitle}
             academicYear="2026 - 2027"
             scores={scores}
             classScores={classScores}
             studentTotal={totalScore}
-            studentSignature={currentSignatureImg || user?.signatureSpecimenUrl}
+            studentSignature={currentSignatureImg || studentSignature || user?.signatureSpecimenUrl}
             classSignature={status === "CLASS_APPROVED" || status === "DEAN_APPROVED" || status === "FACULTY_APPROVED" ? classSignature : null}
             classLeaderName={status === "CLASS_APPROVED" || status === "DEAN_APPROVED" || status === "FACULTY_APPROVED" ? (classLeaderName || "Lớp trưởng") : ""}
             deanSignature={status === "DEAN_APPROVED" || status === "FACULTY_APPROVED" ? deanSignature : null}
@@ -1038,7 +1079,7 @@ export default function ComposePage() {
         open={signModalOpen}
         level={1}
         userName={studentFullName}
-        signatureImage={currentSignatureImg}
+        signatureImage={currentSignatureImg || studentSignature || user?.signatureSpecimenUrl}
         summaryData={{
           studentName: studentFullName,
           studentCode: studentCode,

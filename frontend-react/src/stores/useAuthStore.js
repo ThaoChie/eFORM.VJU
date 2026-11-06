@@ -6,8 +6,14 @@ const normalizeRole = (role) => {
   return role.toLowerCase().replace('_', '-');
 }
 
+let initialUser = null;
+try {
+  const raw = localStorage.getItem('user');
+  if (raw) initialUser = JSON.parse(raw);
+} catch {}
+
 export const useAuthStore = create((set) => ({
-  user: null,
+  user: initialUser,
   token: localStorage.getItem('token'),
   loading: false,
   async login(email, password) {
@@ -19,6 +25,9 @@ export const useAuthStore = create((set) => ({
       
       const user = await authService.getMe();
       user.role = normalizeRole(user.role);
+      try {
+        localStorage.setItem('user', JSON.stringify(user));
+      } catch {}
       
       set({ user, token, loading: false })
       return user
@@ -28,12 +37,14 @@ export const useAuthStore = create((set) => ({
     }
   },
   async checkAuth() {
-    localStorage.removeItem('user_signature'); // Remove legacy unscoped key
     const token = localStorage.getItem('token');
     if (token) {
       try {
         const user = await authService.getMe();
         user.role = normalizeRole(user.role);
+        try {
+          localStorage.setItem('user', JSON.stringify(user));
+        } catch {}
         set({ user, token });
       } catch (e) {
         localStorage.removeItem('token');
