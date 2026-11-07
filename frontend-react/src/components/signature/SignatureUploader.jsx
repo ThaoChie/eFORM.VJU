@@ -5,7 +5,7 @@ import { useSubmissionStore } from "../../stores/useSubmissionStore"
 import { useAuthStore } from "../../stores/useAuthStore"
 import { client } from "../../lib/axios/client"
 import { Button, Card, Modal, CancelButton } from "../ui/Primitives"
-import { normalizeSignatureImage } from "../ui/PdfViewer"
+import { normalizeSignatureImage, isValidSignatureImage } from "../ui/PdfViewer"
 
 /**
  * Xử lý ảnh chữ ký tải lên (JPEG, PNG, WEBP):
@@ -45,8 +45,8 @@ async function processSignatureFile(file) {
             w = Math.round(w * ratio)
             h = Math.round(h * ratio)
           }
-          canvas.width = w
-          canvas.height = h
+          canvas.width = Math.max(1, w)
+          canvas.height = Math.max(1, h)
           const ctx = canvas.getContext("2d", { willReadFrequently: true })
           if (!ctx) return resolve(safeDataUrl)
 
@@ -54,7 +54,18 @@ async function processSignatureFile(file) {
           const imgData = ctx.getImageData(0, 0, w, h)
           const d = imgData.data
 
-          // Tách nền giấy trắng/sáng: biến các điểm ảnh nền giấy sáng màu thành trong suốt
+          // Kiểm tra nếu ảnh đã có nền trong suốt (PNG trong suốt): giữ nguyên
+          let transparentCount = 0
+          for (let i = 3; i < d.length; i += 16) {
+            if (d[i] < 50) transparentCount++
+          }
+          const totalSampled = d.length / 16
+          if (transparentCount / totalSampled > 0.08) {
+            return resolve(canvas.toDataURL("image/png"))
+          }
+
+          // Tách nền giấy trắng/xám, giữ nét mực chữ ký đậm rõ
+          let nonTransparentInk = 0
           for (let i = 0; i < d.length; i += 4) {
             const r = d[i]
             const g = d[i + 1]
@@ -63,12 +74,19 @@ async function processSignatureFile(file) {
             if (a === 0) continue
 
             const lum = 0.299 * r + 0.587 * g + 0.114 * b
-            if (lum > 215) {
-              d[i + 3] = 0 // Trong suốt hoàn toàn cho nền giấy
-            } else if (lum > 165) {
-              const factor = (215 - lum) / 50
+            if (lum > 230) {
+              d[i + 3] = 0 // Trong suốt hoàn toàn cho nền giấy trắng/sáng
+            } else if (lum > 180) {
+              const factor = (230 - lum) / 50
               d[i + 3] = Math.round(a * Math.max(0, Math.min(1, factor)))
+            } else {
+              nonTransparentInk++
             }
+          }
+
+          // Nếu việc lọc nền làm mất nét chữ ký, dùng lại ảnh gốc an toàn
+          if (nonTransparentInk < 20) {
+            return resolve(safeDataUrl)
           }
 
           ctx.putImageData(imgData, 0, 0)
@@ -95,12 +113,13 @@ export default function SignatureUploader({ level = 1 }) {
 
   const userStorageKey = user?.id ? `user_signature_${user.id}` : null
 
-  // A signature is permanently locked if isSignatureLocked is true or signatureSpecimenUrl is present
-  const isLocked = Boolean(user?.isSignatureLocked || user?.signatureSpecimenUrl)
+  // Chữ ký chỉ coi là đã khóa nếu cờ isSignatureLocked = true VÀ có dữ liệu ảnh hợp lệ
+  const isLocked = Boolean(user?.isSignatureLocked && isValidSignatureImage(user?.signatureSpecimenUrl))
   const [isEditing, setIsEditing] = useState(false)
 
   const [preview, setPreview] = useState(() => {
-    return user?.signatureSpecimenUrl || (userStorageKey ? localStorage.getItem(userStorageKey) : null)
+    const existing = user?.signatureSpecimenUrl || (userStorageKey ? localStorage.getItem(userStorageKey) : null)
+    return isValidSignatureImage(existing) ? existing : null
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
@@ -108,7 +127,7 @@ export default function SignatureUploader({ level = 1 }) {
 
   useEffect(() => {
     const existing = user?.signatureSpecimenUrl || (userStorageKey ? localStorage.getItem(userStorageKey) : null)
-    if (existing) {
+    if (isValidSignatureImage(existing)) {
       setPreview((prev) => prev || existing)
       registerSignature()
     }

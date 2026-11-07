@@ -31,17 +31,20 @@ public class UserServiceImpl implements UserService {
     private final DepartmentRepository deptRepo;
     private final ClassRepository classRepo;
     private final PasswordEncoder passwordEncoder;
+    private final vn.edu.drl.backend.dao.SignatureLogRepository signatureLogRepository;
     
     public UserServiceImpl(UserRepository repository, 
                            UserHibernateDao hibernateDao, 
                            DepartmentRepository deptRepo, 
                            ClassRepository classRepo, 
-                           PasswordEncoder passwordEncoder) { 
+                           PasswordEncoder passwordEncoder,
+                           vn.edu.drl.backend.dao.SignatureLogRepository signatureLogRepository) { 
         this.repository = repository; 
         this.hibernateDao = hibernateDao;
         this.deptRepo = deptRepo;
         this.classRepo = classRepo;
         this.passwordEncoder = passwordEncoder;
+        this.signatureLogRepository = signatureLogRepository;
     }
     
     public List<User> findAll() { 
@@ -360,7 +363,13 @@ public class UserServiceImpl implements UserService {
         User user = repository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("USER_NOT_FOUND"));
 
-        if (Boolean.TRUE.equals(user.getIsSignatureLocked()) && user.getSignatureSpecimenUrl() != null && !user.getSignatureSpecimenUrl().trim().isEmpty()) {
+        boolean isDummyOrCorrupted = user.getSignatureSpecimenUrl() == null 
+                || user.getSignatureSpecimenUrl().trim().isEmpty()
+                || user.getSignatureSpecimenUrl().contains("AAAAEAAAAB")
+                || user.getSignatureSpecimenUrl().contains("DIGITALLY")
+                || user.getSignatureSpecimenUrl().length() < 100;
+
+        if (Boolean.TRUE.equals(user.getIsSignatureLocked()) && !isDummyOrCorrupted) {
             throw new RuntimeException("Chữ ký điện tử đã được khóa bảo mật vĩnh viễn, không thể sửa đổi.");
         }
 
@@ -390,6 +399,19 @@ public class UserServiceImpl implements UserService {
         user.setSignatureRegisteredAt(java.time.Instant.now());
         user.setIsSignatureLocked(true);
         repository.saveAndFlush(user);
+
+        // 3. Backfill any existing signature logs for this signer that were placeholder or dummy
+        try {
+            List<vn.edu.drl.backend.model.SignatureLog> logs = signatureLogRepository.findBySignerId(userId);
+            for (vn.edu.drl.backend.model.SignatureLog log : logs) {
+                if (log.getSignatureImgUrl() == null || log.getSignatureImgUrl().contains("DIGITALLY") || log.getSignatureImgUrl().length() < 100) {
+                    log.setSignatureImgUrl(signatureUrl);
+                    log.setSha256Hash(hashHex);
+                    signatureLogRepository.save(log);
+                }
+            }
+        } catch (Exception ignored) {}
+
         return hashHex;
     }
 }

@@ -33,7 +33,7 @@ import { authService } from "../../services/auth-service"
 import { useSubmissionStore } from "../../stores/useSubmissionStore"
 import { submissionService } from "../../services/submission-service"
 import SignConfirmModal from "../../components/signature/SignConfirmModal"
-import PdfViewer from "../../components/ui/PdfViewer"
+import PdfViewer, { isValidSignatureImage } from "../../components/ui/PdfViewer"
 import { Button, Card, Input, Modal } from "../../components/ui/Primitives"
 
 const formatDescription = (desc) => {
@@ -208,25 +208,25 @@ export default function ComposePage() {
   // Current active signature image specimen (strictly scoped to current user account)
   const userStorageKey = user?.id ? `user_signature_${user.id}` : null
   const currentSignatureImg = useMemo(() => {
-    if (user?.signatureSpecimenUrl) return user.signatureSpecimenUrl
-    if (studentSignature) return studentSignature
+    if (isValidSignatureImage(studentSignature)) return studentSignature
+    if (isValidSignatureImage(user?.signatureSpecimenUrl)) return user.signatureSpecimenUrl
     const uIds = [user?.id, user?.studentId, user?.userID, user?.userCode].filter(Boolean)
     for (const id of uIds) {
       try {
         const val = localStorage.getItem(`user_signature_${id}`)
-        if (val) return val
+        if (isValidSignatureImage(val)) return val
       } catch {}
     }
     try {
       const stored = JSON.parse(localStorage.getItem("user") || "{}")
-      if (stored?.signatureSpecimenUrl) return stored.signatureSpecimenUrl
-      if (stored?.id && localStorage.getItem(`user_signature_${stored.id}`)) {
+      if (isValidSignatureImage(stored?.signatureSpecimenUrl)) return stored.signatureSpecimenUrl
+      if (stored?.id && isValidSignatureImage(localStorage.getItem(`user_signature_${stored.id}`))) {
         return localStorage.getItem(`user_signature_${stored.id}`)
       }
     } catch {}
     try {
       const legacy = localStorage.getItem("user_signature")
-      if (legacy) return legacy
+      if (isValidSignatureImage(legacy)) return legacy
     } catch {}
     return null
   }, [user, userStorageKey, studentSignature])

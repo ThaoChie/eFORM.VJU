@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from "react"
 import { Check, Signature, ShieldCheck, FileText, Award, Calendar, Paperclip, User, Upload } from "lucide-react"
 import { Button, Input, Modal } from "../ui/Primitives"
-import { normalizeSignatureImage, generateSignatureSvg } from "../ui/PdfViewer"
+import { normalizeSignatureImage, generateSignatureSvg, isValidSignatureImage } from "../ui/PdfViewer"
 
 export default function SignConfirmModal({
   open,
@@ -31,24 +31,25 @@ export default function SignConfirmModal({
 
   const renderedSig = useMemo(() => {
     const sig = currentSig || signatureImage
-    if (sig) {
+    if (isValidSignatureImage(sig)) {
       return normalizeSignatureImage(sig, displayName)
     }
     try {
       const stored = JSON.parse(localStorage.getItem("user") || "{}")
-      if (stored?.signatureSpecimenUrl) {
+      if (isValidSignatureImage(stored?.signatureSpecimenUrl)) {
         return normalizeSignatureImage(stored.signatureSpecimenUrl, displayName)
       }
       const uIds = [stored?.id, stored?.userID, stored?.userCode].filter(Boolean)
       for (const id of uIds) {
         const local = localStorage.getItem(`user_signature_${id}`)
-        if (local) return normalizeSignatureImage(local, displayName)
+        if (isValidSignatureImage(local)) return normalizeSignatureImage(local, displayName)
       }
     } catch {}
     try {
       const legacy = localStorage.getItem("user_signature")
-      if (legacy) return normalizeSignatureImage(legacy, displayName)
+      if (isValidSignatureImage(legacy)) return normalizeSignatureImage(legacy, displayName)
     } catch {}
+    if (sig) return normalizeSignatureImage(sig, displayName)
     return generateSignatureSvg(displayName)
   }, [currentSig, signatureImage, displayName])
 
@@ -178,7 +179,7 @@ export default function SignConfirmModal({
         />
 
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white p-3.5 min-h-[130px]">
-          {currentSig ? (
+          {currentSig || renderedSig ? (
             <div className="text-center w-full">
               <div className="flex items-center justify-center p-2 bg-slate-50/60 rounded-lg w-full min-h-[80px]">
                 <img

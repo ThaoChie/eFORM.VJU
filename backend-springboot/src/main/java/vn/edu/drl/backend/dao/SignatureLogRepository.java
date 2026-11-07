@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface SignatureLogRepository extends JpaRepository<SignatureLog, Long> {
     List<SignatureLog> findByScoreFormId(Long scoreFormId);
+    List<SignatureLog> findBySignerId(Long signerId);
 }

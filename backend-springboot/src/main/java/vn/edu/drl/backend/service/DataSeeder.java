@@ -52,14 +52,16 @@ public class DataSeeder implements CommandLineRunner {
             cls.setAcademicCohort("2023");
             cls = classRepository.save(cls);
 
-            Semester sem = new Semester();
-            sem.setSemesterCode("HK1_2026");
-            sem.setSemesterName("Học kỳ 1 Năm 2026-2027");
-            sem.setAcademicYear("2026-2027");
-            sem.setIsActive(true);
-            sem.setStartDate(LocalDate.of(2026, 9, 1));
-            sem.setEndDate(LocalDate.of(2027, 1, 15));
-            semesterRepository.save(sem);
+            if (!semesterRepository.existsBySemesterCode("HK1_2026")) {
+                Semester sem = new Semester();
+                sem.setSemesterCode("HK1_2026");
+                sem.setSemesterName("Học kỳ 1 Năm 2026-2027");
+                sem.setAcademicYear("2026-2027");
+                sem.setIsActive(true);
+                sem.setStartDate(LocalDate.of(2026, 9, 1));
+                sem.setEndDate(LocalDate.of(2027, 1, 15));
+                semesterRepository.save(sem);
+            }
 
             String defaultPassword = passwordEncoder.encode("123456");
 
