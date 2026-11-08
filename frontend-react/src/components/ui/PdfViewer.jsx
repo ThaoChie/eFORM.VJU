@@ -17,6 +17,14 @@ export function isValidSignatureImage(sig) {
   if (!sig || typeof sig !== "string") return false
   const s = sig.trim()
   if (s.length < 50) return false
+  // Tuyệt đối không chấp nhận ảnh SVG mockdata / chữ ký giả lập tự sinh
+  if (
+    s.startsWith("data:image/svg+xml") ||
+    s.includes("<svg") ||
+    s.includes("%3Csvg")
+  ) {
+    return false
+  }
   if (s.includes("DIGITALLY") || s.includes("CONFIRMED")) return false
   if (
     s.includes("AAAAEAAAAB") ||
@@ -33,6 +41,9 @@ export function isValidSignatureImage(sig) {
     s.startsWith("blob:") ||
     s.startsWith("/")
   ) {
+    return true
+  }
+  if (!s.includes(" ")) {
     return true
   }
   return false
@@ -558,39 +569,57 @@ export default function PdfViewer({
     return generateSignatureSvg(user?.fullName || "Sinh viên")
   }, [effectiveStudentSig, user?.fullName])
 
-  // Class leader signature resolution: priority to uploaded image, then explicit prop
+  // Class leader signature resolution: priority to uploaded image, then explicit prop or storage
   const effectiveClassSig = useMemo(() => {
-    if (uploadedClassSig) return uploadedClassSig
-    if (classSignature && typeof classSignature === "string" && classSignature.trim() !== "") {
-      return classSignature
-    }
+    if (isValidSignatureImage(uploadedClassSig)) return uploadedClassSig
+    if (isValidSignatureImage(classSignature)) return classSignature
+    try {
+      const sig3 = localStorage.getItem("user_signature_3")
+      if (isValidSignatureImage(sig3)) return sig3
+      const stored = JSON.parse(localStorage.getItem("user") || "{}")
+      if (stored?.role?.includes("leader") && isValidSignatureImage(stored?.signatureSpecimenUrl)) {
+        return stored.signatureSpecimenUrl
+      }
+      if (stored?.id) {
+        const local = localStorage.getItem(`user_signature_${stored.id}`)
+        if (isValidSignatureImage(local)) return local
+      }
+    } catch {}
     return null
   }, [uploadedClassSig, classSignature])
 
   const classSigImage = useMemo(() => {
-    if (uploadedClassSig) return uploadedClassSig
     if (effectiveClassSig) {
       return normalizeSignatureImage(effectiveClassSig, classLeaderName || "Lớp trưởng")
     }
-    return null
-  }, [uploadedClassSig, effectiveClassSig, classLeaderName])
+    return classSignature ? generateSignatureSvg(classLeaderName || "Lớp trưởng") : null
+  }, [effectiveClassSig, classSignature, classLeaderName])
 
-  // Dean signature resolution: priority to uploaded image, then explicit prop
+  // Dean signature resolution: priority to uploaded image, then explicit prop or storage
   const effectiveDeanSig = useMemo(() => {
-    if (uploadedDeanSig) return uploadedDeanSig
-    if (deanSignature && typeof deanSignature === "string" && deanSignature.trim() !== "") {
-      return deanSignature
-    }
+    if (isValidSignatureImage(uploadedDeanSig)) return uploadedDeanSig
+    if (isValidSignatureImage(deanSignature)) return deanSignature
+    try {
+      const sig2 = localStorage.getItem("user_signature_2")
+      if (isValidSignatureImage(sig2)) return sig2
+      const stored = JSON.parse(localStorage.getItem("user") || "{}")
+      if (stored?.role?.includes("dean") && isValidSignatureImage(stored?.signatureSpecimenUrl)) {
+        return stored.signatureSpecimenUrl
+      }
+      if (stored?.id) {
+        const local = localStorage.getItem(`user_signature_${stored.id}`)
+        if (isValidSignatureImage(local)) return local
+      }
+    } catch {}
     return null
   }, [uploadedDeanSig, deanSignature])
 
   const deanSigImage = useMemo(() => {
-    if (uploadedDeanSig) return uploadedDeanSig
     if (effectiveDeanSig) {
       return normalizeSignatureImage(effectiveDeanSig, deanName || "Trưởng Khoa CNTT")
     }
-    return null
-  }, [uploadedDeanSig, effectiveDeanSig, deanName])
+    return deanSignature ? generateSignatureSvg(deanName || "Trưởng Khoa CNTT") : null
+  }, [effectiveDeanSig, deanSignature, deanName])
 
   // Chuẩn hóa tên học kỳ: loại bỏ phần năm học bị trùng lặp (ví dụ "Học kỳ 2 Năm 2026-2027" -> "Học kỳ 2")
   const displaySemester = useMemo(() => {

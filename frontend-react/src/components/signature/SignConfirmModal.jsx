@@ -46,12 +46,19 @@ export default function SignConfirmModal({
       }
     } catch {}
     try {
+      if (level === 3) {
+        const sig2 = localStorage.getItem("user_signature_2")
+        if (isValidSignatureImage(sig2)) return normalizeSignatureImage(sig2, displayName)
+      } else if (level === 2) {
+        const sig3 = localStorage.getItem("user_signature_3")
+        if (isValidSignatureImage(sig3)) return normalizeSignatureImage(sig3, displayName)
+      }
       const legacy = localStorage.getItem("user_signature")
       if (isValidSignatureImage(legacy)) return normalizeSignatureImage(legacy, displayName)
     } catch {}
-    if (sig) return normalizeSignatureImage(sig, displayName)
+    if (isValidSignatureImage(sig)) return normalizeSignatureImage(sig, displayName)
     return generateSignatureSvg(displayName)
-  }, [currentSig, signatureImage, displayName])
+  }, [currentSig, signatureImage, displayName, level])
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0]

@@ -16,30 +16,23 @@ import { normalizeSignatureImage, isValidSignatureImage } from "../ui/PdfViewer"
 async function processSignatureFile(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
-    reader.onerror = () => reject(new Error("Không thể đọc file ảnh"))
+    reader.onerror = () => reject(new Error("Không thể đọc file ảnh từ thiết bị"))
     reader.onload = () => {
       const raw = reader.result
-      if (typeof raw !== "string") {
+      if (typeof raw !== "string" || !raw.startsWith("data:image/")) {
         return reject(new Error("Dữ liệu ảnh không hợp lệ"))
       }
 
-      // 1. Chuẩn hóa tiền tố Data URL nếu thiếu hoặc sai MIME type
-      const ext = file.name ? file.name.split(".").pop().toLowerCase() : ""
-      let safeDataUrl = raw
-      if (!safeDataUrl.startsWith("data:image/")) {
-        const mime = (ext === "jpg" || ext === "jpeg") ? "image/jpeg" : ext === "webp" ? "image/webp" : "image/png"
-        safeDataUrl = safeDataUrl.replace(/^data:[^;]*;/, `data:${mime};`)
-      }
-
-      // 2. Nạp ảnh vào canvas để tách nền giấy tự động và xuất PNG trong suốt
+      // Nạp ảnh vào canvas để chuẩn hóa kích thước và tách nền giấy nếu cần
       const img = new Image()
+      img.onerror = () => resolve(raw)
       img.onload = () => {
         try {
           const canvas = document.createElement("canvas")
           let w = img.naturalWidth || img.width || 600
           let h = img.naturalHeight || img.height || 200
-          const maxW = 900
-          const maxH = 450
+          const maxW = 800
+          const maxH = 400
           if (w > maxW || h > maxH) {
             const ratio = Math.min(maxW / w, maxH / h)
             w = Math.round(w * ratio)
@@ -48,13 +41,13 @@ async function processSignatureFile(file) {
           canvas.width = Math.max(1, w)
           canvas.height = Math.max(1, h)
           const ctx = canvas.getContext("2d", { willReadFrequently: true })
-          if (!ctx) return resolve(safeDataUrl)
+          if (!ctx) return resolve(raw)
 
           ctx.drawImage(img, 0, 0, w, h)
           const imgData = ctx.getImageData(0, 0, w, h)
           const d = imgData.data
 
-          // Kiểm tra nếu ảnh đã có nền trong suốt (PNG trong suốt): giữ nguyên
+          // 1. Kiểm tra nếu ảnh đã có nền trong suốt (PNG): giữ nguyên chất lượng
           let transparentCount = 0
           for (let i = 3; i < d.length; i += 16) {
             if (d[i] < 50) transparentCount++
@@ -64,7 +57,7 @@ async function processSignatureFile(file) {
             return resolve(canvas.toDataURL("image/png"))
           }
 
-          // Tách nền giấy trắng/xám, giữ nét mực chữ ký đậm rõ
+          // 2. Tách nền giấy trắng/xám, giữ nguyên nét mực chữ ký
           let nonTransparentInk = 0
           for (let i = 0; i < d.length; i += 4) {
             const r = d[i]
@@ -75,7 +68,7 @@ async function processSignatureFile(file) {
 
             const lum = 0.299 * r + 0.587 * g + 0.114 * b
             if (lum > 230) {
-              d[i + 3] = 0 // Trong suốt hoàn toàn cho nền giấy trắng/sáng
+              d[i + 3] = 0 // Trong suốt cho giấy trắng
             } else if (lum > 180) {
               const factor = (230 - lum) / 50
               d[i + 3] = Math.round(a * Math.max(0, Math.min(1, factor)))
@@ -84,23 +77,19 @@ async function processSignatureFile(file) {
             }
           }
 
-          // Nếu việc lọc nền làm mất nét chữ ký, dùng lại ảnh gốc an toàn
+          // Nếu lọc nền làm mất nét chữ ký, dùng lại ảnh gốc nguyên bản
           if (nonTransparentInk < 20) {
-            return resolve(safeDataUrl)
+            return resolve(raw)
           }
 
           ctx.putImageData(imgData, 0, 0)
-          const cleanPng = canvas.toDataURL("image/png")
-          resolve(cleanPng)
+          resolve(canvas.toDataURL("image/png"))
         } catch (err) {
-          console.warn("Canvas tách nền warning:", err)
-          resolve(safeDataUrl)
+          console.warn("Canvas warning:", err)
+          resolve(raw)
         }
       }
-      img.onerror = () => {
-        resolve(safeDataUrl)
-      }
-      img.src = safeDataUrl
+      img.src = raw
     }
     reader.readAsDataURL(file)
   })
@@ -196,10 +185,13 @@ export default function SignatureUploader({ level = 1 }) {
         localStorage.setItem(`user_signature_${user.userCode}`, finalSignature)
       }
       localStorage.setItem("user_signature", finalSignature)
-      if (level === 2 || user?.role === "CLASS_LEADER" || user?.role === "CLASS_DEPUTY") {
+      const roleStr = (user?.role || "").toLowerCase()
+      if (level === 2 || roleStr.includes("leader") || roleStr.includes("deputy")) {
         localStorage.setItem("user_signature_3", finalSignature)
-      } else if (level === 3 || user?.role === "DEAN") {
+      } else if (level === 3 || roleStr.includes("dean")) {
         localStorage.setItem("user_signature_2", finalSignature)
+      } else {
+        localStorage.setItem("user_signature_4", finalSignature)
       }
       registerSignature()
 
@@ -321,11 +313,9 @@ export default function SignatureUploader({ level = 1 }) {
                       alt="Xem trước chữ ký"
                       className="max-h-24 max-w-[280px] object-contain mx-auto drop-shadow-xs"
                       style={{ mixBlendMode: "multiply" }}
-                      onError={(e) => {
-                        const fallback = normalizeSignatureImage(preview, user?.fullName || "Sinh viên")
-                        if (e.currentTarget.src !== fallback) {
-                          e.currentTarget.src = fallback
-                        }
+                      onError={() => {
+                        setError("File ảnh chữ ký không hiển thị được. Vui lòng chọn lại file PNG hoặc JPG.")
+                        setPreview(null)
                       }}
                     />
                     <span className="text-xs text-brand font-medium block">
@@ -493,11 +483,10 @@ export default function SignatureUploader({ level = 1 }) {
                 alt="Xem trước chữ ký"
                 className="max-h-24 max-w-[320px] object-contain drop-shadow-xs"
                 style={{ mixBlendMode: "multiply" }}
-                onError={(e) => {
-                  const fallback = normalizeSignatureImage(preview, user?.fullName || "Sinh viên")
-                  if (e.currentTarget.src !== fallback) {
-                    e.currentTarget.src = fallback
-                  }
+                onError={() => {
+                  setError("Ảnh chữ ký không thể tải. Vui lòng chọn lại file ảnh.")
+                  setPreview(null)
+                  setConfirmLockModalOpen(false)
                 }}
               />
             ) : (
