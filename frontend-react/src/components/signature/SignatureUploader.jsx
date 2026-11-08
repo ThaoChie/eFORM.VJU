@@ -113,8 +113,13 @@ export default function SignatureUploader({ level = 1 }) {
 
   const userStorageKey = user?.id ? `user_signature_${user.id}` : null
 
-  // Chữ ký chỉ coi là đã khóa nếu cờ isSignatureLocked = true VÀ có dữ liệu ảnh hợp lệ
-  const isLocked = Boolean(user?.isSignatureLocked && isValidSignatureImage(user?.signatureSpecimenUrl))
+  // Chữ ký chỉ coi là đã khóa nếu cờ isSignatureLocked = true VÀ có dữ liệu ảnh hợp lệ (không phải SVG giả lập)
+  const hasRealUploadedSig = Boolean(
+    user?.signatureSpecimenUrl &&
+    !user.signatureSpecimenUrl.startsWith('data:image/svg+xml') &&
+    isValidSignatureImage(user?.signatureSpecimenUrl)
+  )
+  const isLocked = Boolean(hasRealUploadedSig && user?.isSignatureLocked)
   const [isEditing, setIsEditing] = useState(false)
 
   const [preview, setPreview] = useState(() => {
