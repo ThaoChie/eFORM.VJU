@@ -1,7 +1,20 @@
 import axios from 'axios';
 
+const isLocalhost =
+  typeof window !== 'undefined' &&
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+const envApiUrl = import.meta.env.VITE_API_URL;
+const isEnvUrlLocal = Boolean(
+  envApiUrl && (envApiUrl.includes('localhost') || envApiUrl.includes('127.0.0.1'))
+);
+
+const resolvedBaseURL = isLocalhost
+  ? (envApiUrl || 'http://localhost:8080/api/v1')
+  : (!isEnvUrlLocal && envApiUrl ? envApiUrl : 'https://drl-backend-f0sx.onrender.com/api/v1');
+
 export const client = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:8080/api/v1' : 'https://drl-backend-f0sx.onrender.com/api/v1'),
+  baseURL: resolvedBaseURL,
   headers: {
     'Content-Type': 'application/json',
   },

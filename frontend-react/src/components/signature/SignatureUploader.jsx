@@ -8,84 +8,52 @@ import { Button, Card, Modal, CancelButton } from "../ui/Primitives"
 import { normalizeSignatureImage, isValidSignatureImage } from "../ui/PdfViewer"
 
 /**
- * Xử lý ảnh chữ ký tải lên (JPEG, PNG, WEBP):
- * - Đảm bảo MIME type hợp lệ dạng data URL
- * - Tự động tách nền giấy trắng/xám để có nền trong suốt chuẩn chữ ký số
- * - Chuyển đổi thành định dạng PNG chuẩn hiển thị mọi trình duyệt
+ * Đọc file ảnh chữ ký thành chuỗi Data URL chuẩn (PNG, JPG, JPEG, WEBP)
  */
 async function processSignatureFile(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onerror = () => reject(new Error("Không thể đọc file ảnh từ thiết bị"))
     reader.onload = () => {
-      const raw = reader.result
-      if (typeof raw !== "string" || !raw.startsWith("data:image/")) {
+      let raw = reader.result
+      if (typeof raw !== "string") {
         return reject(new Error("Dữ liệu ảnh không hợp lệ"))
       }
 
-      // Nạp ảnh vào canvas để chuẩn hóa kích thước và tách nền giấy nếu cần
+      // Chuẩn hóa MIME type nếu hệ điều hành không gán đúng
+      const ext = (file.name || "").split(".").pop().toLowerCase()
+      if (!raw.startsWith("data:image/")) {
+        const mime = (ext === "jpg" || ext === "jpeg") ? "image/jpeg" : ext === "webp" ? "image/webp" : "image/png"
+        raw = raw.replace(/^data:[^;]*;/, `data:${mime};`)
+      }
+
+      // Tối ưu kích thước nếu ảnh quá lớn (> 1200px) để lưu database nhẹ nhàng
       const img = new Image()
       img.onerror = () => resolve(raw)
       img.onload = () => {
         try {
-          const canvas = document.createElement("canvas")
           let w = img.naturalWidth || img.width || 600
           let h = img.naturalHeight || img.height || 200
-          const maxW = 800
-          const maxH = 400
+          const maxW = 1000
+          const maxH = 500
           if (w > maxW || h > maxH) {
             const ratio = Math.min(maxW / w, maxH / h)
             w = Math.round(w * ratio)
             h = Math.round(h * ratio)
-          }
-          canvas.width = Math.max(1, w)
-          canvas.height = Math.max(1, h)
-          const ctx = canvas.getContext("2d", { willReadFrequently: true })
-          if (!ctx) return resolve(raw)
-
-          ctx.drawImage(img, 0, 0, w, h)
-          const imgData = ctx.getImageData(0, 0, w, h)
-          const d = imgData.data
-
-          // 1. Kiểm tra nếu ảnh đã có nền trong suốt (PNG): giữ nguyên chất lượng
-          let transparentCount = 0
-          for (let i = 3; i < d.length; i += 16) {
-            if (d[i] < 50) transparentCount++
-          }
-          const totalSampled = d.length / 16
-          if (transparentCount / totalSampled > 0.08) {
-            return resolve(canvas.toDataURL("image/png"))
-          }
-
-          // 2. Tách nền giấy trắng/xám, giữ nguyên nét mực chữ ký
-          let nonTransparentInk = 0
-          for (let i = 0; i < d.length; i += 4) {
-            const r = d[i]
-            const g = d[i + 1]
-            const b = d[i + 2]
-            const a = d[i + 3]
-            if (a === 0) continue
-
-            const lum = 0.299 * r + 0.587 * g + 0.114 * b
-            if (lum > 230) {
-              d[i + 3] = 0 // Trong suốt cho giấy trắng
-            } else if (lum > 180) {
-              const factor = (230 - lum) / 50
-              d[i + 3] = Math.round(a * Math.max(0, Math.min(1, factor)))
-            } else {
-              nonTransparentInk++
+            const canvas = document.createElement("canvas")
+            canvas.width = Math.max(1, w)
+            canvas.height = Math.max(1, h)
+            const ctx = canvas.getContext("2d")
+            if (ctx) {
+              ctx.drawImage(img, 0, 0, w, h)
+              const scaled = canvas.toDataURL("image/png")
+              if (scaled && scaled.length > 50 && scaled.startsWith("data:image/")) {
+                return resolve(scaled)
+              }
             }
           }
-
-          // Nếu lọc nền làm mất nét chữ ký, dùng lại ảnh gốc nguyên bản
-          if (nonTransparentInk < 20) {
-            return resolve(raw)
-          }
-
-          ctx.putImageData(imgData, 0, 0)
-          resolve(canvas.toDataURL("image/png"))
-        } catch (err) {
-          console.warn("Canvas warning:", err)
+          resolve(raw)
+        } catch {
           resolve(raw)
         }
       }
@@ -313,10 +281,6 @@ export default function SignatureUploader({ level = 1 }) {
                       alt="Xem trước chữ ký"
                       className="max-h-24 max-w-[280px] object-contain mx-auto drop-shadow-xs"
                       style={{ mixBlendMode: "multiply" }}
-                      onError={() => {
-                        setError("File ảnh chữ ký không hiển thị được. Vui lòng chọn lại file PNG hoặc JPG.")
-                        setPreview(null)
-                      }}
                     />
                     <span className="text-xs text-brand font-medium block">
                       Bấm vào đây nếu muốn chọn file ảnh khác từ máy tính
@@ -464,30 +428,30 @@ export default function SignatureUploader({ level = 1 }) {
             <CancelButton onClick={() => setConfirmLockModalOpen(false)}>
               Xem lại
             </CancelButton>
-            <Button
-              variant="primary"
-              loading={saving}
+            <button
+              type="button"
+              disabled={saving}
               onClick={handleConfirmSaveAndLock}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#b71c1c] hover:bg-[#8B0000] text-white px-4 text-sm font-semibold transition shadow-sm border border-[#b71c1c] disabled:opacity-50 cursor-pointer"
             >
-              <Lock className="size-4" />
+              {saving ? (
+                <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Lock className="size-4" />
+              )}
               Tôi đồng ý khóa chữ ký này
-            </Button>
+            </button>
           </div>
         }
       >
         <div className="space-y-3 py-2 text-xs text-slate-600">
-          <div className="flex items-center justify-center p-4 bg-slate-50 border border-slate-200 rounded-lg min-h-[90px]">
+          <div className="flex items-center justify-center p-4 bg-white border border-slate-200 rounded-lg min-h-[90px]">
             {preview ? (
               <img
                 src={preview}
                 alt="Xem trước chữ ký"
                 className="max-h-24 max-w-[320px] object-contain drop-shadow-xs"
                 style={{ mixBlendMode: "multiply" }}
-                onError={() => {
-                  setError("Ảnh chữ ký không thể tải. Vui lòng chọn lại file ảnh.")
-                  setPreview(null)
-                  setConfirmLockModalOpen(false)
-                }}
               />
             ) : (
               <span className="text-xs text-slate-400 italic">Chưa có ảnh xem trước</span>
