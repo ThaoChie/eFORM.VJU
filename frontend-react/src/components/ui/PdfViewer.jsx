@@ -25,6 +25,10 @@ export function isValidSignatureImage(sig) {
   ) {
     return false
   }
+  // Tuyệt đối không chấp nhận blob URL đã hết hạn từ localStorage
+  if (s.startsWith("blob:")) {
+    return false
+  }
   if (s.includes("DIGITALLY") || s.includes("CONFIRMED")) return false
   if (
     s.includes("AAAAEAAAAB") ||
@@ -34,16 +38,17 @@ export function isValidSignatureImage(sig) {
   ) {
     return false
   }
+  // Phải là data URL ảnh hợp lệ hoặc URL ảnh http/https hợp lệ
   if (
     s.startsWith("data:image/") ||
     s.startsWith("http://") ||
     s.startsWith("https://") ||
-    s.startsWith("blob:") ||
     s.startsWith("/")
   ) {
     return true
   }
-  if (!s.includes(" ")) {
+  // Nếu là base64 thuần chuẩn của PNG hoặc JPEG
+  if (s.startsWith("iVBORw0KGgo") || s.startsWith("/9j/")) {
     return true
   }
   return false

@@ -78,10 +78,15 @@ export default function SignatureUploader({ level = 1 }) {
   )
   const isLocked = Boolean(hasRealUploadedSig && user?.isSignatureLocked)
   const [isEditing, setIsEditing] = useState(false)
+  const [liveBlobUrl, setLiveBlobUrl] = useState(null)
 
   const [preview, setPreview] = useState(() => {
     const existing = user?.signatureSpecimenUrl || (userStorageKey ? localStorage.getItem(userStorageKey) : null)
-    return isValidSignatureImage(existing) ? existing : null
+    if (existing && existing.startsWith("blob:")) {
+      try { localStorage.removeItem(userStorageKey) } catch {}
+      return null
+    }
+    return isValidSignatureImage(existing) ? normalizeSignatureImage(existing, user?.fullName) : null
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
@@ -89,13 +94,17 @@ export default function SignatureUploader({ level = 1 }) {
 
   useEffect(() => {
     const existing = user?.signatureSpecimenUrl || (userStorageKey ? localStorage.getItem(userStorageKey) : null)
+    if (existing && existing.startsWith("blob:")) {
+      try { localStorage.removeItem(userStorageKey) } catch {}
+      return
+    }
     if (isValidSignatureImage(existing)) {
-      setPreview((prev) => prev || existing)
+      setPreview((prev) => prev || normalizeSignatureImage(existing, user?.fullName))
       registerSignature()
     }
-  }, [user?.signatureSpecimenUrl, userStorageKey, registerSignature])
+  }, [user?.signatureSpecimenUrl, userStorageKey, registerSignature, user?.fullName])
 
-  const select = async (file) => {
+  const select = (file) => {
     if (!file) return
 
     const ext = file.name ? file.name.split(".").pop().toLowerCase() : ""
@@ -113,24 +122,50 @@ export default function SignatureUploader({ level = 1 }) {
     }
     setError("")
 
+    // 1. Tạo Blob URL trực tiếp từ File object để hiển thị tức thì không bao giờ lỗi
     try {
-      const processed = await processSignatureFile(file)
-      setPreview(processed)
-    } catch (err) {
-      setError(err.message || "Không thể xử lý ảnh chữ ký")
+      const blob = URL.createObjectURL(file)
+      setLiveBlobUrl(blob)
+    } catch (e) {
+      console.warn("Could not create object URL:", e)
     }
+
+    // 2. Đọc Data URL chuẩn để lưu trữ vào backend và localStorage
+    const reader = new FileReader()
+    reader.onerror = () => setError("Không thể đọc file ảnh từ thiết bị")
+    reader.onload = () => {
+      let raw = reader.result
+      if (typeof raw === "string") {
+        if (!raw.startsWith("data:image/")) {
+          const mime = (ext === "jpg" || ext === "jpeg") ? "image/jpeg" : ext === "webp" ? "image/webp" : "image/png"
+          raw = raw.replace(/^data:[^;]*;/, `data:${mime};`)
+        }
+        setPreview(raw)
+      }
+    }
+    reader.readAsDataURL(file)
   }
 
+  const currentDisplay = liveBlobUrl || preview
+
   const handleConfirmSaveAndLock = async () => {
-    if (!preview) return
+    const signatureToSave = preview || liveBlobUrl
+    if (!signatureToSave) return
     setSaving(true)
     setError("")
     try {
+      let finalSignature = signatureToSave
+      // Nếu là blob URL mà preview chưa hoàn tất, đọc Data URL trước khi gửi
+      if (finalSignature.startsWith("blob:") && inputRef.current?.files?.[0]) {
+        try {
+          finalSignature = await processSignatureFile(inputRef.current.files[0])
+        } catch {}
+      }
+
       // 1. Sync with backend API to compute SHA-256 and lock permanently
       let backendHash = null
-      let finalSignature = preview
       try {
-        const res = await client.post("/users/signature", { signature: preview })
+        const res = await client.post("/users/signature", { signature: finalSignature })
         backendHash = res?.signatureHash || res?.data?.signatureHash || null
         if (res?.signature || res?.data?.signature) {
           finalSignature = res?.signature || res?.data?.signature
@@ -274,10 +309,10 @@ export default function SignatureUploader({ level = 1 }) {
                 }}
                 className="flex min-h-52 w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50/50 p-6 text-center hover:border-brand hover:bg-brand-soft/20 transition-all cursor-pointer"
               >
-                {preview ? (
+                {currentDisplay ? (
                   <div className="space-y-2">
                     <img
-                      src={preview}
+                      src={currentDisplay}
                       alt="Xem trước chữ ký"
                       className="max-h-24 max-w-[280px] object-contain mx-auto drop-shadow-xs"
                       style={{ mixBlendMode: "multiply" }}
@@ -325,6 +360,7 @@ export default function SignatureUploader({ level = 1 }) {
                     variant="secondary"
                     onClick={() => {
                       setIsEditing(false)
+                      setLiveBlobUrl(null)
                       setPreview(user?.signatureSpecimenUrl || (userStorageKey ? localStorage.getItem(userStorageKey) : null))
                       setError("")
                     }}
@@ -333,13 +369,13 @@ export default function SignatureUploader({ level = 1 }) {
                   </Button>
                 ) : (
                   <span className="text-xs text-slate-500">
-                    {preview ? "Đã chọn file ảnh chữ ký" : "Chưa chọn file"}
+                    {currentDisplay ? "Đã chọn file ảnh chữ ký" : "Chưa chọn file"}
                   </span>
                 )}
 
                 <Button
                   variant="primary"
-                  disabled={!preview || saving}
+                  disabled={!currentDisplay || saving}
                   loading={saving}
                   onClick={() => setConfirmLockModalOpen(true)}
                 >
@@ -446,9 +482,9 @@ export default function SignatureUploader({ level = 1 }) {
       >
         <div className="space-y-3 py-2 text-xs text-slate-600">
           <div className="flex items-center justify-center p-4 bg-white border border-slate-200 rounded-lg min-h-[90px]">
-            {preview ? (
+            {currentDisplay ? (
               <img
-                src={preview}
+                src={currentDisplay}
                 alt="Xem trước chữ ký"
                 className="max-h-24 max-w-[320px] object-contain drop-shadow-xs"
                 style={{ mixBlendMode: "multiply" }}
