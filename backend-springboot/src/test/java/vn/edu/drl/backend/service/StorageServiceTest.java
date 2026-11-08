@@ -25,7 +25,7 @@ class StorageServiceTest {
 
     @BeforeEach
     void setUp() {
-        storageService = new StorageService("http://localhost", "access", "secret");
+        storageService = new vn.edu.drl.backend.service.impl.StorageServiceImpl("http://localhost", "access", "secret");
         ReflectionTestUtils.setField(storageService, "minioClient", minioClient);
     }
 

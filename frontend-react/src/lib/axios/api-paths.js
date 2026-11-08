@@ -1,7 +1,13 @@
 export const API_PATHS = {
-  AUTH: {
-    LOGIN: '/auth/login',
-    ME: '/auth/me',
-    CHANGE_PASSWORD: '/auth/change-password',
-  },
-};
+  LOGIN: "/auth/login",
+  FORMS: "/forms",
+  FIELD_CODES: "/field-codes",
+  SUBMISSIONS: "/submissions",
+  REVIEWS: "/reviews",
+  BATCHES: "/batches",
+  DIRECTORY: "/directory",
+  SIGNATURES: "/signatures",
+  NOTIFICATIONS: "/notifications",
+  REPORTS: "/reports",
+  APPROVALS: "/approvals",
+}

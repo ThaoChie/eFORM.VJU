@@ -1,0 +1,72 @@
+services:
+  - type: web
+    name: drl-word-parser
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./tools/word-parser/Dockerfile
+    dockerContext: ./tools/word-parser
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: INTERNAL_API_KEY
+        sync: false
+
+  - type: web
+    name: drl-backend
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./backend-springboot/Dockerfile
+    dockerContext: ./backend-springboot
+    healthCheckPath: /actuator/health
+    autoDeploy: true
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: demo
+      - key: STORAGE_PROVIDER
+        value: s3
+      - key: S3_REGION
+        value: auto
+      - key: RENDER_TIMEOUT_MS
+        value: "120000"
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+      - key: SPRING_DATASOURCE_USERNAME
+        sync: false
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRATION_MS
+        value: "28800000"
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_ACCESS_KEY
+        sync: false
+      - key: S3_SECRET_KEY
+        sync: false
+      - key: S3_BUCKET_PROOFS
+        sync: false
+      - key: S3_BUCKET_SIGNATURES
+        sync: false
+      - key: S3_BUCKET_SIGNED_PDFS
+        sync: false
+      - key: RENDER_SERVICE_URL
+        sync: false
+      - key: RENDER_SERVICE_KEY
+        sync: false
+      - key: KEYSTORE_BASE64
+        sync: false
+      - key: KEYSTORE_PASSWORD
+        sync: false
+      - key: KEY_ALIAS
+        sync: false
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: DEMO_SEED_PASSWORD
+        sync: false
+      - key: SWAGGER_ENABLED
+        value: "false"

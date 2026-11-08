@@ -8,6 +8,7 @@ import java.time.Instant;
 @Data
 @Entity
 @Table(name = "users")
+@com.fasterxml.jackson.annotation.JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -22,6 +23,10 @@ public class User {
     @Column(unique = true, nullable = false)
     private String email;
 
+    @Column(name = "status")
+    private Integer status = 1;
+
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
@@ -32,10 +37,12 @@ public class User {
     @Column(name = "position_title", length = 100)
     private String positionTitle;
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "dept_id")
     private Department department;
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "class_id")
     private ClassEntity classEntity;
@@ -48,6 +55,15 @@ public class User {
 
     @Column(name = "signature_specimen_url", columnDefinition = "TEXT")
     private String signatureSpecimenUrl;
+
+    @Column(name = "signature_hash", length = 64)
+    private String signatureHash;
+
+    @Column(name = "signature_registered_at")
+    private Instant signatureRegisteredAt;
+
+    @Column(name = "is_signature_locked")
+    private Boolean isSignatureLocked = false;
 
     @Column(name = "is_active")
     private Boolean isActive = true;

@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -20,7 +18,7 @@ services:
       retries: 5
 
   minio:
-    image: quay.io/minio/minio:latest
+    image: cgr.dev/chainguard/minio:latest
     container_name: edrl-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
@@ -33,26 +31,26 @@ services:
     volumes:
       - minio_data:/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ["CMD", "mc", "ready", "local"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   minio-init:
-    image: quay.io/minio/mc
+    image: cgr.dev/chainguard/minio:latest
     container_name: edrl-minio-init
     depends_on:
       minio:
         condition: service_healthy
     entrypoint: >
       /bin/sh -c "
-      /usr/bin/mc config host add myminio http://minio:9000 ${MINIO_ACCESS_KEY} ${MINIO_SECRET_KEY};
-      /usr/bin/mc mb -p myminio/${MINIO_BUCKET_PROOFS};
-      /usr/bin/mc mb -p myminio/${MINIO_BUCKET_SIGNATURES};
-      /usr/bin/mc mb -p myminio/${MINIO_BUCKET_SIGNED_PDFS};
-      /usr/bin/mc anonymous set public myminio/${MINIO_BUCKET_PROOFS};
-      /usr/bin/mc anonymous set public myminio/${MINIO_BUCKET_SIGNATURES};
-      /usr/bin/mc anonymous set public myminio/${MINIO_BUCKET_SIGNED_PDFS};
+      mc alias set myminio http://minio:9000 ${MINIO_ACCESS_KEY} ${MINIO_SECRET_KEY};
+      mc mb -p myminio/${MINIO_BUCKET_PROOFS};
+      mc mb -p myminio/${MINIO_BUCKET_SIGNATURES};
+      mc mb -p myminio/${MINIO_BUCKET_SIGNED_PDFS};
+      mc anonymous set public myminio/${MINIO_BUCKET_PROOFS};
+      mc anonymous set public myminio/${MINIO_BUCKET_SIGNATURES};
+      mc anonymous set public myminio/${MINIO_BUCKET_SIGNED_PDFS};
       exit 0;
       "
 volumes:

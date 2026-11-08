@@ -45,6 +45,12 @@ public class FieldMaster {
     @Column(name = "is_active")
     private Boolean isActive = true;
 
+    @Column(name = "version", length = 20)
+    private String version = "1.0";
+
+    @Column(name = "updated_at")
+    private Instant updatedAt;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private Instant createdAt;
 }

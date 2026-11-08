@@ -7,6 +7,7 @@ import java.time.Instant;
 @Data
 @Entity
 @Table(name = "departments")
+@com.fasterxml.jackson.annotation.JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Department {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -20,4 +21,7 @@ public class Department {
 
     @Column(name = "created_at", insertable = false, updatable = false)
     private Instant createdAt;
+
+    @Column(name = "status")
+    private Integer status = 1;
 }
