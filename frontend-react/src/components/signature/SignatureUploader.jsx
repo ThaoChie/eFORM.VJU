@@ -316,6 +316,19 @@ export default function SignatureUploader({ level = 1 }) {
                       alt="Xem trước chữ ký"
                       className="max-h-24 max-w-[280px] object-contain mx-auto drop-shadow-xs"
                       style={{ mixBlendMode: "multiply" }}
+                      onError={() => {
+                        console.warn("Signature image failed to render, clearing invalid cache")
+                        setLiveBlobUrl(null)
+                        setPreview(null)
+                        try {
+                          if (userStorageKey) localStorage.removeItem(userStorageKey)
+                          localStorage.removeItem("user_signature")
+                          localStorage.removeItem("user_signature_2")
+                          localStorage.removeItem("user_signature_3")
+                          localStorage.removeItem("user_signature_4")
+                        } catch {}
+                        setError("Không thể hiển thị ảnh chữ ký cũ. Vui lòng bấm để chọn lại file ảnh PNG hoặc JPG từ máy tính.")
+                      }}
                     />
                     <span className="text-xs text-brand font-medium block">
                       Bấm vào đây nếu muốn chọn file ảnh khác từ máy tính
