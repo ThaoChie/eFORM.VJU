@@ -143,29 +143,10 @@ public class DataSeeder implements CommandLineRunner {
                     changed = true;
                 }
 
-                // Ensure Class Leader and Dean have their own unique role signatures (only if not yet uploaded by user)
-                if (u.getRole() == Role.CLASS_LEADER || u.getRole() == Role.CLASS_DEPUTY) {
-                    if (u.getSignatureSpecimenUrl() == null || u.getSignatureSpecimenUrl().trim().isEmpty() ||
-                        u.getSignatureSpecimenUrl().startsWith("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAABkCAYAAAC3Yg8w")) {
-                        String name = u.getFullName() != null ? u.getFullName() : "Lớp Trưởng IT01";
-                        String ownSig = vn.edu.drl.backend.service.engine.ImageConversionUtils.generateSpecimenPngBase64(name, "Cán bộ lớp", new java.awt.Color(6, 95, 70));
-                        u.setSignatureSpecimenUrl(ownSig);
-                        u.setIsSignatureLocked(true);
-                        u.setSignatureRegisteredAt(java.time.Instant.now());
-                        changed = true;
-                        System.out.println("Assigned default Class Leader signature for User " + u.getId() + " (" + name + ")");
-                    }
-                } else if (u.getRole() == Role.DEAN) {
-                    if (u.getSignatureSpecimenUrl() == null || u.getSignatureSpecimenUrl().trim().isEmpty() ||
-                        u.getSignatureSpecimenUrl().startsWith("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAABkCAYAAAC3Yg8w")) {
-                        String name = u.getFullName() != null ? u.getFullName() : "Trưởng Khoa CNTT";
-                        String ownSig = vn.edu.drl.backend.service.engine.ImageConversionUtils.generateSpecimenPngBase64(name, "Trưởng Khoa", new java.awt.Color(136, 19, 55));
-                        u.setSignatureSpecimenUrl(ownSig);
-                        u.setIsSignatureLocked(true);
-                        u.setSignatureRegisteredAt(java.time.Instant.now());
-                        changed = true;
-                        System.out.println("Assigned default Dean signature for User " + u.getId() + " (" + name + ")");
-                    }
+                // Người dùng tự do tải lên chữ ký số chính chủ của mình, không tự động gán chữ ký mẫu
+                if (Boolean.TRUE.equals(u.getIsSignatureLocked()) && (u.getSignatureSpecimenUrl() == null || u.getSignatureSpecimenUrl().trim().isEmpty())) {
+                    u.setIsSignatureLocked(false);
+                    changed = true;
                 }
 
                 if (changed) {

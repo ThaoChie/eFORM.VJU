@@ -56,7 +56,7 @@ public class ImageConversionUtils {
                 System.err.println("HEIC conversion error: " + e.getMessage());
             }
         }
-        return removeBackground(converted);
+        return converted;
     }
 
     public static String removeBackground(String dataUrlOrBase64) {

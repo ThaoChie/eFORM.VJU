@@ -123,20 +123,21 @@ export default function SignatureUploader({ level = 1 }) {
   const [isEditing, setIsEditing] = useState(false)
 
   const [preview, setPreview] = useState(() => {
-    const existing = user?.signatureSpecimenUrl || (userStorageKey ? localStorage.getItem(userStorageKey) : null)
-    return isValidSignatureImage(existing) ? existing : null
+    if (user?.isSignatureLocked && isValidSignatureImage(user?.signatureSpecimenUrl) && !user.signatureSpecimenUrl.startsWith('data:image/svg+xml')) {
+      return user.signatureSpecimenUrl
+    }
+    return null
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [confirmLockModalOpen, setConfirmLockModalOpen] = useState(false)
 
   useEffect(() => {
-    const existing = user?.signatureSpecimenUrl || (userStorageKey ? localStorage.getItem(userStorageKey) : null)
-    if (isValidSignatureImage(existing)) {
-      setPreview((prev) => prev || existing)
+    if (user?.isSignatureLocked && isValidSignatureImage(user?.signatureSpecimenUrl) && !user.signatureSpecimenUrl.startsWith('data:image/svg+xml')) {
+      setPreview((prev) => prev || user.signatureSpecimenUrl)
       registerSignature()
     }
-  }, [user?.signatureSpecimenUrl, userStorageKey, registerSignature])
+  }, [user?.signatureSpecimenUrl, user?.isSignatureLocked, registerSignature])
 
   const select = async (file) => {
     if (!file) return
@@ -157,8 +158,20 @@ export default function SignatureUploader({ level = 1 }) {
     setError("")
 
     try {
-      const processed = await processSignatureFile(file)
-      setPreview(processed)
+      const reader = new FileReader()
+      reader.onerror = () => setError("Không thể đọc file ảnh")
+      reader.onload = () => {
+        const raw = reader.result
+        if (typeof raw === "string") {
+          let safeUrl = raw
+          if (!safeUrl.startsWith("data:image/")) {
+            const mime = (ext === "jpg" || ext === "jpeg") ? "image/jpeg" : ext === "webp" ? "image/webp" : "image/png"
+            safeUrl = safeUrl.replace(/^data:[^;]*;/, "data:" + mime + ";")
+          }
+          setPreview(safeUrl)
+        }
+      }
+      reader.readAsDataURL(file)
     } catch (err) {
       setError(err.message || "Không thể xử lý ảnh chữ ký")
     }
@@ -272,7 +285,6 @@ export default function SignatureUploader({ level = 1 }) {
                   src={preview}
                   alt="Chữ ký đã khóa"
                   className="max-h-28 max-w-[320px] object-contain drop-shadow-xs"
-                  style={{ mixBlendMode: "multiply" }}
                 />
                 <div className="mt-3 flex items-center gap-1.5 text-xs text-slate-600">
                   <ShieldCheck className="size-4 text-slate-500" />
@@ -320,13 +332,6 @@ export default function SignatureUploader({ level = 1 }) {
                       src={preview}
                       alt="Xem trước chữ ký"
                       className="max-h-24 max-w-[280px] object-contain mx-auto drop-shadow-xs"
-                      style={{ mixBlendMode: "multiply" }}
-                      onError={(e) => {
-                        const fallback = normalizeSignatureImage(preview, user?.fullName || "Sinh viên")
-                        if (e.currentTarget.src !== fallback) {
-                          e.currentTarget.src = fallback
-                        }
-                      }}
                     />
                     <span className="text-xs text-brand font-medium block">
                       Bấm vào đây nếu muốn chọn file ảnh khác từ máy tính
@@ -492,13 +497,6 @@ export default function SignatureUploader({ level = 1 }) {
                 src={preview}
                 alt="Xem trước chữ ký"
                 className="max-h-24 max-w-[320px] object-contain drop-shadow-xs"
-                style={{ mixBlendMode: "multiply" }}
-                onError={(e) => {
-                  const fallback = normalizeSignatureImage(preview, user?.fullName || "Sinh viên")
-                  if (e.currentTarget.src !== fallback) {
-                    e.currentTarget.src = fallback
-                  }
-                }}
               />
             ) : (
               <span className="text-xs text-slate-400 italic">Chưa có ảnh xem trước</span>
