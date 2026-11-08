@@ -1,4 +1,4 @@
-import { LogOut, Menu, UserRound, X } from "lucide-react"
+import { LogOut, Menu, X } from "lucide-react"
 import { useState } from "react"
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom"
 import { menus } from "../../common/permission-config"
@@ -8,6 +8,8 @@ import NotificationBell from "./NotificationBell"
 
 export default function AppLayout() {
   const [mobile, setMobile] = useState(false)
+  const [hovered, setHovered] = useState(false)
+  const collapsed = !hovered
   const user = useAuthStore((state) => state.user)
   const logout = useAuthStore((state) => state.logout)
   const navigate = useNavigate()
@@ -31,13 +33,29 @@ export default function AppLayout() {
         />
       )}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-[248px] flex-col border-r border-line bg-white transition-transform md:translate-x-0 ${
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        className={`fixed inset-y-0 left-0 z-40 flex w-[248px] flex-col overflow-hidden border-r border-line bg-white transition-all duration-200 md:translate-x-0 ${
           mobile ? "translate-x-0" : "-translate-x-full"
-        }`}
+        } ${collapsed ? "md:w-[72px]" : "md:w-[248px] md:shadow-lg"}`}
       >
-        <div className="flex h-16 items-center gap-3 border-b border-line px-5">
-          <img src="/logoVJU.png" alt="VJU Logo" className="h-[46px] object-contain" />
-          <span className="min-w-0 font-semibold leading-5 text-brand">
+        <div
+          className={`flex h-16 items-center border-b border-line ${
+            collapsed ? "gap-3 px-5 md:justify-center md:px-2" : "gap-3 px-5"
+          }`}
+        >
+          <img
+            src="/logoVJU.png"
+            alt="VJU Logo"
+            className={`shrink-0 object-contain transition-all ${
+              collapsed ? "h-[46px] md:h-9" : "h-[46px]"
+            }`}
+          />
+          <span
+            className={`min-w-0 whitespace-nowrap font-semibold leading-5 text-brand ${
+              collapsed ? "md:hidden" : ""
+            }`}
+          >
             E-Form Chấm Điểm
             <br />
             Rèn Luyện
@@ -50,11 +68,15 @@ export default function AppLayout() {
             <X className="size-5" />
           </IconButton>
         </div>
-        <nav className="flex-1 overflow-y-auto py-4">
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden py-4">
           {groups.map((group, groupIndex) => (
             <div key={group.title || groupIndex} className="mb-5">
               {group.title && (
-                <div className="mb-2 px-6 text-[11px] font-semibold uppercase tracking-wider text-disabled">
+                <div
+                  className={`mb-2 whitespace-nowrap px-6 text-[11px] font-semibold uppercase tracking-wider text-disabled ${
+                    collapsed ? "md:hidden" : ""
+                  }`}
+                >
                   {group.title}
                 </div>
               )}
@@ -67,16 +89,28 @@ export default function AppLayout() {
                     onClick={() => setMobile(false)}
                     className={({ isActive }) =>
                       `mx-2 flex h-11 items-center gap-3 rounded-r-lg border-l-[3px] px-4 transition ${
+                        collapsed ? "md:justify-center md:px-0" : ""
+                      } ${
                         isActive
                           ? "border-brand bg-brand-soft font-medium text-brand"
                           : "border-transparent text-muted hover:bg-canvas hover:text-ink"
                       }`
                     }
                   >
-                    <Icon className="size-[18px]" />
-                    <span className="flex-1">{item.label}</span>
+                    <Icon className="size-[18px] shrink-0" />
+                    <span
+                      className={`flex-1 truncate whitespace-nowrap ${
+                        collapsed ? "md:hidden" : ""
+                      }`}
+                    >
+                      {item.label}
+                    </span>
                     {item.badge && (
-                      <span className="rounded-full bg-line px-2 py-0.5 text-[11px] text-ink">
+                      <span
+                        className={`rounded-full bg-line px-2 py-0.5 text-[11px] text-ink ${
+                          collapsed ? "md:hidden" : ""
+                        }`}
+                      >
                         {item.badge}
                       </span>
                     )}
@@ -88,13 +122,15 @@ export default function AppLayout() {
         </nav>
         <button
           onClick={signOut}
-          className="m-3 flex h-11 items-center gap-3 rounded-lg px-5 text-muted hover:bg-canvas hover:text-ink"
+          className={`m-3 flex h-11 items-center gap-3 whitespace-nowrap rounded-lg px-5 text-muted hover:bg-canvas hover:text-ink ${
+            collapsed ? "md:justify-center md:px-0" : ""
+          }`}
         >
-          <LogOut className="size-[18px]" />
-          Đăng xuất
+          <LogOut className="size-[18px] shrink-0" />
+          <span className={collapsed ? "md:hidden" : ""}>Đăng xuất</span>
         </button>
       </aside>
-      <div className="md:pl-[248px]">
+      <div className="transition-all duration-200 md:pl-[72px]">
         <header className="sticky top-0 z-20 flex h-14 items-center border-b border-line bg-white px-4 md:px-6">
           <IconButton
             label="Mở menu"

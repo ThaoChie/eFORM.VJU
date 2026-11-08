@@ -1,3 +1,13 @@
+
+const sanitizeUser = (user) => {
+  if (!user) return user
+  if (user.signatureSpecimenUrl && user.signatureSpecimenUrl.startsWith('data:image/svg+xml')) {
+    user.signatureSpecimenUrl = null
+    user.isSignatureLocked = false
+    user.signatureHash = null
+  }
+  return user
+}
 import { create } from "zustand"
 import { authService } from "../services/auth-service"
 
@@ -23,7 +33,7 @@ export const useAuthStore = create((set) => ({
       const token = data.token;
       localStorage.setItem('token', token);
       
-      const user = await authService.getMe();
+      const user = sanitizeUser(await authService.getMe());
       user.role = normalizeRole(user.role);
       try {
         localStorage.setItem('user', JSON.stringify(user));
@@ -40,7 +50,7 @@ export const useAuthStore = create((set) => ({
     const token = localStorage.getItem('token');
     if (token) {
       try {
-        const user = await authService.getMe();
+        const user = sanitizeUser(await authService.getMe());
         user.role = normalizeRole(user.role);
         try {
           localStorage.setItem('user', JSON.stringify(user));

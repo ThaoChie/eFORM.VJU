@@ -96,7 +96,8 @@ export default function SignatureUploader({ level = 1 }) {
   const userStorageKey = user?.id ? `user_signature_${user.id}` : null
 
   // A signature is permanently locked if isSignatureLocked is true or signatureSpecimenUrl is present
-  const isLocked = Boolean(user?.isSignatureLocked || user?.signatureSpecimenUrl)
+  const hasRealUploadedSig = Boolean(user?.signatureSpecimenUrl && !user.signatureSpecimenUrl.startsWith('data:image/svg+xml'))
+  const isLocked = Boolean(hasRealUploadedSig && user?.isSignatureLocked)
   const [isEditing, setIsEditing] = useState(false)
 
   const [preview, setPreview] = useState(() => {
