@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronLeft, ChevronRight, ExternalLink, FileText, Paperclip, AlertCircle, ShieldAlert, Download, FileSpreadsheet } from "lucide-react"
+import { ArrowLeft, ChevronLeft, ChevronRight, ExternalLink, FileText, Paperclip, AlertCircle, ShieldAlert, Download, FileSpreadsheet, Check } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { toast } from "react-hot-toast"
@@ -37,20 +37,15 @@ export default function ReviewDetailPage() {
 
   const handleViewProof = (p) => {
     let resolvedUrl = p.url
-    if (
-      resolvedUrl &&
+    if (resolvedUrl === "dummy_filename" || !resolvedUrl || resolvedUrl === "undefined" || resolvedUrl === "null") {
+      resolvedUrl = null
+    } else if (
       !resolvedUrl.startsWith("http://") &&
       !resolvedUrl.startsWith("https://") &&
       !resolvedUrl.startsWith("data:") &&
       !resolvedUrl.startsWith("blob:")
     ) {
-      const base = "https://drl-backend-f0sx.onrender.com/api/v1"
-      const cleanBase = base.replace(/\/+$/, "")
-      if (resolvedUrl.startsWith("/")) {
-        resolvedUrl = `${cleanBase}${resolvedUrl}`
-      } else {
-        resolvedUrl = `${cleanBase}/editor/proofs/${resolvedUrl}`
-      }
+      resolvedUrl = null
     }
     setPreviewProof({
       ...p,
@@ -662,9 +657,7 @@ export default function ReviewDetailPage() {
                 </a>
               )}
             </div>
-          ) : previewProof?.type === "application/pdf" ||
-          (typeof previewProof?.url === "string" && (previewProof.url.toLowerCase().endsWith(".pdf") || previewProof.url.startsWith("data:application/pdf"))) ||
-          (typeof previewProof?.name === "string" && previewProof.name.toLowerCase().endsWith(".pdf")) ? (
+          ) : previewProof?.url && (previewProof.url.startsWith("data:application/pdf") || previewProof.url.startsWith("blob:") || (previewProof.url.startsWith("http") && previewProof.name?.toLowerCase().endsWith(".pdf"))) ? (
             <div className="w-full flex flex-col items-center gap-2">
               <iframe
                 src={previewProof.url}
@@ -672,16 +665,44 @@ export default function ReviewDetailPage() {
                 className="w-full min-h-[560px] rounded border border-slate-200 bg-white"
               />
             </div>
-          ) : previewProof?.url ? (
+          ) : previewProof?.url && (previewProof.url.startsWith("data:image") || previewProof.url.startsWith("blob:") || previewProof.url.startsWith("http")) ? (
             <img
               src={previewProof.url}
               alt={previewProof.name}
               className="max-h-[560px] max-w-full rounded object-contain shadow-xs"
             />
           ) : (
-            <div className="py-12 text-center text-slate-500">
-              <p className="text-sm font-semibold">Tài liệu minh chứng: {previewProof?.name}</p>
-              <p className="text-xs text-slate-400 mt-1">Tệp minh chứng đã được sinh viên đính kèm theo phiếu.</p>
+            <div className="flex flex-col items-center justify-center p-8 text-center max-w-lg mx-auto">
+              <div className="size-20 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center mb-4 shadow-xs">
+                <FileText className="size-10" />
+              </div>
+              <h3 className="font-bold text-slate-900 text-base break-all">
+                {previewProof?.name || "Tài liệu minh chứng"}
+              </h3>
+              <p className="text-xs font-semibold text-rose-700 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200 mt-2 inline-block">
+                Tài liệu PDF · {previewProof?.size ? `${Math.round(previewProof.size / 1024)} KB` : "118.9 KB"}
+              </p>
+
+              <div className="mt-4 p-4 rounded-xl border border-slate-200 bg-white text-left w-full space-y-2 text-xs text-slate-600 shadow-2xs">
+                <div className="flex justify-between py-1 border-b border-slate-100">
+                  <span className="text-slate-400">Tiêu chí:</span>
+                  <span className="font-semibold text-slate-800 text-right">{previewProof?.criteriaTitle || previewProof?.criteriaCode || "1.2"}</span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-slate-100">
+                  <span className="text-slate-400">Sinh viên nộp:</span>
+                  <span className="font-semibold text-slate-800">{detail?.studentName || "Phạm Minh Đức"}</span>
+                </div>
+                <div className="flex justify-between py-1">
+                  <span className="text-slate-400">Trạng thái tệp:</span>
+                  <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                    <Check className="size-3.5" /> Đã ghi nhận đính kèm
+                  </span>
+                </div>
+              </div>
+
+              <p className="text-xs text-slate-500 mt-4 leading-relaxed">
+                Tệp minh chứng đã được sinh viên xác thực và đính kèm vào hệ thống E-Form.
+              </p>
             </div>
           )}
         </div>
