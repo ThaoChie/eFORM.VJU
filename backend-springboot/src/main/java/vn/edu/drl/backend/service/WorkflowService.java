@@ -21,10 +21,13 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 
+import vn.edu.drl.backend.dto.response.DeanBatchResponse;
+
 public interface WorkflowService {
     Page<WorkflowQueueItemResponse> getPendingQueue(Long userId, Pageable pageable);
     WorkflowDetailResponse getFormDetail(Long userId, Long formId);
     void classApprove(Long userId, Long formId, ClassApproveRequest request, String ipAddress);
     void rejectForm(Long userId, Long formId, RejectRequest request);
     DeanApproveBatchResponse deanApproveBatch(Long userId, DeanApproveBatchRequest request, String ipAddress);
+    List<DeanBatchResponse> getDeanBatches(Long userId);
 }

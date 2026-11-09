@@ -42,6 +42,7 @@ public class WorkflowServiceImpl implements WorkflowService {
     private final PdfHashEngine hashEngine;
     private final StorageService storageService;
     private final WorkflowBatchHelperService batchHelperService;
+    private final ClassRepository classRepository;
 
     @Transactional(readOnly = true)
     public Page<WorkflowQueueItemResponse> getPendingQueue(Long userId, Pageable pageable) {
@@ -235,7 +236,7 @@ public class WorkflowServiceImpl implements WorkflowService {
     @Transactional
     public void classApprove(Long userId, Long formId, ClassApproveRequest request, String ipAddress) {
         User user = userRepository.findById(userId).orElseThrow();
-        if (user.getRole() != Role.CLASS_LEADER && user.getRole() != Role.CLASS_DEPUTY) {
+        if (user.getRole() != Role.CLASS_LEADER && user.getRole() != Role.CLASS_DEPUTY && user.getRole() != Role.ADMIN) {
             throw new RuntimeException("403 Forbidden");
         }
         ScoreForm form = scoreFormRepository.findById(formId).orElseThrow();
@@ -394,5 +395,58 @@ public class WorkflowServiceImpl implements WorkflowService {
         response.setFailed(failed);
         response.setResults(results);
         return response;
+    }
+
+    @Transactional(readOnly = true)
+    public List<vn.edu.drl.backend.dto.response.DeanBatchResponse> getDeanBatches(Long userId) {
+        User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
+        Long deptId = user.getDepartment() != null ? user.getDepartment().getId() : null;
+
+        List<ClassEntity> classes;
+        if (user.getRole() == Role.ADMIN || deptId == null) {
+            classes = classRepository.findAll();
+        } else {
+            classes = classRepository.findByDepartmentId(deptId);
+            if (classes.isEmpty()) {
+                classes = classRepository.findAll();
+            }
+        }
+
+        List<vn.edu.drl.backend.dto.response.DeanBatchResponse> batches = new ArrayList<>();
+        List<Role> studentRoles = List.of(Role.STUDENT, Role.CLASS_LEADER, Role.CLASS_DEPUTY);
+
+        for (ClassEntity c : classes) {
+            long size = userRepository.countByClassEntityIdAndRoleIn(c.getId(), studentRoles);
+            long pending = scoreFormRepository.countByStatusAndStudentClassEntityId(ScoreFormStatus.CLASS_APPROVED, c.getId());
+            long done = scoreFormRepository.countByStatusAndStudentClassEntityId(ScoreFormStatus.DEAN_APPROVED, c.getId());
+            long submitted = scoreFormRepository.countByStatusAndStudentClassEntityId(ScoreFormStatus.SUBMITTED, c.getId());
+
+            List<User> leaders = userRepository.findByClassEntityIdAndRole(c.getId(), Role.CLASS_LEADER);
+            String reviewer = !leaders.isEmpty() ? leaders.get(0).getFullName() : "Cán bộ lớp";
+
+            String status;
+            if (pending > 0) {
+                status = "Chờ khoa duyệt";
+            } else if (done > 0) {
+                status = "Hoàn tất";
+            } else if (submitted > 0) {
+                status = "Chờ lớp thẩm định";
+            } else {
+                status = "Chưa có phiếu";
+            }
+
+            batches.add(vn.edu.drl.backend.dto.response.DeanBatchResponse.builder()
+                    .id(c.getId())
+                    .classCode(c.getClassCode())
+                    .className(c.getClassName())
+                    .size(size)
+                    .pending(pending)
+                    .done(done)
+                    .submitted(submitted)
+                    .reviewer(reviewer)
+                    .status(status)
+                    .build());
+        }
+        return batches;
     }
 }

@@ -55,15 +55,14 @@ export default function DeanDashboard() {
         <div>
           <h2 className="font-semibold text-slate-800">Việc cần làm</h2>
           <p className="mt-1 text-sm text-muted">
-            {pendingBatches > 0 
-              ? `${pendingBatches} lớp đã hoàn tất duyệt cấp lớp và sẵn sàng ký duyệt.`
+            {Number(data?.pendingForms || 0) > 0 || Number(data?.pendingBatches || 0) > 0 
+              ? `${data?.pendingForms || 0} phiếu đang chờ Trưởng khoa thẩm định và ký duyệt số.`
               : "Hiện chưa có lô lớp nào đang chờ Trưởng khoa ký duyệt."}
           </p>
         </div>
         <Button
           variant="primary"
-          className="ml-auto"
-          disabled={pendingBatches === 0}
+          className="ml-auto bg-brand text-white"
           onClick={() => navigate("/dean/batches")}
         >
           Đi duyệt <ArrowRight className="size-4" />
