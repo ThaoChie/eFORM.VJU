@@ -7,6 +7,25 @@ import { client } from "../../lib/axios/client"
 import { Button, Card, Modal } from "../ui/Primitives"
 import { isValidSignatureImage } from "../ui/PdfViewer"
 
+async function isHeicFile(file) {
+  try {
+    const ext = file.name ? file.name.split(".").pop().toLowerCase() : ""
+    if (ext === "heic" || ext === "heif" || file.type === "image/heic" || file.type === "image/heif") {
+      return true
+    }
+    // Kiểm tra magic bytes ISO/Apple: offset 4 là 'ftyp'
+    const slice = file.slice(0, 16)
+    const buffer = await slice.arrayBuffer()
+    const bytes = new Uint8Array(buffer)
+    if (bytes.length >= 8 && bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70) {
+      return true
+    }
+  } catch (e) {
+    console.warn("isHeicFile check warning:", e)
+  }
+  return false
+}
+
 export default function SignatureUploader({ level = 1 }) {
   const inputRef = useRef(null)
   const user = useAuthStore((s) => s.user)
@@ -40,7 +59,7 @@ export default function SignatureUploader({ level = 1 }) {
     }
   }, [user?.signatureSpecimenUrl, user?.isSignatureLocked, registerSignature])
 
-  const select = (file) => {
+  const select = async (file) => {
     if (!file) return
 
     const ext = file.name ? file.name.split(".").pop().toLowerCase() : ""
@@ -53,10 +72,34 @@ export default function SignatureUploader({ level = 1 }) {
       "image/heif",
     ].includes(file.type?.toLowerCase()) || ["png", "jpg", "jpeg", "webp", "heic", "heif"].includes(ext)
 
-    if (!isAcceptedFormat || file.size > 10 * 1024 * 1024) {
-      return setError("Chỉ nhận file ảnh PNG, JPG, JPEG hoặc WEBP với dung lượng tối đa 10 MB.")
+    if (!isAcceptedFormat || file.size > 15 * 1024 * 1024) {
+      return setError("Chỉ nhận file ảnh PNG, JPG, JPEG hoặc WEBP với dung lượng tối đa 15 MB.")
     }
     setError("")
+
+    let fileToProcess = file
+    const heicDetected = await isHeicFile(file)
+
+    if (heicDetected) {
+      try {
+        toast.loading("Đang tự động chuyển đổi ảnh iPhone (HEIC) sang PNG chuẩn...", { id: "heic-convert" })
+        const heic2any = (await import("heic2any")).default
+        const conversionResult = await heic2any({
+          blob: file,
+          toType: "image/png",
+          quality: 0.95,
+        })
+        const convertedBlob = Array.isArray(conversionResult) ? conversionResult[0] : conversionResult
+        fileToProcess = new File([convertedBlob], (file.name || "signature").replace(/\.[^.]+$/, ".png"), {
+          type: "image/png",
+        })
+        toast.success("Đã tự động chuyển đổi ảnh sang PNG chuẩn!", { id: "heic-convert" })
+      } catch (heicErr) {
+        toast.dismiss("heic-convert")
+        console.warn("Lỗi chuyển đổi HEIC:", heicErr)
+        return setError("File ảnh này chụp từ iPhone (định dạng HEIC ẩn dưới đuôi file). Trình duyệt không thể trực tiếp hiển thị. Bạn vui lòng chụp lại màn hình ảnh chữ ký hoặc xuất ảnh sang định dạng PNG/JPG chuẩn rồi tải lên lại nhé.")
+      }
+    }
 
     try {
       const reader = new FileReader()
@@ -66,13 +109,14 @@ export default function SignatureUploader({ level = 1 }) {
         if (typeof raw === "string") {
           let safeUrl = raw
           if (!safeUrl.startsWith("data:image/")) {
-            const mime = (ext === "jpg" || ext === "jpeg") ? "image/jpeg" : ext === "webp" ? "image/webp" : "image/png"
+            const detectedExt = fileToProcess.name ? fileToProcess.name.split(".").pop().toLowerCase() : "png"
+            const mime = (detectedExt === "jpg" || detectedExt === "jpeg") ? "image/jpeg" : detectedExt === "webp" ? "image/webp" : "image/png"
             safeUrl = safeUrl.replace(/^data:[^;]*;/, "data:" + mime + ";")
           }
           setPreview(safeUrl)
         }
       }
-      reader.readAsDataURL(file)
+      reader.readAsDataURL(fileToProcess)
     } catch (err) {
       setError(err.message || "Không thể xử lý ảnh chữ ký")
     }
@@ -248,7 +292,7 @@ export default function SignatureUploader({ level = 1 }) {
                       Bấm để chọn hoặc kéo thả ảnh chữ ký của bạn vào đây
                     </span>
                     <span className="mt-1 text-xs text-muted">
-                      Định dạng PNG, JPG, JPEG, WEBP (hệ thống tự động tách nền trong suốt), tối đa 10 MB
+                      Định dạng PNG, JPG, JPEG, WEBP (hệ thống tự động tách nền trong suốt), tối đa 15 MB
                     </span>
                   </>
                 )}
@@ -257,7 +301,7 @@ export default function SignatureUploader({ level = 1 }) {
               <input
                 ref={inputRef}
                 type="file"
-                accept="image/png,image/jpeg,image/jpg,image/webp,.png,.jpg,.jpeg,.webp"
+                accept="image/png,image/jpeg,image/jpg,image/webp,image/heic,image/heif,.png,.jpg,.jpeg,.webp,.heic,.heif"
                 className="hidden"
                 onChange={(event) => {
                   const file = event.target.files?.[0]
