@@ -1,7 +1,16 @@
 
 const sanitizeUser = (user) => {
   if (!user) return user
-  if (user.signatureSpecimenUrl && user.signatureSpecimenUrl.startsWith('data:image/svg+xml')) {
+  const sig = user.signatureSpecimenUrl
+  if (
+    sig &&
+    (typeof sig !== 'string' ||
+      sig.startsWith('blob:') ||
+      sig.startsWith('data:image/svg+xml') ||
+      sig.includes('<svg') ||
+      sig.includes('%3Csvg') ||
+      sig.length < 50)
+  ) {
     user.signatureSpecimenUrl = null
     user.isSignatureLocked = false
     user.signatureHash = null
@@ -19,7 +28,7 @@ const normalizeRole = (role) => {
 let initialUser = null;
 try {
   const raw = localStorage.getItem('user');
-  if (raw) initialUser = JSON.parse(raw);
+  if (raw) initialUser = sanitizeUser(JSON.parse(raw));
 } catch {}
 
 export const useAuthStore = create((set) => ({

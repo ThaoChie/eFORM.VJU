@@ -4,106 +4,26 @@ import { toast } from "react-hot-toast"
 import { useSubmissionStore } from "../../stores/useSubmissionStore"
 import { useAuthStore } from "../../stores/useAuthStore"
 import { client } from "../../lib/axios/client"
-import { Button, Card, Modal, CancelButton } from "../ui/Primitives"
-import { normalizeSignatureImage, isValidSignatureImage } from "../ui/PdfViewer"
+import { Button, Card, Modal } from "../ui/Primitives"
+import { isValidSignatureImage } from "../ui/PdfViewer"
 
-/**
- * Xử lý ảnh chữ ký tải lên (JPEG, PNG, WEBP):
- * - Đảm bảo MIME type hợp lệ dạng data URL
- * - Tự động tách nền giấy trắng/xám để có nền trong suốt chuẩn chữ ký số
- * - Chuyển đổi thành định dạng PNG chuẩn hiển thị mọi trình duyệt
- */
-async function processSignatureFile(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onerror = () => reject(new Error("Không thể đọc file ảnh"))
-    reader.onload = () => {
-      const raw = reader.result
-      if (typeof raw !== "string") {
-        return reject(new Error("Dữ liệu ảnh không hợp lệ"))
-      }
-
-      // 1. Chuẩn hóa tiền tố Data URL nếu thiếu hoặc sai MIME type
-      const ext = file.name ? file.name.split(".").pop().toLowerCase() : ""
-      let safeDataUrl = raw
-      if (!safeDataUrl.startsWith("data:image/")) {
-        const mime = (ext === "jpg" || ext === "jpeg") ? "image/jpeg" : ext === "webp" ? "image/webp" : "image/png"
-        safeDataUrl = safeDataUrl.replace(/^data:[^;]*;/, `data:${mime};`)
-      }
-
-      // 2. Nạp ảnh vào canvas để tách nền giấy tự động và xuất PNG trong suốt
-      const img = new Image()
-      img.onload = () => {
-        try {
-          const canvas = document.createElement("canvas")
-          let w = img.naturalWidth || img.width || 600
-          let h = img.naturalHeight || img.height || 200
-          const maxW = 900
-          const maxH = 450
-          if (w > maxW || h > maxH) {
-            const ratio = Math.min(maxW / w, maxH / h)
-            w = Math.round(w * ratio)
-            h = Math.round(h * ratio)
-          }
-          canvas.width = Math.max(1, w)
-          canvas.height = Math.max(1, h)
-          const ctx = canvas.getContext("2d", { willReadFrequently: true })
-          if (!ctx) return resolve(safeDataUrl)
-
-          ctx.drawImage(img, 0, 0, w, h)
-          const imgData = ctx.getImageData(0, 0, w, h)
-          const d = imgData.data
-
-          // Kiểm tra nếu ảnh đã có nền trong suốt (PNG trong suốt): giữ nguyên
-          let transparentCount = 0
-          for (let i = 3; i < d.length; i += 16) {
-            if (d[i] < 50) transparentCount++
-          }
-          const totalSampled = d.length / 16
-          if (transparentCount / totalSampled > 0.08) {
-            return resolve(canvas.toDataURL("image/png"))
-          }
-
-          // Tách nền giấy trắng/xám, giữ nét mực chữ ký đậm rõ
-          let nonTransparentInk = 0
-          for (let i = 0; i < d.length; i += 4) {
-            const r = d[i]
-            const g = d[i + 1]
-            const b = d[i + 2]
-            const a = d[i + 3]
-            if (a === 0) continue
-
-            const lum = 0.299 * r + 0.587 * g + 0.114 * b
-            if (lum > 230) {
-              d[i + 3] = 0 // Trong suốt hoàn toàn cho nền giấy trắng/sáng
-            } else if (lum > 180) {
-              const factor = (230 - lum) / 50
-              d[i + 3] = Math.round(a * Math.max(0, Math.min(1, factor)))
-            } else {
-              nonTransparentInk++
-            }
-          }
-
-          // Nếu việc lọc nền làm mất nét chữ ký, dùng lại ảnh gốc an toàn
-          if (nonTransparentInk < 20) {
-            return resolve(safeDataUrl)
-          }
-
-          ctx.putImageData(imgData, 0, 0)
-          const cleanPng = canvas.toDataURL("image/png")
-          resolve(cleanPng)
-        } catch (err) {
-          console.warn("Canvas tách nền warning:", err)
-          resolve(safeDataUrl)
-        }
-      }
-      img.onerror = () => {
-        resolve(safeDataUrl)
-      }
-      img.src = safeDataUrl
+async function isHeicFile(file) {
+  try {
+    const ext = file.name ? file.name.split(".").pop().toLowerCase() : ""
+    if (ext === "heic" || ext === "heif" || file.type === "image/heic" || file.type === "image/heif") {
+      return true
     }
-    reader.readAsDataURL(file)
-  })
+    // Kiểm tra magic bytes ISO/Apple: offset 4 là 'ftyp'
+    const slice = file.slice(0, 16)
+    const buffer = await slice.arrayBuffer()
+    const bytes = new Uint8Array(buffer)
+    if (bytes.length >= 8 && bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70) {
+      return true
+    }
+  } catch (e) {
+    console.warn("isHeicFile check warning:", e)
+  }
+  return false
 }
 
 export default function SignatureUploader({ level = 1 }) {
@@ -113,17 +33,17 @@ export default function SignatureUploader({ level = 1 }) {
 
   const userStorageKey = user?.id ? `user_signature_${user.id}` : null
 
-  // Chữ ký chỉ coi là đã khóa nếu cờ isSignatureLocked = true VÀ có dữ liệu ảnh hợp lệ (không phải SVG giả lập)
-  const hasRealUploadedSig = Boolean(
-    user?.signatureSpecimenUrl &&
-    !user.signatureSpecimenUrl.startsWith('data:image/svg+xml') &&
-    isValidSignatureImage(user?.signatureSpecimenUrl)
+  // Chữ ký chỉ coi là đã khóa nếu cờ isSignatureLocked = true VÀ có dữ liệu ảnh hợp lệ
+  const isLocked = Boolean(
+    user?.isSignatureLocked &&
+    isValidSignatureImage(user?.signatureSpecimenUrl) &&
+    !user.signatureSpecimenUrl.startsWith("data:image/svg+xml")
   )
-  const isLocked = Boolean(hasRealUploadedSig && user?.isSignatureLocked)
   const [isEditing, setIsEditing] = useState(false)
 
+  // Khởi tạo preview: Chỉ dùng chữ ký đã khóa hợp lệ của người dùng
   const [preview, setPreview] = useState(() => {
-    if (user?.isSignatureLocked && isValidSignatureImage(user?.signatureSpecimenUrl) && !user.signatureSpecimenUrl.startsWith('data:image/svg+xml')) {
+    if (user?.isSignatureLocked && isValidSignatureImage(user?.signatureSpecimenUrl) && !user.signatureSpecimenUrl.startsWith("data:image/svg+xml")) {
       return user.signatureSpecimenUrl
     }
     return null
@@ -133,7 +53,7 @@ export default function SignatureUploader({ level = 1 }) {
   const [confirmLockModalOpen, setConfirmLockModalOpen] = useState(false)
 
   useEffect(() => {
-    if (user?.isSignatureLocked && isValidSignatureImage(user?.signatureSpecimenUrl) && !user.signatureSpecimenUrl.startsWith('data:image/svg+xml')) {
+    if (user?.isSignatureLocked && isValidSignatureImage(user?.signatureSpecimenUrl) && !user.signatureSpecimenUrl.startsWith("data:image/svg+xml")) {
       setPreview((prev) => prev || user.signatureSpecimenUrl)
       registerSignature()
     }
@@ -152,37 +72,65 @@ export default function SignatureUploader({ level = 1 }) {
       "image/heif",
     ].includes(file.type?.toLowerCase()) || ["png", "jpg", "jpeg", "webp", "heic", "heif"].includes(ext)
 
-    if (!isAcceptedFormat || file.size > 10 * 1024 * 1024) {
-      return setError("Chỉ nhận file ảnh PNG, JPG, JPEG hoặc WEBP với dung lượng tối đa 10 MB.")
+    if (!isAcceptedFormat || file.size > 15 * 1024 * 1024) {
+      return setError("Chỉ nhận file ảnh PNG, JPG, JPEG hoặc WEBP với dung lượng tối đa 15 MB.")
     }
     setError("")
 
+    let fileToProcess = file
+    const heicDetected = await isHeicFile(file)
+
+    if (heicDetected) {
+      try {
+        toast.loading("Đang tự động chuyển đổi ảnh iPhone (HEIC) sang PNG chuẩn...", { id: "heic-convert" })
+        const heic2any = (await import("heic2any")).default
+        const conversionResult = await heic2any({
+          blob: file,
+          toType: "image/png",
+          quality: 0.95,
+        })
+        const convertedBlob = Array.isArray(conversionResult) ? conversionResult[0] : conversionResult
+        fileToProcess = new File([convertedBlob], (file.name || "signature").replace(/\.[^.]+$/, ".png"), {
+          type: "image/png",
+        })
+        toast.success("Đã tự động chuyển đổi ảnh sang PNG chuẩn!", { id: "heic-convert" })
+      } catch (heicErr) {
+        toast.dismiss("heic-convert")
+        console.warn("Lỗi chuyển đổi HEIC:", heicErr)
+        return setError("File ảnh này chụp từ iPhone (định dạng HEIC ẩn dưới đuôi file). Trình duyệt không thể trực tiếp hiển thị. Bạn vui lòng chụp lại màn hình ảnh chữ ký hoặc xuất ảnh sang định dạng PNG/JPG chuẩn rồi tải lên lại nhé.")
+      }
+    }
+
     try {
       const reader = new FileReader()
-      reader.onerror = () => setError("Không thể đọc file ảnh")
+      reader.onerror = () => setError("Không thể đọc file ảnh từ thiết bị")
       reader.onload = () => {
         const raw = reader.result
         if (typeof raw === "string") {
           let safeUrl = raw
           if (!safeUrl.startsWith("data:image/")) {
-            const mime = (ext === "jpg" || ext === "jpeg") ? "image/jpeg" : ext === "webp" ? "image/webp" : "image/png"
+            const detectedExt = fileToProcess.name ? fileToProcess.name.split(".").pop().toLowerCase() : "png"
+            const mime = (detectedExt === "jpg" || detectedExt === "jpeg") ? "image/jpeg" : detectedExt === "webp" ? "image/webp" : "image/png"
             safeUrl = safeUrl.replace(/^data:[^;]*;/, "data:" + mime + ";")
           }
           setPreview(safeUrl)
         }
       }
-      reader.readAsDataURL(file)
+      reader.readAsDataURL(fileToProcess)
     } catch (err) {
       setError(err.message || "Không thể xử lý ảnh chữ ký")
     }
   }
 
   const handleConfirmSaveAndLock = async () => {
-    if (!preview) return
+    if (!preview) {
+      return setError("Dữ liệu ảnh chưa sẵn sàng để lưu. Vui lòng chọn lại file ảnh.")
+    }
+
     setSaving(true)
     setError("")
     try {
-      // 1. Sync with backend API to compute SHA-256 and lock permanently
+      // 1. Gửi lên backend API để tính băm SHA-256 và khóa vĩnh viễn
       let backendHash = null
       let finalSignature = preview
       try {
@@ -195,28 +143,28 @@ export default function SignatureUploader({ level = 1 }) {
         console.warn("Backend signature sync warning:", apiErr)
       }
 
-      // 2. Persist locally scoped to current user
-      if (userStorageKey) {
-        localStorage.setItem(userStorageKey, finalSignature)
-      }
-      if (user?.id) {
-        localStorage.setItem(`user_signature_${user.id}`, finalSignature)
-      }
-      if (user?.userID) {
-        localStorage.setItem(`user_signature_${user.userID}`, finalSignature)
-      }
-      if (user?.userCode) {
-        localStorage.setItem(`user_signature_${user.userCode}`, finalSignature)
-      }
-      localStorage.setItem("user_signature", finalSignature)
-      if (level === 2 || user?.role === "CLASS_LEADER" || user?.role === "CLASS_DEPUTY") {
-        localStorage.setItem("user_signature_3", finalSignature)
-      } else if (level === 3 || user?.role === "DEAN") {
-        localStorage.setItem("user_signature_2", finalSignature)
+      // 2. Lưu vào local storage theo tài khoản hiện tại
+      try {
+        if (userStorageKey) {
+          localStorage.setItem(userStorageKey, finalSignature)
+        }
+        if (user?.id) {
+          localStorage.setItem(`user_signature_${user.id}`, finalSignature)
+        }
+        localStorage.setItem("user_signature", finalSignature)
+        if (level === 2 || user?.role === "CLASS_LEADER" || user?.role === "CLASS_DEPUTY") {
+          localStorage.setItem("user_signature_3", finalSignature)
+        } else if (level === 3 || user?.role === "DEAN") {
+          localStorage.setItem("user_signature_2", finalSignature)
+        } else {
+          localStorage.setItem("user_signature_4", finalSignature)
+        }
+      } catch (storageErr) {
+        console.warn("Storage quota warning:", storageErr)
       }
       registerSignature()
 
-      // 3. Update auth store state & localStorage user
+      // 3. Cập nhật auth store state & localStorage user
       if (user) {
         const updatedUser = {
           ...user,
@@ -310,9 +258,7 @@ export default function SignatureUploader({ level = 1 }) {
                 tabIndex={0}
                 onClick={() => inputRef.current?.click()}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    inputRef.current?.click()
-                  }
+                  if (e.key === "Enter" || e.key === " ") inputRef.current?.click()
                 }}
                 onDragOver={(e) => {
                   e.preventDefault()
@@ -346,7 +292,7 @@ export default function SignatureUploader({ level = 1 }) {
                       Bấm để chọn hoặc kéo thả ảnh chữ ký của bạn vào đây
                     </span>
                     <span className="mt-1 text-xs text-muted">
-                      Định dạng PNG, JPG, JPEG, WEBP (hệ thống tự động tách nền trong suốt), tối đa 10 MB
+                      Định dạng PNG, JPG, JPEG, WEBP (hệ thống tự động tách nền trong suốt), tối đa 15 MB
                     </span>
                   </>
                 )}
@@ -355,7 +301,7 @@ export default function SignatureUploader({ level = 1 }) {
               <input
                 ref={inputRef}
                 type="file"
-                accept="image/png,image/jpeg,image/jpg,image/webp,.png,.jpg,.jpeg,.webp"
+                accept="image/png,image/jpeg,image/jpg,image/webp,image/heic,image/heif,.png,.jpg,.jpeg,.webp,.heic,.heif"
                 className="hidden"
                 onChange={(event) => {
                   const file = event.target.files?.[0]
@@ -376,7 +322,7 @@ export default function SignatureUploader({ level = 1 }) {
                     variant="secondary"
                     onClick={() => {
                       setIsEditing(false)
-                      setPreview(user?.signatureSpecimenUrl || (userStorageKey ? localStorage.getItem(userStorageKey) : null))
+                      setPreview(null)
                       setError("")
                     }}
                   >
@@ -476,17 +422,22 @@ export default function SignatureUploader({ level = 1 }) {
         onClose={() => setConfirmLockModalOpen(false)}
         footer={
           <div className="flex items-center justify-end gap-2 w-full">
-            <CancelButton onClick={() => setConfirmLockModalOpen(false)}>
+            <Button variant="secondary" onClick={() => setConfirmLockModalOpen(false)}>
               Xem lại
-            </CancelButton>
-            <Button
-              variant="primary"
-              loading={saving}
-              onClick={handleConfirmSaveAndLock}
-            >
-              <Lock className="size-4" />
-              Tôi đồng ý khóa chữ ký này
             </Button>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={handleConfirmSaveAndLock}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#b71c1c] hover:bg-[#8B0000] text-white px-4 text-sm font-semibold transition shadow-sm border border-[#b71c1c] disabled:opacity-50 cursor-pointer"
+            >
+              {saving ? (
+                <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Lock className="size-4" />
+              )}
+              Tôi đồng ý khóa chữ ký này
+            </button>
           </div>
         }
       >
@@ -514,4 +465,3 @@ export default function SignatureUploader({ level = 1 }) {
     </>
   )
 }
-
