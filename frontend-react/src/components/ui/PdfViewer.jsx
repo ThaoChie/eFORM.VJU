@@ -18,6 +18,7 @@ export function isValidSignatureImage(sig) {
   const s = sig.trim()
   if (s.length < 50) return false
   if (s.startsWith("blob:")) return false
+  if (s.startsWith("data:image/svg+xml") || s.includes("<svg") || s.includes("%3Csvg")) return false
   if (s.includes("DIGITALLY") || s.includes("CONFIRMED")) return false
   if (
     s.includes("AAAAEAAAAB") ||
@@ -28,7 +29,10 @@ export function isValidSignatureImage(sig) {
     return false
   }
   if (
-    s.startsWith("data:image/") ||
+    s.startsWith("data:image/png") ||
+    s.startsWith("data:image/jpeg") ||
+    s.startsWith("data:image/jpg") ||
+    s.startsWith("data:image/webp") ||
     s.startsWith("http://") ||
     s.startsWith("https://") ||
     s.startsWith("/")
@@ -54,36 +58,26 @@ export function generateSignatureSvg(name = "Nguyễn Văn A") {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`
 }
 
-export function normalizeSignatureImage(sig, fallbackName = "Nguyễn Văn A") {
-  if (sig && typeof sig === "string") {
-    const s = sig.trim()
-    // Reject corrupted black-box artifact images or raw HEIC
-    if (
-      s.includes("iVBORw0KGgoAAAANSUhEUgAAAUAAAABkCAYAAAC3Yg8w") ||
-      s.includes("AAAAJGZ0eX") ||
-      s.includes("Z0eXBoZWlj")
-    ) {
-      return generateSignatureSvg(fallbackName)
-    }
-    if (
-      s.startsWith("data:image/") ||
-      s.startsWith("http://") ||
-      s.startsWith("https://") ||
-      s.startsWith("blob:")
-    ) {
-      return s
-    }
-    // If it's a raw base64 image string without header
-    if (
-      s.length > 50 &&
-      !s.includes(" ") &&
-      !s.includes("CONFIRMED") &&
-      !s.includes("DIGITALLY")
-    ) {
-      return `data:image/png;base64,${s}`
-    }
+export function normalizeSignatureImage(sig) {
+  if (!isValidSignatureImage(sig)) {
+    return null
   }
-  return generateSignatureSvg(fallbackName)
+  const s = sig.trim()
+  if (
+    s.startsWith("data:image/") ||
+    s.startsWith("http://") ||
+    s.startsWith("https://") ||
+    s.startsWith("/")
+  ) {
+    return s
+  }
+  if (s.startsWith("iVBORw0KGgo")) {
+    return `data:image/png;base64,${s}`
+  }
+  if (s.startsWith("/9j/")) {
+    return `data:image/jpeg;base64,${s}`
+  }
+  return `data:image/png;base64,${s}`
 }
 
 // Chuyển đổi số điểm thành chữ tiếng Việt chuẩn văn bản hành chính

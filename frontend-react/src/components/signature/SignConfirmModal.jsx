@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from "react"
 import { Check, Signature, ShieldCheck, FileText, Award, Calendar, Paperclip, User, Upload } from "lucide-react"
 import { Button, Input, Modal } from "../ui/Primitives"
-import { normalizeSignatureImage, generateSignatureSvg } from "../ui/PdfViewer"
+import { normalizeSignatureImage } from "../ui/PdfViewer"
 
 export default function SignConfirmModal({
   open,
