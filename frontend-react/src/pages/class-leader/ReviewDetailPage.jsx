@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronLeft, ChevronRight, ExternalLink, FileText, Paperclip, AlertCircle, ShieldAlert } from "lucide-react"
+import { ArrowLeft, ChevronLeft, ChevronRight, ExternalLink, FileText, Paperclip, AlertCircle, ShieldAlert, Download, FileSpreadsheet } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { toast } from "react-hot-toast"
@@ -33,6 +33,30 @@ export default function ReviewDetailPage() {
   const [rejectModalOpen, setRejectModalOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("proofs") // 'proofs' | 'pdf'
   const [submitting, setSubmitting] = useState(false)
+  const [previewProof, setPreviewProof] = useState(null)
+
+  const handleViewProof = (p) => {
+    let resolvedUrl = p.url
+    if (
+      resolvedUrl &&
+      !resolvedUrl.startsWith("http://") &&
+      !resolvedUrl.startsWith("https://") &&
+      !resolvedUrl.startsWith("data:") &&
+      !resolvedUrl.startsWith("blob:")
+    ) {
+      const base = "https://drl-backend-f0sx.onrender.com/api/v1"
+      const cleanBase = base.replace(/\/+$/, "")
+      if (resolvedUrl.startsWith("/")) {
+        resolvedUrl = `${cleanBase}${resolvedUrl}`
+      } else {
+        resolvedUrl = `${cleanBase}/editor/proofs/${resolvedUrl}`
+      }
+    }
+    setPreviewProof({
+      ...p,
+      url: resolvedUrl,
+    })
+  }
 
   // Current logged in user
   const currentUser = useMemo(() => {
@@ -413,15 +437,14 @@ export default function ReviewDetailPage() {
                           </span>
                         </div>
                       </div>
-                      <a
-                        href={p.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-brand hover:underline shrink-0 bg-white border border-slate-200 rounded-md shadow-2xs"
+                      <button
+                        type="button"
+                        onClick={() => handleViewProof(p)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-brand hover:underline shrink-0 bg-white border border-slate-200 rounded-md shadow-2xs cursor-pointer"
                       >
                         <ExternalLink className="size-3" />
                         Xem
-                      </a>
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -586,6 +609,81 @@ export default function ReviewDetailPage() {
             placeholder="Ví dụ: Thiếu minh chứng cho tiêu chí 1.2; điểm tự chấm GPA chưa khớp bảng điểm..."
             rows={4}
           />
+        </div>
+      </Modal>
+
+      {/* MODAL LIGHTBOX XEM TÀI LIỆU MINH CHỨNG */}
+      <Modal
+        open={!!previewProof}
+        wide
+        title={`Xem tài liệu minh chứng: ${previewProof?.name || "Minh chứng"}`}
+        onClose={() => setPreviewProof(null)}
+        footer={
+          <div className="flex items-center justify-between w-full">
+            {previewProof?.url && (previewProof.url.startsWith("http") || previewProof.url.startsWith("data:") || previewProof.url.startsWith("blob:")) ? (
+              <a
+                href={previewProof.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                download={previewProof.name || "minh_chung"}
+                className="inline-flex items-center gap-1.5 text-xs text-brand font-semibold hover:underline"
+              >
+                <Download className="size-3.5" />
+                Tải xuống / Mở tệp
+              </a>
+            ) : (
+              <span className="text-xs text-slate-400">Tệp minh chứng đính kèm</span>
+            )}
+            <Button variant="secondary" onClick={() => setPreviewProof(null)}>
+              Đóng
+            </Button>
+          </div>
+        }
+      >
+        <div className="flex min-h-[460px] items-center justify-center p-2 bg-slate-100 rounded-lg overflow-hidden">
+          {previewProof?.name?.toLowerCase().endsWith(".xlsx") ||
+          previewProof?.name?.toLowerCase().endsWith(".xls") ||
+          previewProof?.type?.includes("sheet") ||
+          previewProof?.type?.includes("excel") ? (
+            <div className="flex flex-col items-center justify-center p-8 text-center">
+              <div className="size-16 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-4 shadow-xs">
+                <FileSpreadsheet className="size-8" />
+              </div>
+              <h3 className="font-bold text-slate-800 text-base">{previewProof?.name}</h3>
+              <p className="text-xs text-slate-500 mt-1">Bảng tính Microsoft Excel (.xlsx)</p>
+              {previewProof?.url && (
+                <a
+                  href={previewProof.url}
+                  download={previewProof.name}
+                  className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 transition"
+                >
+                  <Download className="size-4" />
+                  Tải xuống tệp Excel
+                </a>
+              )}
+            </div>
+          ) : previewProof?.type === "application/pdf" ||
+          (typeof previewProof?.url === "string" && (previewProof.url.toLowerCase().endsWith(".pdf") || previewProof.url.startsWith("data:application/pdf"))) ||
+          (typeof previewProof?.name === "string" && previewProof.name.toLowerCase().endsWith(".pdf")) ? (
+            <div className="w-full flex flex-col items-center gap-2">
+              <iframe
+                src={previewProof.url}
+                title={previewProof.name}
+                className="w-full min-h-[560px] rounded border border-slate-200 bg-white"
+              />
+            </div>
+          ) : previewProof?.url ? (
+            <img
+              src={previewProof.url}
+              alt={previewProof.name}
+              className="max-h-[560px] max-w-full rounded object-contain shadow-xs"
+            />
+          ) : (
+            <div className="py-12 text-center text-slate-500">
+              <p className="text-sm font-semibold">Tài liệu minh chứng: {previewProof?.name}</p>
+              <p className="text-xs text-slate-400 mt-1">Tệp minh chứng đã được sinh viên đính kèm theo phiếu.</p>
+            </div>
+          )}
         </div>
       </Modal>
     </>

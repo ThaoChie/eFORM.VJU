@@ -356,10 +356,24 @@ export default function ComposePage() {
         let fileUrl = ""
         try {
           const res = await submissionService.uploadProof(semester?.id, file)
-          fileUrl = typeof res === "string" ? res : res?.url || file.name
+          const rawUrl = typeof res === "string" ? res : res?.url
+          if (rawUrl && (rawUrl.startsWith("http://") || rawUrl.startsWith("https://") || rawUrl.startsWith("/"))) {
+            fileUrl = rawUrl
+          } else if (rawUrl && rawUrl !== file.name) {
+            fileUrl = `/api/v1/editor/proofs/${rawUrl}`
+          }
         } catch {
-          // Fallback object URL if MinIO is not connected
-          fileUrl = URL.createObjectURL(file)
+          // Fallback to Data URL if storage is not connected
+        }
+
+        // Đảm bảo fileUrl luôn xem được vĩnh viễn trên mọi máy (chuyển thành Base64 Data URL nếu server chưa có MinIO)
+        if (!fileUrl || !fileUrl.includes("/")) {
+          fileUrl = await new Promise((resolve) => {
+            const reader = new FileReader()
+            reader.onload = () => resolve(reader.result)
+            reader.onerror = () => resolve(URL.createObjectURL(file))
+            reader.readAsDataURL(file)
+          })
         }
 
         const newProofItem = {
