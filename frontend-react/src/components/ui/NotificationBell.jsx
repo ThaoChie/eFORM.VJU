@@ -107,13 +107,15 @@ export default function NotificationBell() {
       </IconButton>
 
       {open && (
-        <div className="absolute right-0 top-11 z-50 w-[380px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl animate-in fade-in-50 slide-in-from-top-2 duration-150">
+        <div className="absolute right-0 top-11 z-50 w-[400px] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl animate-in fade-in-50 slide-in-from-top-2 duration-150">
           {/* HEADER DROPDOWN */}
-          <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-4 py-3">
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-sm text-slate-800">Thông báo công việc</span>
+          <div className="flex items-center justify-between gap-2 border-b border-slate-100 bg-slate-50/70 px-3.5 py-2.5">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="font-bold text-xs text-slate-800 whitespace-nowrap">
+                Thông báo công việc
+              </span>
               {unreadCount > 0 && (
-                <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[11px] font-semibold text-brand">
+                <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[11px] font-semibold text-brand whitespace-nowrap shrink-0">
                   {unreadCount} chưa đọc
                 </span>
               )}
@@ -121,10 +123,10 @@ export default function NotificationBell() {
             {unreadCount > 0 && (
               <Button
                 variant="ghost"
-                className="h-7 px-2 text-xs text-brand hover:text-brand-dark hover:bg-brand-soft"
+                className="h-7 px-2 text-xs text-brand hover:text-brand-dark hover:bg-brand-soft whitespace-nowrap shrink-0"
                 onClick={markAll}
               >
-                <Check className="size-3.5 mr-1" />
+                <Check className="size-3.5 mr-1 shrink-0" />
                 Đã đọc tất cả
               </Button>
             )}
