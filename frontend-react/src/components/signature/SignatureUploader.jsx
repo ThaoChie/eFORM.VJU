@@ -6,6 +6,15 @@ import { useAuthStore } from "../../stores/useAuthStore"
 import { client } from "../../lib/axios/client"
 import { Button, Card, Modal } from "../ui/Primitives"
 
+function cleanStoredSignature(sig) {
+  if (!sig || typeof sig !== "string") return null
+  const s = sig.trim()
+  if (s.startsWith("blob:") || s.startsWith("data:image/svg+xml") || s.includes("<svg") || s.includes("%3Csvg") || s.length < 50) {
+    return null
+  }
+  return s
+}
+
 export default function SignatureUploader({ level = 1 }) {
   const inputRef = useRef(null)
   const user = useAuthStore((s) => s.user)
@@ -13,62 +22,120 @@ export default function SignatureUploader({ level = 1 }) {
 
   const userStorageKey = user?.id ? `user_signature_${user.id}` : null
 
-  // A signature is permanently locked if isSignatureLocked is true or signatureSpecimenUrl is present
-  const isLocked = Boolean(user?.isSignatureLocked || user?.signatureSpecimenUrl)
+  // Chữ ký chỉ coi là đã khóa nếu cờ isSignatureLocked = true VÀ có dữ liệu ảnh hợp lệ
+  const validSavedSig = cleanStoredSignature(user?.signatureSpecimenUrl)
+  const isLocked = Boolean(user?.isSignatureLocked && validSavedSig)
   const [isEditing, setIsEditing] = useState(false)
+  const [liveObjectUrl, setLiveObjectUrl] = useState(null)
 
   const [preview, setPreview] = useState(() => {
-    return user?.signatureSpecimenUrl || (userStorageKey ? localStorage.getItem(userStorageKey) : null)
+    const raw = user?.signatureSpecimenUrl || (userStorageKey ? localStorage.getItem(userStorageKey) : null)
+    const valid = cleanStoredSignature(raw)
+    if (!valid && raw && userStorageKey) {
+      try { localStorage.removeItem(userStorageKey) } catch {}
+    }
+    return valid
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [confirmLockModalOpen, setConfirmLockModalOpen] = useState(false)
 
   useEffect(() => {
-    const existing = user?.signatureSpecimenUrl || (userStorageKey ? localStorage.getItem(userStorageKey) : null)
-    if (existing) {
-      setPreview(existing)
-      registerSignature()
-    } else {
-      setPreview(null)
+    const raw = user?.signatureSpecimenUrl || (userStorageKey ? localStorage.getItem(userStorageKey) : null)
+    const valid = cleanStoredSignature(raw)
+    if (!valid && raw && userStorageKey) {
+      try { localStorage.removeItem(userStorageKey) } catch {}
     }
-  }, [user, userStorageKey, registerSignature])
+    if (valid) {
+      setPreview((prev) => prev || valid)
+      registerSignature()
+    }
+  }, [user?.signatureSpecimenUrl, userStorageKey, registerSignature])
 
   const select = (file) => {
     if (!file) return
 
     const ext = file.name ? file.name.split(".").pop().toLowerCase() : ""
+    if (ext === "heic" || ext === "heif" || file.type === "image/heic" || file.type === "image/heif") {
+      return setError("Trình duyệt không hỗ trợ trực tiếp ảnh định dạng HEIC (từ iPhone). Vui lòng chọn ảnh định dạng PNG hoặc JPG.")
+    }
+
     const isAcceptedFormat = [
       "image/png",
       "image/jpeg",
       "image/jpg",
       "image/webp",
-      "image/heic",
-      "image/heif",
-    ].includes(file.type) || ["png", "jpg", "jpeg", "webp", "heic", "heif"].includes(ext)
+    ].includes(file.type?.toLowerCase()) || ["png", "jpg", "jpeg", "webp"].includes(ext)
 
     if (!isAcceptedFormat || file.size > 10 * 1024 * 1024) {
-      return setError("Chỉ nhận file ảnh PNG, JPG, WEBP hoặc HEIC với dung lượng tối đa 10 MB.")
+      return setError("Chỉ nhận file ảnh PNG, JPG, JPEG hoặc WEBP với dung lượng tối đa 10 MB.")
     }
     setError("")
 
+    // 1. Tạo Live Object URL ngay lập tức: hiển thị 100% không bao giờ lỗi icon ảnh vỡ
+    try {
+      if (liveObjectUrl) URL.revokeObjectURL(liveObjectUrl)
+      const objUrl = URL.createObjectURL(file)
+      setLiveObjectUrl(objUrl)
+    } catch (e) {
+      console.warn("Could not create object URL:", e)
+    }
+
+    // 2. Đọc Data URL chuẩn để lưu vĩnh viễn
     const reader = new FileReader()
+    reader.onerror = () => setError("Không thể đọc file ảnh từ thiết bị")
     reader.onload = () => {
-      setPreview(reader.result)
+      let raw = reader.result
+      if (typeof raw === "string") {
+        if (!raw.startsWith("data:image/")) {
+          const mime = (ext === "jpg" || ext === "jpeg") ? "image/jpeg" : ext === "webp" ? "image/webp" : "image/png"
+          raw = raw.replace(/^data:[^;]*;/, `data:${mime};`)
+        }
+        setPreview(raw)
+      }
     }
     reader.readAsDataURL(file)
   }
 
+  const displayImage = liveObjectUrl || preview
+
+  const handleClearSelected = (e) => {
+    e?.stopPropagation()
+    setPreview(null)
+    if (liveObjectUrl) {
+      try { URL.revokeObjectURL(liveObjectUrl) } catch {}
+      setLiveObjectUrl(null)
+    }
+    if (userStorageKey) {
+      try { localStorage.removeItem(userStorageKey) } catch {}
+    }
+    setError("")
+  }
+
   const handleConfirmSaveAndLock = async () => {
-    if (!preview) return
+    // Luôn ưu tiên dùng Data URL chuẩn để lưu trữ (không lưu blob: URL)
+    let finalSignature = preview
+    if (!finalSignature && inputRef.current?.files?.[0]) {
+      try {
+        finalSignature = await new Promise((resolve, reject) => {
+          const r = new FileReader()
+          r.onload = () => resolve(r.result)
+          r.onerror = reject
+          r.readAsDataURL(inputRef.current.files[0])
+        })
+      } catch {}
+    }
+    if (!finalSignature || finalSignature.startsWith("blob:")) {
+      return setError("Dữ liệu ảnh chưa sẵn sàng để lưu. Vui lòng chọn lại file ảnh PNG hoặc JPG.")
+    }
+
     setSaving(true)
     setError("")
     try {
       // 1. Sync with backend API to compute SHA-256 and lock permanently
       let backendHash = null
-      let finalSignature = preview
       try {
-        const res = await client.post("/users/signature", { signature: preview })
+        const res = await client.post("/users/signature", { signature: finalSignature })
         backendHash = res?.signatureHash || res?.data?.signatureHash || null
         if (res?.signature || res?.data?.signature) {
           finalSignature = res?.signature || res?.data?.signature
@@ -188,22 +255,35 @@ export default function SignatureUploader({ level = 1 }) {
           ) : (
             /* TRẠNG THÁI TẢI LÊN / ĐỔI ẢNH CHỮ KÝ */
             <div className="space-y-4">
-              <button
-                type="button"
+              <div
+                role="button"
+                tabIndex={0}
                 onClick={() => inputRef.current?.click()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") inputRef.current?.click()
+                }}
                 className="flex min-h-52 w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50/50 p-6 text-center hover:border-brand hover:bg-brand-soft/20 transition-all cursor-pointer"
               >
-                {preview ? (
+                {displayImage ? (
                   <div className="space-y-2">
                     <img
-                      src={preview}
+                      src={displayImage}
                       alt="Xem trước chữ ký"
                       className="max-h-24 max-w-[280px] object-contain mx-auto drop-shadow-xs"
                       style={{ mixBlendMode: "multiply" }}
                     />
-                    <span className="text-xs text-brand font-medium block">
-                      Bấm vào đây nếu muốn chọn file ảnh khác từ máy tính
-                    </span>
+                    <div className="flex items-center justify-center gap-3 mt-1">
+                      <span className="text-xs text-brand font-medium">
+                        Bấm vào đây để chọn lại file ảnh khác
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleClearSelected}
+                        className="text-xs text-rose-600 hover:text-rose-800 underline font-medium cursor-pointer"
+                      >
+                        Xóa ảnh
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <>
@@ -214,18 +294,22 @@ export default function SignatureUploader({ level = 1 }) {
                       Bấm để chọn hoặc kéo thả ảnh chữ ký của bạn vào đây
                     </span>
                     <span className="mt-1 text-xs text-muted">
-                      Định dạng PNG, JPG, WEBP, HEIC (hệ thống tự động tách nền trong suốt), tối đa 10 MB
+                      Định dạng PNG, JPG, JPEG, WEBP (hệ thống tự động tách nền trong suốt), tối đa 10 MB
                     </span>
                   </>
                 )}
-              </button>
+              </div>
 
               <input
                 ref={inputRef}
                 type="file"
-                accept=".png,.jpg,.jpeg,.webp"
+                accept="image/png,image/jpeg,image/jpg,image/webp,.png,.jpg,.jpeg,.webp"
                 className="hidden"
-                onChange={(event) => select(event.target.files?.[0])}
+                onChange={(event) => {
+                  const file = event.target.files?.[0]
+                  if (file) select(file)
+                  event.target.value = ""
+                }}
               />
 
               {error && (
@@ -248,13 +332,13 @@ export default function SignatureUploader({ level = 1 }) {
                   </Button>
                 ) : (
                   <span className="text-xs text-slate-500">
-                    {preview ? "Đã chọn file ảnh chữ ký" : "Chưa chọn file"}
+                    {displayImage ? "Đã chọn file ảnh chữ ký" : "Chưa chọn file"}
                   </span>
                 )}
 
                 <Button
                   variant="primary"
-                  disabled={!preview || saving}
+                  disabled={!displayImage || saving}
                   loading={saving}
                   onClick={() => setConfirmLockModalOpen(true)}
                 >
@@ -361,8 +445,8 @@ export default function SignatureUploader({ level = 1 }) {
       >
         <div className="space-y-3 py-2 text-xs text-slate-600">
           <div className="flex items-center justify-center p-4 bg-white border border-slate-200 rounded-lg min-h-[90px]">
-            {preview ? (
-              <img src={preview} alt="Xem trước chữ ký" className="max-h-24 max-w-[320px] object-contain drop-shadow-xs" style={{ mixBlendMode: "multiply" }} />
+            {displayImage ? (
+              <img src={displayImage} alt="Xem trước chữ ký" className="max-h-24 max-w-[320px] object-contain drop-shadow-xs" style={{ mixBlendMode: "multiply" }} />
             ) : (
               <span className="text-xs text-slate-400 italic">Chưa có ảnh xem trước</span>
             )}
