@@ -78,7 +78,6 @@ export default function SignatureUploader({ level = 1 }) {
   )
   const isLocked = Boolean(hasRealUploadedSig && user?.isSignatureLocked)
   const [isEditing, setIsEditing] = useState(false)
-  const [liveBlobUrl, setLiveBlobUrl] = useState(null)
 
   const [preview, setPreview] = useState(() => {
     const existing = user?.signatureSpecimenUrl || (userStorageKey ? localStorage.getItem(userStorageKey) : null)
@@ -113,24 +112,14 @@ export default function SignatureUploader({ level = 1 }) {
       "image/jpeg",
       "image/jpg",
       "image/webp",
-      "image/heic",
-      "image/heif",
-    ].includes(file.type?.toLowerCase()) || ["png", "jpg", "jpeg", "webp", "heic", "heif"].includes(ext)
+    ].includes(file.type?.toLowerCase()) || ["png", "jpg", "jpeg", "webp"].includes(ext)
 
     if (!isAcceptedFormat || file.size > 10 * 1024 * 1024) {
       return setError("Chỉ nhận file ảnh PNG, JPG, JPEG hoặc WEBP với dung lượng tối đa 10 MB.")
     }
     setError("")
 
-    // 1. Tạo Blob URL trực tiếp từ File object để hiển thị tức thì không bao giờ lỗi
-    try {
-      const blob = URL.createObjectURL(file)
-      setLiveBlobUrl(blob)
-    } catch (e) {
-      console.warn("Could not create object URL:", e)
-    }
-
-    // 2. Đọc Data URL chuẩn để lưu trữ vào backend và localStorage
+    // Đọc trực tiếp Data URL chuẩn bằng FileReader
     const reader = new FileReader()
     reader.onerror = () => setError("Không thể đọc file ảnh từ thiết bị")
     reader.onload = () => {
@@ -146,21 +135,12 @@ export default function SignatureUploader({ level = 1 }) {
     reader.readAsDataURL(file)
   }
 
-  const currentDisplay = liveBlobUrl || preview
-
   const handleConfirmSaveAndLock = async () => {
-    const signatureToSave = preview || liveBlobUrl
-    if (!signatureToSave) return
+    if (!preview) return
     setSaving(true)
     setError("")
     try {
-      let finalSignature = signatureToSave
-      // Nếu là blob URL mà preview chưa hoàn tất, đọc Data URL trước khi gửi
-      if (finalSignature.startsWith("blob:") && inputRef.current?.files?.[0]) {
-        try {
-          finalSignature = await processSignatureFile(inputRef.current.files[0])
-        } catch {}
-      }
+      let finalSignature = preview
 
       // 1. Sync with backend API to compute SHA-256 and lock permanently
       let backendHash = null
@@ -309,26 +289,13 @@ export default function SignatureUploader({ level = 1 }) {
                 }}
                 className="flex min-h-52 w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50/50 p-6 text-center hover:border-brand hover:bg-brand-soft/20 transition-all cursor-pointer"
               >
-                {currentDisplay ? (
+                {preview ? (
                   <div className="space-y-2">
                     <img
-                      src={currentDisplay}
+                      src={preview}
                       alt="Xem trước chữ ký"
                       className="max-h-24 max-w-[280px] object-contain mx-auto drop-shadow-xs"
                       style={{ mixBlendMode: "multiply" }}
-                      onError={() => {
-                        console.warn("Signature image failed to render, clearing invalid cache")
-                        setLiveBlobUrl(null)
-                        setPreview(null)
-                        try {
-                          if (userStorageKey) localStorage.removeItem(userStorageKey)
-                          localStorage.removeItem("user_signature")
-                          localStorage.removeItem("user_signature_2")
-                          localStorage.removeItem("user_signature_3")
-                          localStorage.removeItem("user_signature_4")
-                        } catch {}
-                        setError("Không thể hiển thị ảnh chữ ký cũ. Vui lòng bấm để chọn lại file ảnh PNG hoặc JPG từ máy tính.")
-                      }}
                     />
                     <span className="text-xs text-brand font-medium block">
                       Bấm vào đây nếu muốn chọn file ảnh khác từ máy tính
@@ -373,7 +340,6 @@ export default function SignatureUploader({ level = 1 }) {
                     variant="secondary"
                     onClick={() => {
                       setIsEditing(false)
-                      setLiveBlobUrl(null)
                       setPreview(user?.signatureSpecimenUrl || (userStorageKey ? localStorage.getItem(userStorageKey) : null))
                       setError("")
                     }}
@@ -382,13 +348,13 @@ export default function SignatureUploader({ level = 1 }) {
                   </Button>
                 ) : (
                   <span className="text-xs text-slate-500">
-                    {currentDisplay ? "Đã chọn file ảnh chữ ký" : "Chưa chọn file"}
+                    {preview ? "Đã chọn file ảnh chữ ký" : "Chưa chọn file"}
                   </span>
                 )}
 
                 <Button
                   variant="primary"
-                  disabled={!currentDisplay || saving}
+                  disabled={!preview || saving}
                   loading={saving}
                   onClick={() => setConfirmLockModalOpen(true)}
                 >
@@ -495,9 +461,9 @@ export default function SignatureUploader({ level = 1 }) {
       >
         <div className="space-y-3 py-2 text-xs text-slate-600">
           <div className="flex items-center justify-center p-4 bg-white border border-slate-200 rounded-lg min-h-[90px]">
-            {currentDisplay ? (
+            {preview ? (
               <img
-                src={currentDisplay}
+                src={preview}
                 alt="Xem trước chữ ký"
                 className="max-h-24 max-w-[320px] object-contain drop-shadow-xs"
                 style={{ mixBlendMode: "multiply" }}
