@@ -17,18 +17,7 @@ export function isValidSignatureImage(sig) {
   if (!sig || typeof sig !== "string") return false
   const s = sig.trim()
   if (s.length < 50) return false
-  // Tuyệt đối không chấp nhận ảnh SVG mockdata / chữ ký giả lập tự sinh
-  if (
-    s.startsWith("data:image/svg+xml") ||
-    s.includes("<svg") ||
-    s.includes("%3Csvg")
-  ) {
-    return false
-  }
-  // Tuyệt đối không chấp nhận blob URL đã hết hạn từ localStorage
-  if (s.startsWith("blob:")) {
-    return false
-  }
+  if (s.startsWith("blob:")) return false
   if (s.includes("DIGITALLY") || s.includes("CONFIRMED")) return false
   if (
     s.includes("AAAAEAAAAB") ||
@@ -38,7 +27,6 @@ export function isValidSignatureImage(sig) {
   ) {
     return false
   }
-  // Phải là data URL ảnh hợp lệ hoặc URL ảnh http/https hợp lệ
   if (
     s.startsWith("data:image/") ||
     s.startsWith("http://") ||
@@ -47,7 +35,6 @@ export function isValidSignatureImage(sig) {
   ) {
     return true
   }
-  // Nếu là base64 thuần chuẩn của PNG hoặc JPEG
   if (s.startsWith("iVBORw0KGgo") || s.startsWith("/9j/")) {
     return true
   }
@@ -70,22 +57,19 @@ export function generateSignatureSvg(name = "Nguyễn Văn A") {
 export function normalizeSignatureImage(sig, fallbackName = "Nguyễn Văn A") {
   if (sig && typeof sig === "string") {
     const s = sig.trim()
-    // Reject corrupted black-box artifact images, 1x1 dummy pixels, or raw HEIC
+    // Reject corrupted black-box artifact images or raw HEIC
     if (
       s.includes("iVBORw0KGgoAAAANSUhEUgAAAUAAAABkCAYAAAC3Yg8w") ||
-      s.includes("AAAAEAAAAB") ||
       s.includes("AAAAJGZ0eX") ||
-      s.includes("Z0eXBoZWlj") ||
-      s.includes("CONFIRMED") ||
-      s.includes("DIGITALLY")
+      s.includes("Z0eXBoZWlj")
     ) {
-      return null
+      return generateSignatureSvg(fallbackName)
     }
     if (
       s.startsWith("data:image/") ||
       s.startsWith("http://") ||
       s.startsWith("https://") ||
-      s.startsWith("/")
+      s.startsWith("blob:")
     ) {
       return s
     }
@@ -99,7 +83,7 @@ export function normalizeSignatureImage(sig, fallbackName = "Nguyễn Văn A") {
       return `data:image/png;base64,${s}`
     }
   }
-  return null
+  return generateSignatureSvg(fallbackName)
 }
 
 // Chuyển đổi số điểm thành chữ tiếng Việt chuẩn văn bản hành chính
@@ -540,90 +524,62 @@ export default function PdfViewer({
 
   // Robust student signature resolution (strictly scoped to student)
   const effectiveStudentSig = useMemo(() => {
-    if (isValidSignatureImage(uploadedStudentSig)) return uploadedStudentSig
-    if (isValidSignatureImage(studentSignature)) return studentSignature
-    if (isValidSignatureImage(user?.signatureSpecimenUrl)) return user.signatureSpecimenUrl
-    const uIds = [user?.id, user?.studentId, user?.userID, user?.userCode].filter(Boolean)
-    for (const id of uIds) {
+    if (uploadedStudentSig) return uploadedStudentSig
+    if (studentSignature) return studentSignature
+    if (user?.signatureSpecimenUrl) return user.signatureSpecimenUrl
+    const uId = user?.id || user?.studentId
+    if (uId) {
       try {
-        const local = localStorage.getItem(`user_signature_${id}`)
-        if (isValidSignatureImage(local)) return local
-      } catch {}
-    }
-    try {
-      const stored = JSON.parse(localStorage.getItem("user") || "{}")
-      if (isValidSignatureImage(stored?.signatureSpecimenUrl)) return stored.signatureSpecimenUrl
-      if (stored?.id) {
-        const local = localStorage.getItem(`user_signature_${stored.id}`)
-        if (isValidSignatureImage(local)) return local
+        return localStorage.getItem(`user_signature_${uId}`) || null
+      } catch {
+        return null
       }
-    } catch {}
-    try {
-      const legacy = localStorage.getItem("user_signature")
-      if (isValidSignatureImage(legacy)) return legacy
-    } catch {}
+    }
     return null
   }, [uploadedStudentSig, studentSignature, user])
 
-  // Hiển thị chữ ký sinh viên từ ảnh thật đã đăng ký hoặc tải lên
+  // Luôn đảm bảo sinh viên có ảnh chữ ký hiển thị trên bản in/xem trước
   const studentSigImage = useMemo(() => {
+    if (uploadedStudentSig) return uploadedStudentSig
     if (effectiveStudentSig) {
-      return normalizeSignatureImage(effectiveStudentSig, user?.fullName || "Sinh viên")
+      return normalizeSignatureImage(effectiveStudentSig, user?.fullName || "Nguyễn Văn A")
     }
     return null
-  }, [effectiveStudentSig, user?.fullName])
+  }, [uploadedStudentSig, effectiveStudentSig, user?.fullName])
 
-  // Class leader signature resolution: priority to uploaded image, then explicit prop or storage
+  // Class leader signature resolution: priority to uploaded image, then explicit prop
   const effectiveClassSig = useMemo(() => {
-    if (isValidSignatureImage(uploadedClassSig)) return uploadedClassSig
-    if (isValidSignatureImage(classSignature)) return classSignature
-    try {
-      const sig3 = localStorage.getItem("user_signature_3")
-      if (isValidSignatureImage(sig3)) return sig3
-      const stored = JSON.parse(localStorage.getItem("user") || "{}")
-      if (stored?.role?.includes("leader") && isValidSignatureImage(stored?.signatureSpecimenUrl)) {
-        return stored.signatureSpecimenUrl
-      }
-      if (stored?.id) {
-        const local = localStorage.getItem(`user_signature_${stored.id}`)
-        if (isValidSignatureImage(local)) return local
-      }
-    } catch {}
+    if (uploadedClassSig) return uploadedClassSig
+    if (classSignature && typeof classSignature === "string" && classSignature.trim() !== "") {
+      return classSignature
+    }
     return null
   }, [uploadedClassSig, classSignature])
 
   const classSigImage = useMemo(() => {
+    if (uploadedClassSig) return uploadedClassSig
     if (effectiveClassSig) {
       return normalizeSignatureImage(effectiveClassSig, classLeaderName || "Lớp trưởng")
     }
     return null
-  }, [effectiveClassSig, classLeaderName])
+  }, [uploadedClassSig, effectiveClassSig, classLeaderName])
 
-  // Dean signature resolution: priority to uploaded image, then explicit prop or storage
+  // Dean signature resolution: priority to uploaded image, then explicit prop
   const effectiveDeanSig = useMemo(() => {
-    if (isValidSignatureImage(uploadedDeanSig)) return uploadedDeanSig
-    if (isValidSignatureImage(deanSignature)) return deanSignature
-    try {
-      const sig2 = localStorage.getItem("user_signature_2")
-      if (isValidSignatureImage(sig2)) return sig2
-      const stored = JSON.parse(localStorage.getItem("user") || "{}")
-      if (stored?.role?.includes("dean") && isValidSignatureImage(stored?.signatureSpecimenUrl)) {
-        return stored.signatureSpecimenUrl
-      }
-      if (stored?.id) {
-        const local = localStorage.getItem(`user_signature_${stored.id}`)
-        if (isValidSignatureImage(local)) return local
-      }
-    } catch {}
+    if (uploadedDeanSig) return uploadedDeanSig
+    if (deanSignature && typeof deanSignature === "string" && deanSignature.trim() !== "") {
+      return deanSignature
+    }
     return null
   }, [uploadedDeanSig, deanSignature])
 
   const deanSigImage = useMemo(() => {
+    if (uploadedDeanSig) return uploadedDeanSig
     if (effectiveDeanSig) {
       return normalizeSignatureImage(effectiveDeanSig, deanName || "Trưởng Khoa CNTT")
     }
     return null
-  }, [effectiveDeanSig, deanName])
+  }, [uploadedDeanSig, effectiveDeanSig, deanName])
 
   // Chuẩn hóa tên học kỳ: loại bỏ phần năm học bị trùng lặp (ví dụ "Học kỳ 2 Năm 2026-2027" -> "Học kỳ 2")
   const displaySemester = useMemo(() => {

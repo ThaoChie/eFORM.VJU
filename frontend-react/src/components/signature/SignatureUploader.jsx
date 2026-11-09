@@ -4,64 +4,7 @@ import { toast } from "react-hot-toast"
 import { useSubmissionStore } from "../../stores/useSubmissionStore"
 import { useAuthStore } from "../../stores/useAuthStore"
 import { client } from "../../lib/axios/client"
-import { Button, Card, Modal, CancelButton } from "../ui/Primitives"
-import { normalizeSignatureImage, isValidSignatureImage } from "../ui/PdfViewer"
-
-/**
- * Đọc file ảnh chữ ký thành chuỗi Data URL chuẩn (PNG, JPG, JPEG, WEBP)
- */
-async function processSignatureFile(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onerror = () => reject(new Error("Không thể đọc file ảnh từ thiết bị"))
-    reader.onload = () => {
-      let raw = reader.result
-      if (typeof raw !== "string") {
-        return reject(new Error("Dữ liệu ảnh không hợp lệ"))
-      }
-
-      // Chuẩn hóa MIME type nếu hệ điều hành không gán đúng
-      const ext = (file.name || "").split(".").pop().toLowerCase()
-      if (!raw.startsWith("data:image/")) {
-        const mime = (ext === "jpg" || ext === "jpeg") ? "image/jpeg" : ext === "webp" ? "image/webp" : "image/png"
-        raw = raw.replace(/^data:[^;]*;/, `data:${mime};`)
-      }
-
-      // Tối ưu kích thước nếu ảnh quá lớn (> 1200px) để lưu database nhẹ nhàng
-      const img = new Image()
-      img.onerror = () => resolve(raw)
-      img.onload = () => {
-        try {
-          let w = img.naturalWidth || img.width || 600
-          let h = img.naturalHeight || img.height || 200
-          const maxW = 1000
-          const maxH = 500
-          if (w > maxW || h > maxH) {
-            const ratio = Math.min(maxW / w, maxH / h)
-            w = Math.round(w * ratio)
-            h = Math.round(h * ratio)
-            const canvas = document.createElement("canvas")
-            canvas.width = Math.max(1, w)
-            canvas.height = Math.max(1, h)
-            const ctx = canvas.getContext("2d")
-            if (ctx) {
-              ctx.drawImage(img, 0, 0, w, h)
-              const scaled = canvas.toDataURL("image/png")
-              if (scaled && scaled.length > 50 && scaled.startsWith("data:image/")) {
-                return resolve(scaled)
-              }
-            }
-          }
-          resolve(raw)
-        } catch {
-          resolve(raw)
-        }
-      }
-      img.src = raw
-    }
-    reader.readAsDataURL(file)
-  })
-}
+import { Button, Card, Modal } from "../ui/Primitives"
 
 export default function SignatureUploader({ level = 1 }) {
   const inputRef = useRef(null)
@@ -70,22 +13,12 @@ export default function SignatureUploader({ level = 1 }) {
 
   const userStorageKey = user?.id ? `user_signature_${user.id}` : null
 
-  // Chữ ký chỉ coi là đã khóa nếu cờ isSignatureLocked = true VÀ có dữ liệu ảnh hợp lệ (không phải SVG giả lập)
-  const hasRealUploadedSig = Boolean(
-    user?.signatureSpecimenUrl &&
-    !user.signatureSpecimenUrl.startsWith('data:image/svg+xml') &&
-    isValidSignatureImage(user?.signatureSpecimenUrl)
-  )
-  const isLocked = Boolean(hasRealUploadedSig && user?.isSignatureLocked)
+  // A signature is permanently locked if isSignatureLocked is true or signatureSpecimenUrl is present
+  const isLocked = Boolean(user?.isSignatureLocked || user?.signatureSpecimenUrl)
   const [isEditing, setIsEditing] = useState(false)
 
   const [preview, setPreview] = useState(() => {
-    const existing = user?.signatureSpecimenUrl || (userStorageKey ? localStorage.getItem(userStorageKey) : null)
-    if (existing && existing.startsWith("blob:")) {
-      try { localStorage.removeItem(userStorageKey) } catch {}
-      return null
-    }
-    return isValidSignatureImage(existing) ? normalizeSignatureImage(existing, user?.fullName) : null
+    return user?.signatureSpecimenUrl || (userStorageKey ? localStorage.getItem(userStorageKey) : null)
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
@@ -93,15 +26,13 @@ export default function SignatureUploader({ level = 1 }) {
 
   useEffect(() => {
     const existing = user?.signatureSpecimenUrl || (userStorageKey ? localStorage.getItem(userStorageKey) : null)
-    if (existing && existing.startsWith("blob:")) {
-      try { localStorage.removeItem(userStorageKey) } catch {}
-      return
-    }
-    if (isValidSignatureImage(existing)) {
-      setPreview((prev) => prev || normalizeSignatureImage(existing, user?.fullName))
+    if (existing) {
+      setPreview(existing)
       registerSignature()
+    } else {
+      setPreview(null)
     }
-  }, [user?.signatureSpecimenUrl, userStorageKey, registerSignature, user?.fullName])
+  }, [user, userStorageKey, registerSignature])
 
   const select = (file) => {
     if (!file) return
@@ -112,53 +43,18 @@ export default function SignatureUploader({ level = 1 }) {
       "image/jpeg",
       "image/jpg",
       "image/webp",
-    ].includes(file.type?.toLowerCase()) || ["png", "jpg", "jpeg", "webp"].includes(ext)
+      "image/heic",
+      "image/heif",
+    ].includes(file.type) || ["png", "jpg", "jpeg", "webp", "heic", "heif"].includes(ext)
 
     if (!isAcceptedFormat || file.size > 10 * 1024 * 1024) {
-      return setError("Chỉ nhận file ảnh PNG, JPG, JPEG hoặc WEBP với dung lượng tối đa 10 MB.")
+      return setError("Chỉ nhận file ảnh PNG, JPG, WEBP hoặc HEIC với dung lượng tối đa 10 MB.")
     }
     setError("")
 
-    // Đọc trực tiếp Data URL chuẩn bằng FileReader
     const reader = new FileReader()
-    reader.onerror = () => setError("Không thể đọc file ảnh từ thiết bị")
     reader.onload = () => {
-      let raw = reader.result
-      if (typeof raw === "string") {
-        if (!raw.startsWith("data:image/")) {
-          const mime = (ext === "jpg" || ext === "jpeg") ? "image/jpeg" : ext === "webp" ? "image/webp" : "image/png"
-          raw = raw.replace(/^data:[^;]*;/, `data:${mime};`)
-        }
-
-        // Tối ưu hóa kích thước ảnh chữ ký nếu vượt quá 900x450 để đảm bảo hiển thị tức thì và lưu trữ nhẹ nhàng
-        const img = new Image()
-        img.onload = () => {
-          let w = img.naturalWidth || img.width || 600
-          let h = img.naturalHeight || img.height || 200
-          const maxW = 900
-          const maxH = 450
-          if (w > maxW || h > maxH) {
-            const ratio = Math.min(maxW / w, maxH / h)
-            w = Math.round(w * ratio)
-            h = Math.round(h * ratio)
-            const canvas = document.createElement("canvas")
-            canvas.width = Math.max(1, w)
-            canvas.height = Math.max(1, h)
-            const ctx = canvas.getContext("2d")
-            if (ctx) {
-              ctx.drawImage(img, 0, 0, w, h)
-              const scaled = canvas.toDataURL("image/png")
-              if (scaled && scaled.length > 50 && scaled.startsWith("data:image/")) {
-                setPreview(scaled)
-                return
-              }
-            }
-          }
-          setPreview(raw)
-        }
-        img.onerror = () => setPreview(raw)
-        img.src = raw
-      }
+      setPreview(reader.result)
     }
     reader.readAsDataURL(file)
   }
@@ -168,12 +64,11 @@ export default function SignatureUploader({ level = 1 }) {
     setSaving(true)
     setError("")
     try {
-      let finalSignature = preview
-
       // 1. Sync with backend API to compute SHA-256 and lock permanently
       let backendHash = null
+      let finalSignature = preview
       try {
-        const res = await client.post("/users/signature", { signature: finalSignature })
+        const res = await client.post("/users/signature", { signature: preview })
         backendHash = res?.signatureHash || res?.data?.signatureHash || null
         if (res?.signature || res?.data?.signature) {
           finalSignature = res?.signature || res?.data?.signature
@@ -182,23 +77,24 @@ export default function SignatureUploader({ level = 1 }) {
         console.warn("Backend signature sync warning:", apiErr)
       }
 
-      // 2. Persist locally scoped to current user with quota-safe protection
+      // 2. Persist locally scoped to current user
       try {
-        if (userStorageKey) localStorage.setItem(userStorageKey, finalSignature)
-        if (user?.id) localStorage.setItem(`user_signature_${user.id}`, finalSignature)
-        if (user?.userID) localStorage.setItem(`user_signature_${user.userID}`, finalSignature)
-        if (user?.userCode) localStorage.setItem(`user_signature_${user.userCode}`, finalSignature)
+        if (userStorageKey) {
+          localStorage.setItem(userStorageKey, finalSignature)
+        }
+        if (user?.id) {
+          localStorage.setItem(`user_signature_${user.id}`, finalSignature)
+        }
         localStorage.setItem("user_signature", finalSignature)
-        const roleStr = (user?.role || "").toLowerCase()
-        if (level === 2 || roleStr.includes("leader") || roleStr.includes("deputy")) {
+        if (level === 2 || user?.role === "CLASS_LEADER" || user?.role === "CLASS_DEPUTY") {
           localStorage.setItem("user_signature_3", finalSignature)
-        } else if (level === 3 || roleStr.includes("dean")) {
+        } else if (level === 3 || user?.role === "DEAN") {
           localStorage.setItem("user_signature_2", finalSignature)
         } else {
           localStorage.setItem("user_signature_4", finalSignature)
         }
       } catch (storageErr) {
-        console.warn("LocalStorage quota warning:", storageErr)
+        console.warn("Storage quota warning:", storageErr)
       }
       registerSignature()
 
@@ -292,25 +188,9 @@ export default function SignatureUploader({ level = 1 }) {
           ) : (
             /* TRẠNG THÁI TẢI LÊN / ĐỔI ẢNH CHỮ KÝ */
             <div className="space-y-4">
-              <div
-                role="button"
-                tabIndex={0}
+              <button
+                type="button"
                 onClick={() => inputRef.current?.click()}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    inputRef.current?.click()
-                  }
-                }}
-                onDragOver={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                }}
-                onDrop={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  const file = e.dataTransfer.files?.[0]
-                  if (file) select(file)
-                }}
                 className="flex min-h-52 w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50/50 p-6 text-center hover:border-brand hover:bg-brand-soft/20 transition-all cursor-pointer"
               >
                 {preview ? (
@@ -334,22 +214,18 @@ export default function SignatureUploader({ level = 1 }) {
                       Bấm để chọn hoặc kéo thả ảnh chữ ký của bạn vào đây
                     </span>
                     <span className="mt-1 text-xs text-muted">
-                      Định dạng PNG, JPG, JPEG, WEBP (hệ thống tự động tách nền trong suốt), tối đa 10 MB
+                      Định dạng PNG, JPG, WEBP, HEIC (hệ thống tự động tách nền trong suốt), tối đa 10 MB
                     </span>
                   </>
                 )}
-              </div>
+              </button>
 
               <input
                 ref={inputRef}
                 type="file"
-                accept="image/png,image/jpeg,image/jpg,image/webp,.png,.jpg,.jpeg,.webp"
+                accept=".png,.jpg,.jpeg,.webp"
                 className="hidden"
-                onChange={(event) => {
-                  const file = event.target.files?.[0]
-                  if (file) select(file)
-                  event.target.value = ""
-                }}
+                onChange={(event) => select(event.target.files?.[0])}
               />
 
               {error && (
@@ -464,9 +340,9 @@ export default function SignatureUploader({ level = 1 }) {
         onClose={() => setConfirmLockModalOpen(false)}
         footer={
           <div className="flex items-center justify-end gap-2 w-full">
-            <CancelButton onClick={() => setConfirmLockModalOpen(false)}>
+            <Button variant="secondary" onClick={() => setConfirmLockModalOpen(false)}>
               Xem lại
-            </CancelButton>
+            </Button>
             <button
               type="button"
               disabled={saving}
@@ -486,12 +362,7 @@ export default function SignatureUploader({ level = 1 }) {
         <div className="space-y-3 py-2 text-xs text-slate-600">
           <div className="flex items-center justify-center p-4 bg-white border border-slate-200 rounded-lg min-h-[90px]">
             {preview ? (
-              <img
-                src={preview}
-                alt="Xem trước chữ ký"
-                className="max-h-24 max-w-[320px] object-contain drop-shadow-xs"
-                style={{ mixBlendMode: "multiply" }}
-              />
+              <img src={preview} alt="Xem trước chữ ký" className="max-h-24 max-w-[320px] object-contain drop-shadow-xs" style={{ mixBlendMode: "multiply" }} />
             ) : (
               <span className="text-xs text-slate-400 italic">Chưa có ảnh xem trước</span>
             )}

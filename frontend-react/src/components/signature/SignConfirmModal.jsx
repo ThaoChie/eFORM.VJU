@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from "react"
 import { Check, Signature, ShieldCheck, FileText, Award, Calendar, Paperclip, User, Upload } from "lucide-react"
 import { Button, Input, Modal } from "../ui/Primitives"
-import { normalizeSignatureImage, generateSignatureSvg, isValidSignatureImage } from "../ui/PdfViewer"
+import { normalizeSignatureImage, generateSignatureSvg } from "../ui/PdfViewer"
 
 export default function SignConfirmModal({
   open,
@@ -30,35 +30,11 @@ export default function SignConfirmModal({
   const displayName = userName || (level === 1 ? "Sinh viên" : level === 2 ? "Lớp trưởng" : "Trưởng khoa")
 
   const renderedSig = useMemo(() => {
-    const sig = currentSig || signatureImage
-    if (isValidSignatureImage(sig)) {
-      return normalizeSignatureImage(sig, displayName)
+    if (currentSig) {
+      return normalizeSignatureImage(currentSig, displayName)
     }
-    try {
-      const stored = JSON.parse(localStorage.getItem("user") || "{}")
-      if (isValidSignatureImage(stored?.signatureSpecimenUrl)) {
-        return normalizeSignatureImage(stored.signatureSpecimenUrl, displayName)
-      }
-      const uIds = [stored?.id, stored?.userID, stored?.userCode].filter(Boolean)
-      for (const id of uIds) {
-        const local = localStorage.getItem(`user_signature_${id}`)
-        if (isValidSignatureImage(local)) return normalizeSignatureImage(local, displayName)
-      }
-    } catch {}
-    try {
-      if (level === 3) {
-        const sig2 = localStorage.getItem("user_signature_2")
-        if (isValidSignatureImage(sig2)) return normalizeSignatureImage(sig2, displayName)
-      } else if (level === 2) {
-        const sig3 = localStorage.getItem("user_signature_3")
-        if (isValidSignatureImage(sig3)) return normalizeSignatureImage(sig3, displayName)
-      }
-      const legacy = localStorage.getItem("user_signature")
-      if (isValidSignatureImage(legacy)) return normalizeSignatureImage(legacy, displayName)
-    } catch {}
-    if (isValidSignatureImage(sig)) return normalizeSignatureImage(sig, displayName)
     return null
-  }, [currentSig, signatureImage, displayName, level])
+  }, [currentSig, displayName])
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0]
@@ -75,10 +51,6 @@ export default function SignConfirmModal({
         } else {
           localStorage.setItem("user_signature_4", res)
           localStorage.setItem("user_signature", res)
-        }
-        const storedUser = JSON.parse(localStorage.getItem("user") || "{}")
-        if (storedUser?.id) {
-          localStorage.setItem(`user_signature_${storedUser.id}`, res)
         }
       } catch (err) {
         console.warn("Storage warning:", err)
@@ -193,7 +165,7 @@ export default function SignConfirmModal({
         />
 
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white p-3.5 min-h-[130px]">
-          {currentSig || renderedSig ? (
+          {currentSig ? (
             <div className="text-center w-full">
               <div className="flex items-center justify-center p-2 bg-slate-50/60 rounded-lg w-full min-h-[80px]">
                 <img
