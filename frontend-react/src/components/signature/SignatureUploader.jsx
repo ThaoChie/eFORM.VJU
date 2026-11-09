@@ -129,7 +129,35 @@ export default function SignatureUploader({ level = 1 }) {
           const mime = (ext === "jpg" || ext === "jpeg") ? "image/jpeg" : ext === "webp" ? "image/webp" : "image/png"
           raw = raw.replace(/^data:[^;]*;/, `data:${mime};`)
         }
-        setPreview(raw)
+
+        // Tối ưu hóa kích thước ảnh chữ ký nếu vượt quá 900x450 để đảm bảo hiển thị tức thì và lưu trữ nhẹ nhàng
+        const img = new Image()
+        img.onload = () => {
+          let w = img.naturalWidth || img.width || 600
+          let h = img.naturalHeight || img.height || 200
+          const maxW = 900
+          const maxH = 450
+          if (w > maxW || h > maxH) {
+            const ratio = Math.min(maxW / w, maxH / h)
+            w = Math.round(w * ratio)
+            h = Math.round(h * ratio)
+            const canvas = document.createElement("canvas")
+            canvas.width = Math.max(1, w)
+            canvas.height = Math.max(1, h)
+            const ctx = canvas.getContext("2d")
+            if (ctx) {
+              ctx.drawImage(img, 0, 0, w, h)
+              const scaled = canvas.toDataURL("image/png")
+              if (scaled && scaled.length > 50 && scaled.startsWith("data:image/")) {
+                setPreview(scaled)
+                return
+              }
+            }
+          }
+          setPreview(raw)
+        }
+        img.onerror = () => setPreview(raw)
+        img.src = raw
       }
     }
     reader.readAsDataURL(file)
@@ -154,27 +182,23 @@ export default function SignatureUploader({ level = 1 }) {
         console.warn("Backend signature sync warning:", apiErr)
       }
 
-      // 2. Persist locally scoped to current user
-      if (userStorageKey) {
-        localStorage.setItem(userStorageKey, finalSignature)
-      }
-      if (user?.id) {
-        localStorage.setItem(`user_signature_${user.id}`, finalSignature)
-      }
-      if (user?.userID) {
-        localStorage.setItem(`user_signature_${user.userID}`, finalSignature)
-      }
-      if (user?.userCode) {
-        localStorage.setItem(`user_signature_${user.userCode}`, finalSignature)
-      }
-      localStorage.setItem("user_signature", finalSignature)
-      const roleStr = (user?.role || "").toLowerCase()
-      if (level === 2 || roleStr.includes("leader") || roleStr.includes("deputy")) {
-        localStorage.setItem("user_signature_3", finalSignature)
-      } else if (level === 3 || roleStr.includes("dean")) {
-        localStorage.setItem("user_signature_2", finalSignature)
-      } else {
-        localStorage.setItem("user_signature_4", finalSignature)
+      // 2. Persist locally scoped to current user with quota-safe protection
+      try {
+        if (userStorageKey) localStorage.setItem(userStorageKey, finalSignature)
+        if (user?.id) localStorage.setItem(`user_signature_${user.id}`, finalSignature)
+        if (user?.userID) localStorage.setItem(`user_signature_${user.userID}`, finalSignature)
+        if (user?.userCode) localStorage.setItem(`user_signature_${user.userCode}`, finalSignature)
+        localStorage.setItem("user_signature", finalSignature)
+        const roleStr = (user?.role || "").toLowerCase()
+        if (level === 2 || roleStr.includes("leader") || roleStr.includes("deputy")) {
+          localStorage.setItem("user_signature_3", finalSignature)
+        } else if (level === 3 || roleStr.includes("dean")) {
+          localStorage.setItem("user_signature_2", finalSignature)
+        } else {
+          localStorage.setItem("user_signature_4", finalSignature)
+        }
+      } catch (storageErr) {
+        console.warn("LocalStorage quota warning:", storageErr)
       }
       registerSignature()
 

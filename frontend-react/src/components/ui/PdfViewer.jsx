@@ -79,13 +79,12 @@ export function normalizeSignatureImage(sig, fallbackName = "Nguyễn Văn A") {
       s.includes("CONFIRMED") ||
       s.includes("DIGITALLY")
     ) {
-      return generateSignatureSvg(fallbackName)
+      return null
     }
     if (
       s.startsWith("data:image/") ||
       s.startsWith("http://") ||
       s.startsWith("https://") ||
-      s.startsWith("blob:") ||
       s.startsWith("/")
     ) {
       return s
@@ -100,7 +99,7 @@ export function normalizeSignatureImage(sig, fallbackName = "Nguyễn Văn A") {
       return `data:image/png;base64,${s}`
     }
   }
-  return generateSignatureSvg(fallbackName)
+  return null
 }
 
 // Chuyển đổi số điểm thành chữ tiếng Việt chuẩn văn bản hành chính
@@ -566,12 +565,12 @@ export default function PdfViewer({
     return null
   }, [uploadedStudentSig, studentSignature, user])
 
-  // Luôn đảm bảo sinh viên có ảnh chữ ký hiển thị trên bản in/xem trước
+  // Hiển thị chữ ký sinh viên từ ảnh thật đã đăng ký hoặc tải lên
   const studentSigImage = useMemo(() => {
     if (effectiveStudentSig) {
       return normalizeSignatureImage(effectiveStudentSig, user?.fullName || "Sinh viên")
     }
-    return generateSignatureSvg(user?.fullName || "Sinh viên")
+    return null
   }, [effectiveStudentSig, user?.fullName])
 
   // Class leader signature resolution: priority to uploaded image, then explicit prop or storage
@@ -597,8 +596,8 @@ export default function PdfViewer({
     if (effectiveClassSig) {
       return normalizeSignatureImage(effectiveClassSig, classLeaderName || "Lớp trưởng")
     }
-    return classSignature ? generateSignatureSvg(classLeaderName || "Lớp trưởng") : null
-  }, [effectiveClassSig, classSignature, classLeaderName])
+    return null
+  }, [effectiveClassSig, classLeaderName])
 
   // Dean signature resolution: priority to uploaded image, then explicit prop or storage
   const effectiveDeanSig = useMemo(() => {
@@ -623,8 +622,8 @@ export default function PdfViewer({
     if (effectiveDeanSig) {
       return normalizeSignatureImage(effectiveDeanSig, deanName || "Trưởng Khoa CNTT")
     }
-    return deanSignature ? generateSignatureSvg(deanName || "Trưởng Khoa CNTT") : null
-  }, [effectiveDeanSig, deanSignature, deanName])
+    return null
+  }, [effectiveDeanSig, deanName])
 
   // Chuẩn hóa tên học kỳ: loại bỏ phần năm học bị trùng lặp (ví dụ "Học kỳ 2 Năm 2026-2027" -> "Học kỳ 2")
   const displaySemester = useMemo(() => {
@@ -913,7 +912,9 @@ export default function PdfViewer({
                 <div className="font-bold uppercase tracking-wide text-black">SINH VIÊN</div>
                 <div className="text-[12px] italic text-black">(Ký và ghi rõ họ tên)</div>
                 <div
-                  className="h-16 flex items-center justify-center my-0.5"
+                  className="h-16 flex items-center justify-center my-0.5 cursor-pointer hover:bg-slate-50/70 rounded transition"
+                  onClick={() => studentFileInputRef.current?.click()}
+                  title="Bấm để tải/thay đổi ảnh chữ ký sinh viên"
                 >
                   {studentSigImage ? (
                     <div className="flex flex-col items-center">
@@ -922,14 +923,10 @@ export default function PdfViewer({
                         alt="Chữ ký Sinh viên"
                         className="mx-auto max-h-12 max-w-[150px] object-contain drop-shadow-xs"
                         style={{ mixBlendMode: "multiply" }}
-                        onError={(e) => {
-                          e.currentTarget.onerror = null;
-                          e.currentTarget.src = generateSignatureSvg(user?.fullName || "Nguyễn Văn A");
-                        }}
                       />
                     </div>
                   ) : (
-                    <span className="text-black/60 italic text-xs">— (Chưa ký) —</span>
+                    <span className="text-black/60 italic text-xs hover:text-brand cursor-pointer">— (Bấm để tải chữ ký) —</span>
                   )}
                 </div>
                 <div className="font-bold text-[13px] mt-0.5 text-black">{user?.fullName || "Nguyễn Văn A"}</div>
@@ -990,7 +987,9 @@ export default function PdfViewer({
                   <tr className="h-16 align-middle text-black">
                     {/* Ô KÝ CÁN BỘ LỚP */}
                     <td
-                      className="p-1 align-middle text-black"
+                      className="p-1 align-middle text-black cursor-pointer hover:bg-slate-50/70 rounded transition"
+                      onClick={() => classFileInputRef.current?.click()}
+                      title="Bấm để tải/thay đổi ảnh chữ ký Cán bộ lớp"
                     >
                       {classSigImage ? (
                         <div className="flex flex-col items-center justify-center">
@@ -999,20 +998,18 @@ export default function PdfViewer({
                             alt="Chữ ký Cán bộ lớp"
                             className="mx-auto max-h-12 max-w-[150px] object-contain drop-shadow-xs"
                             style={{ mixBlendMode: "multiply" }}
-                            onError={(e) => {
-                              e.currentTarget.onerror = null;
-                              e.currentTarget.src = generateSignatureSvg(classLeaderName || "Nguyễn Văn B");
-                            }}
                           />
                         </div>
                       ) : (
-                        <span className="text-black/60 italic text-xs">— (Chờ duyệt) —</span>
+                        <span className="text-black/60 italic text-xs hover:text-brand">— (Chờ duyệt) —</span>
                       )}
                     </td>
 
                     {/* Ô KÝ GIÁO VIÊN CHỦ NHIỆM */}
                     <td
-                      className="p-1 align-middle text-black"
+                      className="p-1 align-middle text-black cursor-pointer hover:bg-slate-50/70 rounded transition"
+                      onClick={() => deanFileInputRef.current?.click()}
+                      title="Bấm để tải/thay đổi ảnh chữ ký GVCN / Khoa"
                     >
                       {deanSigImage ? (
                         <div className="flex flex-col items-center justify-center">
@@ -1021,14 +1018,10 @@ export default function PdfViewer({
                             alt="Chữ ký Giáo viên chủ nhiệm"
                             className="mx-auto max-h-12 max-w-[150px] object-contain drop-shadow-xs"
                             style={{ mixBlendMode: "multiply" }}
-                            onError={(e) => {
-                              e.currentTarget.onerror = null;
-                              e.currentTarget.src = generateSignatureSvg(deanName || "Trưởng Khoa CNTT");
-                            }}
                           />
                         </div>
                       ) : (
-                        <span className="text-black/60 italic text-xs">— (Chờ duyệt) —</span>
+                        <span className="text-black/60 italic text-xs hover:text-brand">— (Chờ duyệt) —</span>
                       )}
                     </td>
                   </tr>

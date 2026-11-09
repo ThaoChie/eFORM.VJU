@@ -57,7 +57,7 @@ export default function SignConfirmModal({
       if (isValidSignatureImage(legacy)) return normalizeSignatureImage(legacy, displayName)
     } catch {}
     if (isValidSignatureImage(sig)) return normalizeSignatureImage(sig, displayName)
-    return generateSignatureSvg(displayName)
+    return null
   }, [currentSig, signatureImage, displayName, level])
 
   const handleFileChange = (e) => {
@@ -72,6 +72,13 @@ export default function SignConfirmModal({
           localStorage.setItem("user_signature_3", res)
         } else if (level === 3) {
           localStorage.setItem("user_signature_2", res)
+        } else {
+          localStorage.setItem("user_signature_4", res)
+          localStorage.setItem("user_signature", res)
+        }
+        const storedUser = JSON.parse(localStorage.getItem("user") || "{}")
+        if (storedUser?.id) {
+          localStorage.setItem(`user_signature_${storedUser.id}`, res)
         }
       } catch (err) {
         console.warn("Storage warning:", err)
@@ -190,14 +197,10 @@ export default function SignConfirmModal({
             <div className="text-center w-full">
               <div className="flex items-center justify-center p-2 bg-slate-50/60 rounded-lg w-full min-h-[80px]">
                 <img
-                  src={renderedSig}
+                  src={renderedSig || currentSig}
                   alt={`Chữ ký ${displayName}`}
                   className="max-h-20 max-w-[260px] object-contain drop-shadow-xs"
                   style={{ mixBlendMode: "multiply" }}
-                  onError={(e) => {
-                    e.currentTarget.onerror = null
-                    e.currentTarget.src = generateSignatureSvg(displayName)
-                  }}
                 />
               </div>
               <div className="mt-2 flex items-center justify-center gap-1.5 text-xs text-slate-600 font-medium">
