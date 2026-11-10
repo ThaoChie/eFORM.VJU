@@ -10,6 +10,7 @@ import {
   IconButton,
   Modal,
   PageTitle,
+  Pagination,
   Table,
 } from "../../components/ui/Primitives"
 import { submissionService } from "../../services/submission-service"
@@ -21,6 +22,8 @@ export default function HistoryPage() {
 
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
   const [loadingFormId, setLoadingFormId] = useState(null)
   const [selectedForm, setSelectedForm] = useState(null)
   const [pdfModalOpen, setPdfModalOpen] = useState(false)
@@ -139,14 +142,15 @@ export default function HistoryPage() {
           </Button>
         </Card>
       ) : (
-        <Table
-          rows={rows}
-          columns={[
-            {
-              key: "stt",
-              title: "STT",
-              render: (_, i) => <span className="font-mono text-slate-600">{i + 1}</span>,
-            },
+        <div>
+          <Table
+            rows={rows.slice((page - 1) * pageSize, page * pageSize)}
+            columns={[
+              {
+                key: "stt",
+                title: "STT",
+                render: (_, i) => <span className="font-mono text-slate-600">{(page - 1) * pageSize + i + 1}</span>,
+              },
             {
               key: "semesterName",
               title: "Học kỳ",
@@ -229,6 +233,17 @@ export default function HistoryPage() {
             },
           ]}
         />
+
+        {/* Phân trang chuẩn hệ thống */}
+        <Pagination
+          currentPage={page}
+          pageSize={pageSize}
+          totalItems={rows.length}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+          className="mt-4 rounded-xl border border-line"
+        />
+      </div>
       )}
 
       {/* MODAL XEM CHI TIẾT PHIẾU PDF CHUẨN */}

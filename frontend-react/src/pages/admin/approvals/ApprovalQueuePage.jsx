@@ -8,6 +8,7 @@ import {
   ConfirmButton,
   Modal,
   PageTitle,
+  Pagination,
   Table,
   Textarea,
 } from "../../../components/ui/Primitives"
@@ -29,6 +30,8 @@ export default function ApprovalQueuePage() {
   const [activeTab, setActiveTab] = useState("PENDING") // PENDING | ALL
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
   const [detail, setDetail] = useState(null)
   const [reason, setReason] = useState("")
   const [processing, setProcessing] = useState(false)
@@ -138,7 +141,7 @@ export default function ApprovalQueuePage() {
 
       <Table
         loading={loading}
-        rows={data}
+        rows={data.slice((page - 1) * pageSize, page * pageSize)}
         onRow={(r) => {
           setDetail(r)
           setReason("")
@@ -216,6 +219,16 @@ export default function ApprovalQueuePage() {
             ),
           },
         ]}
+      />
+
+      {/* Phân trang chuẩn hệ thống */}
+      <Pagination
+        currentPage={page}
+        pageSize={pageSize}
+        totalItems={data.length}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+        className="mt-4 rounded-xl border border-line"
       />
 
       {/* Modal chi tiết & phê duyệt */}

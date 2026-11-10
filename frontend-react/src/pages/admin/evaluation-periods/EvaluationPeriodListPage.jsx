@@ -42,6 +42,8 @@ import {
 export default function EvaluationPeriodListPage() {
   const [periods, setPeriods] = useState([])
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
 
   // Filter & Search states
   const [keyword, setKeyword] = useState("")
@@ -630,12 +632,17 @@ export default function EvaluationPeriodListPage() {
       })()}
 
       {/* Periods Table */}
-      <Table columns={columns} rows={periods} loading={loading} />
+      <Table columns={columns} rows={periods.slice((page - 1) * pageSize, page * pageSize)} loading={loading} />
 
-      <div className="mt-3 flex justify-between text-xs text-muted">
-        <span>Hiển thị {periods.length} kỳ chấm</span>
-        <span>Trang 1 / 1</span>
-      </div>
+      {/* Phân trang chuẩn hệ thống */}
+      <Pagination
+        currentPage={page}
+        pageSize={pageSize}
+        totalItems={periods.length}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+        className="mt-4 rounded-xl border border-line"
+      />
 
       {/* ========================================================================= */}
       {/* 1. Modal: Mở kỳ mới (C) */}

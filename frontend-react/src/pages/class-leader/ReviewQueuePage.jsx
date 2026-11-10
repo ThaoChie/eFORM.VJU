@@ -1,13 +1,15 @@
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useReviewStore } from "../../stores/useReviewStore"
 import StatusTag from "../../components/ui/StatusTag"
-import { ActionViewButton, Button, PageTitle, Table } from "../../components/ui/Primitives"
+import { ActionViewButton, Button, PageTitle, Pagination, Table } from "../../components/ui/Primitives"
 import { Inbox, RefreshCw } from "lucide-react"
 
 export default function ReviewQueuePage() {
   const navigate = useNavigate()
   const { items, loading, load } = useReviewStore()
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
 
   useEffect(() => {
     load()
@@ -54,10 +56,11 @@ export default function ReviewQueuePage() {
           </p>
         </div>
       ) : (
-        <Table
-          rows={items}
-          onRow={(r) => navigate(`/class-leader/review/${r.id}`)}
-          columns={[
+        <div>
+          <Table
+            rows={items.slice((page - 1) * pageSize, page * pageSize)}
+            onRow={(r) => navigate(`/class-leader/review/${r.id}`)}
+            columns={[
             { key: "stt", title: "STT", render: (_, i) => i + 1 },
             {
               key: "name",
@@ -106,6 +109,17 @@ export default function ReviewQueuePage() {
             },
           ]}
         />
+
+        {/* Phân trang chuẩn hệ thống */}
+        <Pagination
+          currentPage={page}
+          pageSize={pageSize}
+          totalItems={items.length}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+          className="mt-4 rounded-xl border border-line"
+        />
+      </div>
       )}
     </>
   )

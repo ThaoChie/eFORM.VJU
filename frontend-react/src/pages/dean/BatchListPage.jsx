@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { Layers, ArrowRight, RefreshCw } from "lucide-react"
-import { ActionViewButton, Button, Card, PageTitle, Table } from "../../components/ui/Primitives"
+import { ActionViewButton, Button, Card, PageTitle, Pagination, Table } from "../../components/ui/Primitives"
 import { batchService } from "../../services/batch-service"
 
 export default function BatchListPage() {
   const navigate = useNavigate()
   const [batches, setBatches] = useState([])
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
 
   const fetchBatches = async () => {
     setLoading(true)
@@ -63,8 +65,9 @@ export default function BatchListPage() {
           <p className="text-sm text-slate-500 mt-1">Hiện chưa có lớp nào có phiếu được nộp hoặc chuyển lên cấp Khoa.</p>
         </Card>
       ) : (
-        <Table
-          rows={batches}
+        <div>
+          <Table
+            rows={batches.slice((page - 1) * pageSize, page * pageSize)}
           columns={[
             {
               key: "class",
@@ -174,6 +177,17 @@ export default function BatchListPage() {
             },
           ]}
         />
+
+        {/* Phân trang chuẩn hệ thống */}
+        <Pagination
+          currentPage={page}
+          pageSize={pageSize}
+          totalItems={batches.length}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+          className="mt-4 rounded-xl border border-line"
+        />
+      </div>
       )}
     </>
   )
