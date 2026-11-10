@@ -321,13 +321,13 @@ export default function BatchDetailPage() {
             <PdfViewer
               user={{
                 fullName: activeDetail?.studentName || currentForm?.name || "Sinh viên",
-                userID: activeDetail?.studentCode || currentForm?.code || "SV2026",
-                userCode: activeDetail?.studentCode || currentForm?.code || "SV2026",
-                className: activeDetail?.className || currentForm?.className || classNameInfo || "",
-                majorName: activeDetail?.majorName || "Công nghệ Thông tin",
-                facultyName: activeDetail?.departmentName || "Khoa Công nghệ Thông tin",
-                academicCohort: activeDetail?.academicCohort || "2023 - 2027",
-                dob: activeDetail?.dob || "15/09/2004",
+                userID: activeDetail?.studentCode || currentForm?.code || "—",
+                userCode: activeDetail?.studentCode || currentForm?.code || "—",
+                className: activeDetail?.className || currentForm?.className || classNameInfo || "—",
+                majorName: activeDetail?.majorName || "—",
+                facultyName: activeDetail?.departmentName || "—",
+                academicCohort: activeDetail?.academicCohort || "—",
+                dob: activeDetail?.dob || "",
               }}
               semesterName={activeDetail?.semesterName || "Học kỳ 1"}
               academicYear="2026 - 2027"

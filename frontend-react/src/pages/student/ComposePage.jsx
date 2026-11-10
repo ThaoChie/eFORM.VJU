@@ -450,11 +450,11 @@ export default function ComposePage() {
   // Student details info (Ánh xạ chuẩn theo Lớp học và Người dùng)
   const studentFullName = user?.fullName || "Sinh viên"
   const studentCode = user?.userID || user?.userCode || "—"
-  const studentClass = user?.className || "—"
-  const studentMajor = user?.majorName || "Công nghệ Thông tin"
-  const studentCohort = user?.academicCohort || "2023 - 2027"
-  const studentDob = user?.dob || "15/09/2004"
-  const studentFaculty = user?.facultyName || user?.departmentName || "Khoa Công nghệ Thông tin"
+  const studentClass = user?.className || user?.classCode || "—"
+  const studentMajor = user?.majorName || user?.major || "—"
+  const studentCohort = user?.academicCohort || user?.cohort || "—"
+  const studentDob = user?.dob || ""
+  const studentFaculty = user?.facultyName || user?.departmentName || "—"
   const semesterTitle = semester?.semesterName || "Học kỳ đánh giá rèn luyện"
 
   // Status badge config

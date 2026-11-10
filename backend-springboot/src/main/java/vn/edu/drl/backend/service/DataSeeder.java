@@ -182,8 +182,12 @@ public class DataSeeder implements CommandLineRunner {
                         u.setAcademicCohort(uc.getAcademicCohort());
                         changed = true;
                     }
-                    if (uc.getMajor() != null && u.getMajor() == null) {
+                    if (uc.getMajor() != null && (u.getMajor() == null || !u.getMajor().getId().equals(uc.getMajor().getId()))) {
                         u.setMajor(uc.getMajor());
+                        changed = true;
+                    }
+                    if (uc.getDepartment() != null && (u.getDepartment() == null || !u.getDepartment().getId().equals(uc.getDepartment().getId()))) {
+                        u.setDepartment(uc.getDepartment());
                         changed = true;
                     }
                 }

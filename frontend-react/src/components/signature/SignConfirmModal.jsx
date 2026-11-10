@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react"
-import { Check, Signature, ShieldCheck, FileText, Award, Calendar, Paperclip, User, Upload } from "lucide-react"
+import { Check, Signature, ShieldCheck, FileText, Award, Calendar, Paperclip, User, Upload, Lock, AlertCircle } from "lucide-react"
 import { Button, Input, Modal } from "../ui/Primitives"
 import { normalizeSignatureImage } from "../ui/PdfViewer"
 
@@ -18,7 +18,6 @@ export default function SignConfirmModal({
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
-  const fileInputRef = useRef(null)
   const [currentSig, setCurrentSig] = useState(signatureImage)
 
   useEffect(() => {
@@ -36,28 +35,6 @@ export default function SignConfirmModal({
     return null
   }, [currentSig, displayName])
 
-  const handleFileChange = (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = () => {
-      const res = reader.result
-      setCurrentSig(res)
-      try {
-        if (level === 2) {
-          localStorage.setItem("user_signature_3", res)
-        } else if (level === 3) {
-          localStorage.setItem("user_signature_2", res)
-        } else {
-          localStorage.setItem("user_signature_4", res)
-          localStorage.setItem("user_signature", res)
-        }
-      } catch (err) {
-        console.warn("Storage warning:", err)
-      }
-    }
-    reader.readAsDataURL(file)
-  }
 
   const submit = async () => {
     if (!checked) return setError("Vui lòng xác nhận đã xem xét nội dung")
@@ -155,16 +132,8 @@ export default function SignConfirmModal({
           </div>
         )}
 
-        {/* VÙNG HIỂN THỊ CHỮ KÝ ĐIỆN TỬ */}
-        <input
-          type="file"
-          ref={fileInputRef}
-          accept="image/png,image/jpeg,image/jpg,image/webp"
-          className="hidden"
-          onChange={handleFileChange}
-        />
-
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white p-3.5 min-h-[130px]">
+        {/* VÙNG HIỂN THỊ CHỮ KÝ ĐIỆN TỬ (ĐÃ KHÓA BẢO MẬT, KHÔNG CHO THAY THẾ) */}
+        <div className="flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-white p-3.5 min-h-[120px]">
           {currentSig ? (
             <div className="text-center w-full">
               <div className="flex items-center justify-center p-2 bg-slate-50/60 rounded-lg w-full min-h-[80px]">
@@ -179,30 +148,30 @@ export default function SignConfirmModal({
                 <ShieldCheck className="size-3.5 text-emerald-600 shrink-0" />
                 <span>Chữ ký số đã xác thực · {displayName} ({labels[level]})</span>
               </div>
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="mt-1.5 text-xs font-semibold text-brand hover:underline inline-flex items-center gap-1"
-              >
-                <Upload className="size-3" />
-                <span>Chọn ảnh chữ ký khác từ máy tính</span>
-              </button>
+              <div className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-slate-500 bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-full select-none">
+                <Lock className="size-3 text-slate-400" />
+                <span>Chữ ký chính chủ đã khóa bảo mật (Không thể thay đổi)</span>
+              </div>
             </div>
           ) : (
-            <div className="text-center py-2">
-              <Signature className="mx-auto size-6 text-slate-400 mb-1" />
-              <div className="signature-stroke text-2xl text-slate-800">
-                {displayName}
-              </div>
-              <div className="mt-1 text-xs text-slate-400">Ô ký {labels[level]}</div>
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="mt-2 text-xs font-semibold text-brand hover:underline inline-flex items-center gap-1"
-              >
-                <Upload className="size-3" />
-                <span>Tải ảnh chữ ký từ máy tính</span>
-              </button>
+            <div className="text-center py-3">
+              <AlertCircle className="mx-auto size-6 text-amber-500 mb-1.5" />
+              <div className="font-semibold text-slate-800 text-xs">Chưa có chữ ký điện tử chính chủ</div>
+              <p className="mt-1 text-[11px] text-slate-500 max-w-xs mx-auto">
+                Quy chuẩn bảo mật yêu cầu đăng ký mẫu chữ ký chính chủ một lần tại trang Chữ ký của tôi. Chữ ký sau khi đăng ký sẽ bất biến và gắn liền với tài khoản.
+              </p>
+              {onNavigateToSignature && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose?.()
+                    onNavigateToSignature()
+                  }}
+                  className="mt-2 text-xs font-semibold text-brand hover:underline inline-flex items-center gap-1"
+                >
+                  <span>Đến trang Chữ ký của tôi để đăng ký</span>
+                </button>
+              )}
             </div>
           )}
         </div>

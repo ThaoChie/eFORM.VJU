@@ -60,7 +60,7 @@ export function generateSignatureSvg(name = "Nguyễn Văn A") {
 }
 
 export function formatDob(dateVal) {
-  if (!dateVal) return "15/09/2004"
+  if (!dateVal || String(dateVal).trim() === "") return "—"
   try {
     const s = String(dateVal).trim()
     if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
@@ -713,9 +713,9 @@ export default function PdfViewer({
               </div>
               <div className="flex flex-wrap justify-between">
                 <span>Lớp: <b>{user?.className || user?.classCode || "—"}</b></span>
-                <span>Ngành: <b>{user?.majorName || user?.major || "Công nghệ Thông tin"}</b></span>
-                <span>Khóa: <b>{user?.academicCohort || user?.cohort || "2023 - 2027"}</b></span>
-                <span>Khoa: <b>{user?.facultyName || user?.departmentName || "Khoa Công nghệ Thông tin"}</b></span>
+                <span>Ngành: <b>{user?.majorName || user?.major || "—"}</b></span>
+                <span>Khóa: <b>{user?.academicCohort || user?.cohort || "—"}</b></span>
+                <span>Khoa: <b>{user?.facultyName || user?.departmentName || "—"}</b></span>
               </div>
             </div>
 
@@ -821,6 +821,7 @@ export default function PdfViewer({
                         src={displayStudentSig}
                         alt="Chữ ký Sinh viên"
                         className="mx-auto max-h-12 max-w-[150px] object-contain"
+                        style={{ mixBlendMode: "multiply" }}
                       />
                     </div>
                   ) : (
@@ -894,6 +895,7 @@ export default function PdfViewer({
                             src={displayClassSig}
                             alt="Chữ ký Cán bộ lớp"
                             className="mx-auto max-h-12 max-w-[150px] object-contain"
+                            style={{ mixBlendMode: "multiply" }}
                           />
                         </div>
                       ) : (
@@ -912,6 +914,7 @@ export default function PdfViewer({
                             src={displayDeanSig}
                             alt="Chữ ký Giáo viên chủ nhiệm"
                             className="mx-auto max-h-12 max-w-[150px] object-contain"
+                            style={{ mixBlendMode: "multiply" }}
                           />
                         </div>
                       ) : (

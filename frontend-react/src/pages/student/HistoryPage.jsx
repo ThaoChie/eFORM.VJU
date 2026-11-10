@@ -263,10 +263,10 @@ export default function HistoryPage() {
               userID: user?.userID || user?.userCode || "—",
               userCode: user?.userCode || user?.userID || "—",
               className: user?.className || "—",
-              majorName: user?.majorName || "Công nghệ Thông tin",
-              facultyName: user?.facultyName || user?.departmentName || "Khoa Công nghệ Thông tin",
-              academicCohort: user?.academicCohort || "2023 - 2027",
-              dob: user?.dob || "15/09/2004",
+              majorName: user?.majorName || "—",
+              facultyName: user?.facultyName || user?.departmentName || "—",
+              academicCohort: user?.academicCohort || "—",
+              dob: user?.dob || "",
               signatureSpecimenUrl: selectedForm.studentSignature || user?.signatureSpecimenUrl,
             }}
             semesterName={selectedForm.semesterName}

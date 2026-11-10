@@ -7,7 +7,7 @@ CREATE INDEX IF NOT EXISTS idx_signature_logs_signer_id ON signature_logs(signer
 
 -- 2. Index cho bảng audit_logs
 CREATE INDEX IF NOT EXISTS idx_audit_logs_score_form_id ON audit_logs(score_form_id);
-CREATE INDEX IF NOT EXISTS idx_audit_logs_eval_period_id ON audit_logs(evaluation_period_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_period_id ON audit_logs(period_id);
 
 -- 3. Index cho bảng score_forms
 CREATE INDEX IF NOT EXISTS idx_score_forms_form_version_id ON score_forms(form_version_id);

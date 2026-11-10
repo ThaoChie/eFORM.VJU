@@ -453,13 +453,13 @@ export default function ReviewDetailPage() {
                 studentTotal={detail?.studentTotal}
                 classTotal={total}
                 user={{
-                  fullName: detail?.studentName || "Nguyễn Văn A",
-                  userCode: detail?.studentCode || "SV2026001",
-                  className: detail?.className || "IT01",
-                  majorName: detail?.majorName || "Công nghệ Thông tin",
-                  facultyName: detail?.departmentName || "Khoa Công nghệ Thông tin",
-                  academicCohort: detail?.academicCohort || "2023 - 2027",
-                  dob: detail?.dob || "15/09/2004",
+                  fullName: detail?.studentName || "Sinh viên",
+                  userCode: detail?.studentCode || "—",
+                  className: detail?.className || "—",
+                  majorName: detail?.majorName || "—",
+                  facultyName: detail?.departmentName || "—",
+                  academicCohort: detail?.academicCohort || "—",
+                  dob: detail?.dob || "",
                 }}
                 semesterName={detail?.semesterName || "Học kỳ 1"}
                 academicYear="2026 - 2027"
