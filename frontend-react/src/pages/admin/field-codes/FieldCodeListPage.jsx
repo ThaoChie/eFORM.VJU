@@ -11,7 +11,6 @@ import {
   PageTitle,
   Select,
   Table,
-  Pagination,
   Modal
 } from "../../../components/ui/Primitives"
 import { client } from "../../../lib/axios/client"
@@ -38,9 +37,7 @@ export default function FieldCodeListPage() {
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
   const [totalPages, setTotalPages] = useState(1)
-  const [totalElements, setTotalElements] = useState(0)
   const [colConfig, setColConfig] = useState(false)
   const [hiddenCols, setHiddenCols] = useState({})
   const [importExcel, setImportExcel] = useState(false)
@@ -60,10 +57,9 @@ export default function FieldCodeListPage() {
   const fetchFields = async () => {
     setLoading(true);
     try {
-      const res = await client.get("/fields", { params: { page: page - 1, size: pageSize } });
+      const res = await client.get("/fields", { params: { page: page - 1, size: 10 } });
       setData(res.content || []);
       setTotalPages(res.totalPages || 1);
-      setTotalElements(res.totalElements || (res.totalPages ? res.totalPages * pageSize : res.content?.length || 0));
     } catch (e) {
       toast.error("Lỗi tải danh sách trường thông tin");
     } finally {
@@ -73,7 +69,7 @@ export default function FieldCodeListPage() {
 
   useEffect(() => {
     fetchFields();
-  }, [page, pageSize]);
+  }, [page]);
 
   const toggleStatus = async (id) => {
     if (togglingId) return;
@@ -257,15 +253,28 @@ export default function FieldCodeListPage() {
           loading={loading}
         />
         
-        <Pagination
-          currentPage={page}
-          pageSize={pageSize}
-          totalItems={totalElements || filteredData.length}
-          pageSizeOptions={[10, 25, 50]}
-          onPageChange={setPage}
-          onPageSizeChange={setPageSize}
-          className="mt-4 rounded-lg border shadow-xs"
-        />
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between border-t border-line px-4 py-3 bg-white mt-4 rounded-lg border shadow-sm">
+            <span className="text-sm text-muted">Tổng số {filteredData.length} trường dữ liệu</span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                disabled={page === 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                <ChevronLeft className="size-4" />
+              </Button>
+              <span className="text-sm font-medium px-2">Trang {page} / {totalPages}</span>
+              <Button
+                variant="ghost"
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              >
+                <ChevronRight className="size-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
       <Modal open={colConfig} title="Cấu hình cột hiển thị" onClose={() => setColConfig(false)} footer={<Button variant="primary" onClick={() => setColConfig(false)}>Xong</Button>}>
         <div className="space-y-3">

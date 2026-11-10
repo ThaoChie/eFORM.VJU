@@ -25,7 +25,6 @@ import {
   PageTitle,
   Select,
   Table,
-  Pagination,
   Modal,
   Textarea
 } from "../../../components/ui/Primitives"
@@ -49,7 +48,7 @@ export default function FormVersionListPage() {
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const pageSize = 10
 
   // Filter options
   const [semesters, setSemesters] = useState([])
@@ -483,16 +482,29 @@ export default function FormVersionListPage() {
           loading={loading}
         />
 
-        {/* Phân trang chuẩn */}
-        <Pagination
-          currentPage={page}
-          pageSize={pageSize}
-          totalItems={filteredData.length}
-          pageSizeOptions={[10, 25, 50]}
-          onPageChange={setPage}
-          onPageSizeChange={setPageSize}
-          className="mt-4 rounded-lg border shadow-xs"
-        />
+        {/* Phân trang */}
+        <div className="mt-4 flex items-center justify-between rounded-lg border border-line bg-white px-4 py-3 shadow-sm">
+          <span className="text-sm text-muted">
+            Tổng số {filteredData.length} phiên bản
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              disabled={page === 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              <ChevronLeft className="size-4" />
+            </Button>
+            <span className="text-sm font-medium px-2">Trang {page} / {totalPages}</span>
+            <Button
+              variant="ghost"
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            >
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Modal: Xem chi tiết danh sách các version của biểu mẫu */}

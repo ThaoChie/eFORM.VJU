@@ -11,15 +11,12 @@ import {
   PageTitle,
   Select,
   Table,
-  Pagination,
 } from "../../components/ui/Primitives"
 
 export default function PendingListPage() {
   const navigate = useNavigate()
   const { status, scoreFormId, semester, lastSavedText, fetchFormData } = useSubmissionStore()
   const [activeTab, setActiveTab] = useState("PROCESSING") // "PROCESSING" | "WAITING"
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
 
   useEffect(() => {
     fetchFormData().catch(() => {})
@@ -130,15 +127,10 @@ export default function PendingListPage() {
         ]}
       />
 
-      <Pagination
-        currentPage={page}
-        pageSize={pageSize}
-        totalItems={displayRows.length}
-        pageSizeOptions={[10, 25, 50]}
-        onPageChange={setPage}
-        onPageSizeChange={setPageSize}
-        className="mt-3 rounded-lg border shadow-xs"
-      />
+      <div className="mt-3 flex justify-between text-xs text-muted">
+        <span>Hiển thị {displayRows.length} bản ghi</span>
+        <span>Trang 1 / 1</span>
+      </div>
     </>
   )
 }
