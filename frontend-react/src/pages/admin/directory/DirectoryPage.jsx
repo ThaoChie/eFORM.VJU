@@ -287,38 +287,15 @@ export default function DirectoryPage() {
   } else if (active === "users") {
     columns = [
       { key: "stt", title: "STT", render: (_, i) => i + 1 },
-      { key: "userCode", title: "Mã người dùng", render: (r) => <code className="font-mono">{r.userCode}</code> },
-      { key: "fullName", title: "Họ và tên" },
-      { key: "dob", title: "Ngày sinh", render: (r) => r.dob || "—" },
-      { key: "email", title: "Email" },
-      { key: "major", title: "Ngành", render: (r) => r.majorName || "—" },
-      { key: "department", title: "Khoa/Phòng", render: (r) => r.deptName || r.officeName || "Không có" },
+      { key: "userCode", title: "Mã người dùng", render: (r) => r.userCode ? <code className="font-mono">{r.userCode}</code> : <span className="text-muted">—</span> },
+      { key: "fullName", title: "Họ và tên", render: (r) => r.fullName || <span className="text-muted">—</span> },
+      { key: "dob", title: "Ngày sinh", render: (r) => r.dob || <span className="text-muted">—</span> },
+      { key: "email", title: "Email", render: (r) => r.email || <span className="text-muted">—</span> },
+      { key: "major", title: "Ngành", render: (r) => r.majorName || <span className="text-muted">—</span> },
+      { key: "department", title: "Khoa/Phòng", render: (r) => r.deptName || r.officeName || <span className="text-muted">—</span> },
       { key: "role", title: "Vai trò" },
       { key: "status", title: "Trạng thái", render: (r) => renderStatus(r.status === 1 ? "Đang hoạt động" : "Vô hiệu hóa") },
-      { key: "action", title: "Thao tác", render: (r) => (
-        <div className="flex">
-          {r.status === 1 && (
-            <IconButton label="Sửa" onClick={() => setForm({ mode: 'edit', ...r })}>
-              <Pencil className="size-4" />
-            </IconButton>
-          )}
-          {r.status === 1 ? (
-            <IconButton label="Vô hiệu hóa" onClick={async () => {
-              try { const { client } = await import("../../../lib/axios/client"); await client.put(`/${active}/${r.id}/toggle-status`); fetchItems(active); } 
-              catch (e) { toast.error(e.response?.data?.message || "Không thể vô hiệu hóa"); }
-            }}>
-              <CircleOff className="size-4" />
-            </IconButton>
-          ) : (
-            <IconButton label="Kích hoạt" onClick={async () => {
-              try { const { client } = await import("../../../lib/axios/client"); await client.put(`/${active}/${r.id}/toggle-status`); fetchItems(active); } 
-              catch (e) { toast.error("Lỗi kích hoạt"); }
-            }}>
-              <CheckCircle className="size-4 text-green-500" />
-            </IconButton>
-          )}
-        </div>
-      )}
+      { key: "action", title: "Thao tác", render: actionButtons },
     ];
     rows = items.map(item => {
       const cls = classes.find(c => c.id === (item.classId || item.classEntity?.id));

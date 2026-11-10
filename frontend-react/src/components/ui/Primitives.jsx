@@ -401,20 +401,119 @@ export function Modal({
   )
 }
 
-export function Table({ columns, rows = [], onRow, loading = false }) {
+export function Table({
+  columns = [],
+  rows = [],
+  onRow,
+  loading = false,
+  emptyMessage = "Không có dữ liệu",
+  stickyFirstColumns = true,
+}) {
+  const isSttFirst =
+    columns[0]?.key?.toLowerCase() === "stt" ||
+    columns[0]?.title?.trim()?.toUpperCase() === "STT";
+
+  // Calculate sticky and width for each column
+  const STT_WIDTH = 64;
+  const CODE_WIDTH = 150;
+  const NAME_WIDTH = 220;
+
+  const colConfigs = columns.map((col, idx) => {
+    let isSticky = false;
+    let stickyLeft = 0;
+    let isLastSticky = false;
+
+    if (col.sticky !== undefined) {
+      isSticky = Boolean(col.sticky);
+    } else if (stickyFirstColumns && isSttFirst && idx < 3 && columns.length > 3) {
+      isSticky = true;
+    }
+
+    if (isSticky) {
+      if (idx === 0) {
+        stickyLeft = 0;
+      } else if (idx === 1) {
+        stickyLeft = STT_WIDTH;
+      } else if (idx === 2) {
+        stickyLeft = STT_WIDTH + CODE_WIDTH;
+        isLastSticky = true;
+      }
+    }
+
+    // Determine generous width
+    const key = (col.key || "").toLowerCase();
+    const title = (col.title || "").toLowerCase();
+    let widthClass = "min-w-[170px]";
+
+    if (col.width) {
+      widthClass = col.width;
+    } else if (idx === 0 && (isSttFirst || key === "stt")) {
+      widthClass = "w-16 min-w-[64px] max-w-[64px] text-center";
+    } else if (idx === 1 && isSticky) {
+      widthClass = "w-40 min-w-[150px]";
+    } else if (idx === 2 && isSticky) {
+      widthClass = "w-56 min-w-[220px]";
+    } else if (title.includes("ngày sinh") || key.includes("dob") || key.includes("date")) {
+      widthClass = "min-w-[130px]";
+    } else if (title.includes("email") || key.includes("email")) {
+      widthClass = "min-w-[220px]";
+    } else if (title.includes("ngành") || key.includes("major")) {
+      widthClass = "min-w-[220px]";
+    } else if (
+      title.includes("khoa") ||
+      title.includes("phòng") ||
+      key.includes("dept") ||
+      key.includes("department") ||
+      key.includes("office")
+    ) {
+      widthClass = "min-w-[220px]";
+    } else if (title.includes("niên khóa") || key.includes("cohort")) {
+      widthClass = "min-w-[150px]";
+    } else if (title.includes("vai trò") || key.includes("role")) {
+      widthClass = "min-w-[140px]";
+    } else if (title.includes("trạng thái") || key.includes("status")) {
+      widthClass = "min-w-[160px]";
+    } else if (title.includes("thao tác") || key.includes("action")) {
+      widthClass = "w-28 min-w-[110px] text-center";
+    } else if (title.includes("sĩ số") || title.includes("số lớp") || key.includes("count")) {
+      widthClass = "min-w-[100px] text-center";
+    } else if (title.includes("trưởng") || title.includes("phó") || key.includes("leader") || key.includes("deputy")) {
+      widthClass = "min-w-[200px]";
+    }
+
+    return {
+      isSticky,
+      stickyLeft,
+      isLastSticky,
+      widthClass,
+    };
+  });
+
   return (
-    <div className="overflow-x-auto rounded-lg border border-line bg-white">
-      <table className="w-full min-w-[760px] border-collapse text-left">
-        <thead className="bg-canvas text-[13px] font-semibold">
+    <div className="overflow-x-auto rounded-lg border border-line bg-white custom-scrollbar">
+      <table className="w-max min-w-full border-separate border-spacing-0 text-left">
+        <thead className="bg-canvas text-xs font-semibold uppercase tracking-wider text-muted">
           <tr>
-            {columns.map((column) => (
-              <th
-                key={column.key}
-                className="h-12 whitespace-nowrap border-b border-line px-4"
-              >
-                {column.title}
-              </th>
-            ))}
+            {columns.map((column, idx) => {
+              const cfg = colConfigs[idx] || {};
+              return (
+                <th
+                  key={column.key ?? idx}
+                  style={cfg.isSticky ? { left: `${cfg.stickyLeft}px` } : undefined}
+                  className={`h-12 whitespace-nowrap border-b border-line px-4 select-none ${cfg.widthClass} ${
+                    cfg.isSticky
+                      ? `sticky z-20 bg-canvas ${
+                          cfg.isLastSticky
+                            ? "border-r border-line shadow-[4px_0_8px_-2px_rgba(0,0,0,0.07)]"
+                            : ""
+                        }`
+                      : "bg-canvas"
+                  }`}
+                >
+                  {column.title}
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody>
@@ -422,7 +521,7 @@ export function Table({ columns, rows = [], onRow, loading = false }) {
             <tr>
               <td
                 colSpan={columns.length}
-                className="h-32 text-center text-sm text-muted py-8"
+                className="h-32 text-center text-sm text-muted py-8 bg-white"
               >
                 <div className="inline-flex items-center gap-2">
                   <LoaderCircle className="size-5 animate-spin text-brand" />
@@ -434,9 +533,9 @@ export function Table({ columns, rows = [], onRow, loading = false }) {
             <tr>
               <td
                 colSpan={columns.length}
-                className="h-32 text-center text-sm text-slate-500 py-8"
+                className="h-32 text-center text-sm text-slate-500 py-8 bg-white"
               >
-                Không có dữ liệu
+                {emptyMessage}
               </td>
             </tr>
           ) : (
@@ -444,20 +543,37 @@ export function Table({ columns, rows = [], onRow, loading = false }) {
               <tr
                 key={row.id ?? index}
                 onClick={() => onRow?.(row)}
-                className={`${
+                className={`group ${
                   onRow ? "cursor-pointer" : ""
-                } h-12 border-b border-line last:border-0 hover:bg-canvas`}
+                } h-12 transition-colors hover:bg-canvas`}
               >
-                {columns.map((column) => (
-                  <td key={column.key} className="px-4 py-3">
-                    {column.render ? column.render(row, index) : row[column.key]}
-                  </td>
-                ))}
+                {columns.map((column, idx) => {
+                  const cfg = colConfigs[idx] || {};
+                  return (
+                    <td
+                      key={column.key ?? idx}
+                      style={cfg.isSticky ? { left: `${cfg.stickyLeft}px` } : undefined}
+                      className={`px-4 py-3.5 border-b border-line text-sm ${cfg.widthClass} ${
+                        cfg.isSticky
+                          ? `sticky z-10 bg-white group-hover:bg-canvas transition-colors ${
+                              cfg.isLastSticky
+                                ? "border-r border-line shadow-[4px_0_8px_-2px_rgba(0,0,0,0.07)]"
+                                : ""
+                            }`
+                          : "bg-white group-hover:bg-canvas transition-colors"
+                      }`}
+                    >
+                      {column.render
+                        ? column.render(row, index)
+                        : (row[column.key] ?? "—")}
+                    </td>
+                  );
+                })}
               </tr>
             ))
           )}
         </tbody>
       </table>
     </div>
-  )
+  );
 }
