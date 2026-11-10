@@ -587,28 +587,24 @@ export default function DirectoryPage() {
           <Button onClick={handleExportExcel}>
             <Download className="size-4" /> Xuất Excel
           </Button>
-          {active !== "majors" && (
-            <>
-              <Button onClick={handleDownloadTemplate}>
-                <Download className="size-4" /> Tải file mẫu
-              </Button>
-              <Button onClick={() => {
-                const input = document.createElement('input');
-                input.type = 'file';
-                input.accept = '.xlsx, .xls';
-                input.onchange = (e) => {
-                  if (e.target.files.length > 0) {
-                     setSelectedFile(e.target.files[0]);
-                     setImportData(null);
-                     setImportExcel(true);
-                  }
-                };
-                input.click();
-              }}>
-                <Upload className="size-4" /> Thêm mới theo lô
-              </Button>
-            </>
-          )}
+          <Button onClick={handleDownloadTemplate}>
+            <Download className="size-4" /> Tải file mẫu
+          </Button>
+          <Button onClick={() => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.xlsx, .xls';
+            input.onchange = (e) => {
+              if (e.target.files.length > 0) {
+                 setSelectedFile(e.target.files[0]);
+                 setImportData(null);
+                 setImportExcel(true);
+              }
+            };
+            input.click();
+          }}>
+            <Upload className="size-4" /> Thêm mới theo lô
+          </Button>
           {active === "classes" ? (
             <Button variant="primary" onClick={() => setClassForm({ mode: 'create', deptId: "", classCode: "", className: "", academicCohort: "", leaderIds: [], deputyIds: [], status: 1 })}>
               <Plus className="size-4" /> Thêm mới
@@ -861,7 +857,7 @@ export default function DirectoryPage() {
         >
           <div className="space-y-4">
             <Input 
-              label={form.mode === 'edit' ? "Mã ngành" : "Mã ngành *"} 
+              label={form.mode === 'edit' ? "Mã ngành (Cố định)" : "Mã ngành *"} 
               placeholder="Nhập mã ngành (ví dụ: CNTT, KHMT, CNKT...)" 
               value={form.majorCode || form.code || ""} 
               onChange={e => setForm({...form, majorCode: e.target.value})} 
@@ -923,6 +919,8 @@ export default function DirectoryPage() {
                    let res;
                    if (active === "classes") {
                      res = await directoryService.importClasses(selectedFile, false);
+                   } else if (active === "majors") {
+                     res = await directoryService.importMajors(selectedFile, false);
                    } else if (active === "offices") {
                      res = await directoryService.importOffices(selectedFile, false);
                    } else if (active === "users") {
@@ -950,6 +948,8 @@ export default function DirectoryPage() {
                    let res;
                    if (active === "classes") {
                      res = await directoryService.importClasses(selectedFile, true);
+                   } else if (active === "majors") {
+                     res = await directoryService.importMajors(selectedFile, true);
                    } else if (active === "offices") {
                      res = await directoryService.importOffices(selectedFile, true);
                    } else if (active === "users") {

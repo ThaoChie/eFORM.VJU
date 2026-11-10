@@ -1,7 +1,11 @@
 package vn.edu.drl.backend.controller;
 
 import jakarta.validation.Valid;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import vn.edu.drl.backend.Wrapper.ApiResponse;
 import vn.edu.drl.backend.dto.request.MajorRequest;
 import vn.edu.drl.backend.service.MajorService;
@@ -34,6 +38,21 @@ public class MajorController {
     @PutMapping("/{id}")
     public ApiResponse<?> update(@PathVariable Long id, @RequestBody MajorRequest req) {
         return ApiResponse.success(majorService.update(id, req));
+    }
+
+    @GetMapping("/template-excel")
+    public ResponseEntity<byte[]> downloadTemplate() {
+        byte[] data = majorService.generateExcelTemplate();
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=majors_template.xlsx")
+                .body(data);
+    }
+
+    @PostMapping("/import")
+    public ApiResponse<?> importExcel(@RequestParam("file") MultipartFile file,
+                                      @RequestParam(defaultValue = "true") boolean preview) {
+        return ApiResponse.success(majorService.importFromExcel(file, preview));
     }
 
     @PutMapping("/{id}/toggle-status")

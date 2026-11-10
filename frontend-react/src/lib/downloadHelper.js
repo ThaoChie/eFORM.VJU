@@ -85,6 +85,17 @@ export const TEMPLATE_CONFIGS = {
       ["NN", "Khoa Ngôn ngữ & Văn hóa Nhật Bản", "1"]
     ]
   },
+  majors: {
+    fileName: "mau_nhap_nganh",
+    sheetName: "Nganh",
+    backendPath: "/majors/template-excel",
+    headers: ["Mã Ngành (*)", "Tên Ngành (*)", "Mã Khoa (*)", "Trạng thái (1=Hoạt động, 0=Vô hiệu hóa)"],
+    sampleRows: [
+      ["BCSE", "Khoa học và Kỹ thuật Máy tính", "CNTT", "1"],
+      ["BBA", "Quản trị Kinh doanh", "KT", "1"],
+      ["BJLS", "Nhật Bản học", "NN", "1"]
+    ]
+  },
   offices: {
     fileName: "mau_nhap_phong_ban",
     sheetName: "Phong_ban",

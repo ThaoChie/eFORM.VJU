@@ -7,6 +7,13 @@ export const directoryService = {
   getMajors: async () => {
     return await client.get("/majors");
   },
+  importMajors: async (file, preview = true) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return await client.post(`/majors/import?preview=${preview}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
   getOffices: async () => {
     return await client.get("/offices");
   },
