@@ -95,12 +95,13 @@ export default function DirectoryPage() {
     </span>
   );
 
-  const actionButtons = (r) => {
+  const actionButtons = (r, idx) => {
     const isActive = r.status === "Đang hoạt động" || r.status === 1;
+    const placement = idx === 0 ? "bottom" : "top";
     return (
       <div className="flex items-center justify-center gap-1">
         {isActive && (
-          <IconButton label="Sửa" onClick={() => {
+          <IconButton label="Sửa" tooltipPlacement={placement} onClick={() => {
             if (active === "departments") {
               setForm({
                 mode: 'edit',
@@ -134,7 +135,7 @@ export default function DirectoryPage() {
           </IconButton>
         )}
         {isActive ? (
-          <IconButton label="Vô hiệu hóa" onClick={async () => {
+          <IconButton label="Vô hiệu hóa" tooltipPlacement={placement} onClick={async () => {
             try {
               const { client } = await import("../../../lib/axios/client");
               await client.put(`/${active}/${r.id}/toggle-status`);
@@ -146,7 +147,7 @@ export default function DirectoryPage() {
             <CircleOff className="size-4" />
           </IconButton>
         ) : (
-          <IconButton label="Kích hoạt" onClick={async () => {
+          <IconButton label="Kích hoạt" tooltipPlacement={placement} onClick={async () => {
             try {
               const { client } = await import("../../../lib/axios/client");
               await client.put(`/${active}/${r.id}/toggle-status`);
@@ -333,30 +334,7 @@ export default function DirectoryPage() {
       { key: "name", title: "Tên phòng ban" },
       { key: "head", title: "Trưởng phòng", render: (r) => r.headName || "Chưa chỉ định" },
       { key: "status", title: "Trạng thái", render: (r) => renderStatus(r.status === 1 ? "Đang hoạt động" : "Vô hiệu hóa") },
-      { key: "action", title: "Thao tác", render: (r) => (
-        <div className="flex">
-          {r.status === 1 && (
-            <IconButton label="Sửa" onClick={() => setForm({ mode: 'edit', ...r })}>
-              <Pencil className="size-4" />
-            </IconButton>
-          )}
-          {r.status === 1 ? (
-            <IconButton label="Vô hiệu hóa" onClick={async () => {
-              try { const { client } = await import("../../../lib/axios/client"); await client.put(`/${active}/${r.id}/toggle-status`); fetchItems(active); } 
-              catch (e) { toast.error(e.response?.data?.message || "Không thể vô hiệu hóa"); }
-            }}>
-              <CircleOff className="size-4" />
-            </IconButton>
-          ) : (
-            <IconButton label="Kích hoạt" onClick={async () => {
-              try { const { client } = await import("../../../lib/axios/client"); await client.put(`/${active}/${r.id}/toggle-status`); fetchItems(active); } 
-              catch (e) { toast.error("Lỗi kích hoạt"); }
-            }}>
-              <CheckCircle className="size-4 text-green-500" />
-            </IconButton>
-          )}
-        </div>
-      )}
+      { key: "action", title: "Thao tác", render: actionButtons },
     ];
     rows = items.map(item => ({
       ...item,

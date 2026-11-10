@@ -78,7 +78,6 @@ export function IconButton({
       <button
         type="button"
         aria-label={tooltipText}
-        title={tooltipText}
         disabled={disabled}
         className={`inline-flex size-9 items-center justify-center rounded-lg text-muted hover:bg-canvas hover:text-ink transition disabled:opacity-45 ${className}`}
         {...props}
@@ -89,7 +88,9 @@ export function IconButton({
         <span
           role="tooltip"
           className={`pointer-events-none absolute ${
-            isBottom ? "top-full mt-1.5" : "bottom-full mb-1.5"
+            isBottom
+              ? "top-full mt-1.5"
+              : "bottom-full mb-1.5 group-first/row:top-full group-first/row:mt-1.5 group-first/row:bottom-auto"
           } ${
             alignStyles[tooltipAlign] || alignStyles.center
           } hidden group-hover/btn:inline-flex items-center justify-center whitespace-nowrap rounded-md bg-slate-900 px-2.5 py-1 text-[11px] font-medium text-white shadow-xl ring-1 ring-white/10 z-[100]`}
@@ -99,7 +100,7 @@ export function IconButton({
             className={`absolute ${
               isBottom
                 ? "bottom-full -mb-0.5 border-b-slate-900 border-t-transparent"
-                : "top-full -mt-0.5 border-t-slate-900 border-b-transparent"
+                : "top-full -mt-0.5 border-t-slate-900 border-b-transparent group-first/row:bottom-full group-first/row:top-auto group-first/row:-mb-0.5 group-first/row:border-b-slate-900 group-first/row:border-t-transparent"
             } ${
               arrowAlignStyles[tooltipAlign] || arrowAlignStyles.center
             } border-4 border-l-transparent border-r-transparent`}
@@ -652,9 +653,9 @@ export function Table({
               <tr
                 key={row.id ?? index}
                 onClick={() => onRow?.(row)}
-                className={`group ${
+                className={`group group/row ${
                   onRow ? "cursor-pointer" : ""
-                } h-12 transition-colors hover:bg-canvas`}
+                } h-12 transition-colors hover:bg-canvas relative hover:z-20`}
               >
                 {columns.map((column, idx) => {
                   const cfg = colConfigs[idx] || {};
@@ -675,8 +676,8 @@ export function Table({
                                 : ""
                             }`
                           : cfg.isStickyRight
-                          ? "sticky right-0 z-10 bg-white group-hover:bg-canvas transition-colors border-l border-line shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.07)]"
-                          : "bg-white group-hover:bg-canvas transition-colors"
+                          ? "sticky right-0 z-10 bg-white group-hover:bg-canvas hover:z-30 transition-colors border-l border-line shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.07)]"
+                          : "bg-white group-hover:bg-canvas hover:z-30 transition-colors"
                       }`}
                     >
                       {column.render
