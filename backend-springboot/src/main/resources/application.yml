@@ -9,6 +9,10 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
 
 jwt:
   secret: ${JWT_SECRET:super_secret_jwt_key_drl_eform_2026_super_secret_jwt_key_drl_eform_2026}

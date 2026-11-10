@@ -15,6 +15,8 @@ import java.util.Map;
 
 public interface NotificationService {
     void createNotification(Long userId, String title, String content, NotificationType type, String linkUrl);
+    void createBatchNotifications(List<User> recipients, String title, String content, NotificationType type, String linkUrl);
+    void createBatchNotificationsAsync(List<User> recipients, String title, String content, NotificationType type, String linkUrl);
     Map<String, Object> getNotifications(Long userId, Pageable pageable);
     void markAsRead(Long id, Long userId);
     void markAllAsRead(Long userId);

@@ -32,6 +32,7 @@ import {
   SearchButton,
   Card,
   PageTitle,
+  Pagination,
   Modal,
   Input,
   Select,

@@ -40,6 +40,30 @@ public class NotificationServiceImpl implements NotificationService {
         notificationRepository.save(notification);
     }
 
+    @Override
+    @Transactional
+    public void createBatchNotifications(List<User> recipients, String title, String content, NotificationType type, String linkUrl) {
+        if (recipients == null || recipients.isEmpty()) return;
+        List<Notification> notifications = new java.util.ArrayList<>(recipients.size());
+        for (User u : recipients) {
+            Notification n = new Notification();
+            n.setUser(u);
+            n.setTitle(title);
+            n.setContent(content);
+            n.setType(type);
+            n.setLinkUrl(linkUrl);
+            notifications.add(n);
+        }
+        notificationRepository.saveAll(notifications);
+    }
+
+    @Override
+    @org.springframework.scheduling.annotation.Async
+    @Transactional
+    public void createBatchNotificationsAsync(List<User> recipients, String title, String content, NotificationType type, String linkUrl) {
+        createBatchNotifications(recipients, title, content, type, linkUrl);
+    }
+
     public Map<String, Object> getNotifications(Long userId, Pageable pageable) {
         Page<Notification> page = notificationRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
         long unreadCount = notificationRepository.countByUserIdAndIsReadFalse(userId);

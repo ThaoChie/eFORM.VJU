@@ -183,15 +183,13 @@ public class EvaluationPeriodServiceImpl implements EvaluationPeriodService {
                     " đã mở, hạn nộp " + formattedDeadline;
 
             List<User> students = userRepository.findByRoleIn(List.of(Role.STUDENT, Role.CLASS_LEADER, Role.CLASS_DEPUTY));
-            for (User s : students) {
-                notificationService.createNotification(
-                        s.getId(),
-                        title,
-                        content,
-                        NotificationType.SYSTEM,
-                        "/student/compose"
-                );
-            }
+            notificationService.createBatchNotificationsAsync(
+                    students,
+                    title,
+                    content,
+                    NotificationType.SYSTEM,
+                    "/student/compose"
+            );
         } catch (Exception e) {
             // 8a: Không có sinh viên nhận được thông báo do lỗi hệ thống: kỳ vẫn Đang mở; lỗi được ghi nhận
             log.error("Lỗi khi gửi thông báo mở kỳ chấm ĐRL tới sinh viên: {}", e.getMessage(), e);

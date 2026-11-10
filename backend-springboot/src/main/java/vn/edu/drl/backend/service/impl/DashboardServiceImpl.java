@@ -43,44 +43,79 @@ public class DashboardServiceImpl implements DashboardService {
         long pendingApprovals = scoreFormRepository.countByStatusIn(List.of(ScoreFormStatus.SUBMITTED, ScoreFormStatus.CLASS_APPROVED));
         double completionRate = totalStudents > 0 ? Math.round((completedForms * 100.0 / totalStudents) * 10.0) / 10.0 : 0.0;
 
-        // Warnings calculation
-        List<String> warnings = new ArrayList<>();
         List<ClassEntity> allClasses = classRepository.findAll();
+        List<Department> allDepts = departmentRepository.findAll();
+
+        // 1. Tối ưu: Lấy danh sách cán bộ văn phòng và chức vụ một lần duy nhất (In-Memory Lookup)
+        List<User> officeHolders = userRepository.findByRoleIn(List.of(Role.CLASS_LEADER, Role.CLASS_DEPUTY, Role.DEAN));
+        Set<Long> classesWithDeputy = new HashSet<>();
+        Set<Long> classesWithLeader = new HashSet<>();
+        Set<Long> deptsWithDean = new HashSet<>();
+        long withoutSig = 0;
+
+        for (User u : officeHolders) {
+            if (u.getSignatureSpecimenUrl() == null || u.getSignatureSpecimenUrl().trim().isEmpty()) {
+                withoutSig++;
+            }
+            if (u.getRole() == Role.CLASS_DEPUTY && u.getClassEntity() != null) {
+                classesWithDeputy.add(u.getClassEntity().getId());
+            } else if (u.getRole() == Role.CLASS_LEADER && u.getClassEntity() != null) {
+                classesWithLeader.add(u.getClassEntity().getId());
+            } else if (u.getRole() == Role.DEAN && u.getDepartment() != null) {
+                deptsWithDean.add(u.getDepartment().getId());
+            }
+        }
+
+        // Warnings calculation (Hoàn toàn chạy In-Memory, 0 query)
+        List<String> warnings = new ArrayList<>();
         for (ClassEntity c : allClasses) {
             if (c.getStatus() != null && c.getStatus() == 0) continue;
-            List<User> deputies = userRepository.findByClassEntityIdAndRole(c.getId(), Role.CLASS_DEPUTY);
-            if (deputies.isEmpty()) {
+            if (!classesWithDeputy.contains(c.getId())) {
                 warnings.add("Lớp " + c.getClassCode() + " chưa có Lớp phó");
             }
-            List<User> leaders = userRepository.findByClassEntityIdAndRole(c.getId(), Role.CLASS_LEADER);
-            if (leaders.isEmpty()) {
+            if (!classesWithLeader.contains(c.getId())) {
                 warnings.add("Lớp " + c.getClassCode() + " chưa có Lớp trưởng");
             }
         }
 
-        List<Department> allDepts = departmentRepository.findAll();
         for (Department d : allDepts) {
             if (d.getStatus() != null && d.getStatus() == 0) continue;
-            Optional<User> dean = userRepository.findFirstByDepartmentIdAndRole(d.getId(), Role.DEAN);
-            if (dean.isEmpty()) {
+            if (!deptsWithDean.contains(d.getId())) {
                 warnings.add("Khoa " + d.getDeptName() + " chưa chỉ định Trưởng khoa");
             }
         }
 
-        List<User> officeHolders = userRepository.findByRoleIn(List.of(Role.CLASS_LEADER, Role.CLASS_DEPUTY, Role.DEAN));
-        long withoutSig = officeHolders.stream()
-                .filter(u -> u.getSignatureSpecimenUrl() == null || u.getSignatureSpecimenUrl().trim().isEmpty())
-                .count();
         if (withoutSig > 0) {
             warnings.add(withoutSig + " người dùng giữ chức vụ nhưng chưa có chữ ký");
+        }
+
+        // 2. Tối ưu: GROUP BY đếm số sinh viên theo khoa (1 query thay vì N queries)
+        Map<Long, Long> studentsByDeptMap = new HashMap<>();
+        List<Object[]> studentCounts = userRepository.countStudentsByDepartmentGrouped(STUDENT_ROLES);
+        for (Object[] row : studentCounts) {
+            Long deptId = ((Number) row[0]).longValue();
+            Long count = ((Number) row[1]).longValue();
+            studentsByDeptMap.put(deptId, count);
+        }
+
+        // 3. Tối ưu: GROUP BY đếm trạng thái phiếu theo khoa (1 query thay vì N queries)
+        Map<Long, Long> completedFormsByDeptMap = new HashMap<>();
+        List<Object[]> formCounts = scoreFormRepository.countFormsByDepartmentAndStatusGrouped();
+        for (Object[] row : formCounts) {
+            Long deptId = ((Number) row[0]).longValue();
+            ScoreFormStatus status = (ScoreFormStatus) row[1];
+            Long count = ((Number) row[2]).longValue();
+            if (status == ScoreFormStatus.DEAN_APPROVED) {
+                completedFormsByDeptMap.put(deptId, count);
+            }
         }
 
         // Department Progress
         List<AdminDashboardResponse.DepartmentProgressDto> deptProgressList = new ArrayList<>();
         for (Department d : allDepts) {
             if (d.getStatus() != null && d.getStatus() == 0) continue;
-            long dStudents = userRepository.countByDepartmentIdAndRoleIn(d.getId(), STUDENT_ROLES);
-            long dCompleted = scoreFormRepository.countByStatusAndStudentDepartmentId(ScoreFormStatus.DEAN_APPROVED, d.getId());
+            long dStudents = studentsByDeptMap.getOrDefault(d.getId(), 0L);
+            long dCompleted = completedFormsByDeptMap.getOrDefault(d.getId(), 0L);
             double pct = dStudents > 0 ? Math.round((dCompleted * 100.0 / dStudents) * 10.0) / 10.0 : 0.0;
             deptProgressList.add(AdminDashboardResponse.DepartmentProgressDto.builder()
                     .departmentId(d.getId())
@@ -121,19 +156,36 @@ public class DashboardServiceImpl implements DashboardService {
         long pendingForms = scoreFormRepository.countByStatusAndStudentDepartmentId(ScoreFormStatus.CLASS_APPROVED, deptId);
         long completedForms = scoreFormRepository.countByStatusAndStudentDepartmentId(ScoreFormStatus.DEAN_APPROVED, deptId);
 
-        List<ScoreForm> readyForms = scoreFormRepository.findByStudentDepartmentIdAndStatus(deptId, ScoreFormStatus.CLASS_APPROVED);
+        List<ScoreForm> readyForms = scoreFormRepository.findByStudentDepartmentIdAndStatusWithStudentAndClass(deptId, ScoreFormStatus.CLASS_APPROVED);
         long pendingBatches = readyForms.stream()
                 .map(f -> f.getStudent() != null && f.getStudent().getClassEntity() != null ? f.getStudent().getClassEntity().getId() : null)
                 .filter(Objects::nonNull)
                 .distinct()
                 .count();
 
-        // Class Progress
+        // Class Progress: Tối ưu hoá truy vấn GROUP BY thay vì lặp qua từng lớp
+        Map<Long, Long> studentsByClassMap = new HashMap<>();
+        for (Object[] row : userRepository.countStudentsByClassGrouped(STUDENT_ROLES)) {
+            Long cId = ((Number) row[0]).longValue();
+            Long cnt = ((Number) row[1]).longValue();
+            studentsByClassMap.put(cId, cnt);
+        }
+
+        Map<Long, Long> completedByClassMap = new HashMap<>();
+        for (Object[] row : scoreFormRepository.countFormsByClassAndStatusGrouped()) {
+            Long cId = ((Number) row[0]).longValue();
+            ScoreFormStatus status = (ScoreFormStatus) row[1];
+            Long cnt = ((Number) row[2]).longValue();
+            if (status == ScoreFormStatus.DEAN_APPROVED) {
+                completedByClassMap.put(cId, cnt);
+            }
+        }
+
         List<ClassEntity> deptClasses = classRepository.findByDepartmentId(deptId);
         List<DeanDashboardResponse.ClassProgressDto> classProgressList = new ArrayList<>();
         for (ClassEntity c : deptClasses) {
-            long cStudents = userRepository.countByClassEntityIdAndRoleIn(c.getId(), STUDENT_ROLES);
-            long cCompleted = scoreFormRepository.countByStatusAndStudentClassEntityId(ScoreFormStatus.DEAN_APPROVED, c.getId());
+            long cStudents = studentsByClassMap.getOrDefault(c.getId(), 0L);
+            long cCompleted = completedByClassMap.getOrDefault(c.getId(), 0L);
             double pct = cStudents > 0 ? Math.round((cCompleted * 100.0 / cStudents) * 10.0) / 10.0 : 0.0;
             classProgressList.add(DeanDashboardResponse.ClassProgressDto.builder()
                     .classId(c.getId())
@@ -146,8 +198,8 @@ public class DashboardServiceImpl implements DashboardService {
                     .build());
         }
 
-        // Warning Students
-        List<ScoreForm> deptForms = scoreFormRepository.findByStudentDepartmentId(deptId);
+        // Warning Students: Tối ưu với JOIN FETCH student & classEntity
+        List<ScoreForm> deptForms = scoreFormRepository.findByStudentDepartmentIdWithStudentAndClass(deptId);
         List<DeanDashboardResponse.WarningStudentDto> warningStudents = new ArrayList<>();
         for (ScoreForm sf : deptForms) {
             BigDecimal score = sf.getFinalTotal() != null ? sf.getFinalTotal() : sf.getClassTotal();
@@ -201,7 +253,7 @@ public class DashboardServiceImpl implements DashboardService {
         List<User> students = userRepository.findByClassEntityIdOrderByUserCodeAsc(classId);
         long totalStudents = students.size();
 
-        List<ScoreForm> classForms = scoreFormRepository.findByStudentClassEntityId(classId);
+        List<ScoreForm> classForms = scoreFormRepository.findByStudentClassEntityIdWithStudentAndClass(classId);
         Map<Long, ScoreForm> formMap = new HashMap<>();
         for (ScoreForm sf : classForms) {
             if (sf.getStudent() != null) {

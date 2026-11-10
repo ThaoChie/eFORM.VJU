@@ -429,14 +429,37 @@ public class WorkflowServiceImpl implements WorkflowService {
         List<vn.edu.drl.backend.dto.response.DeanBatchResponse> batches = new ArrayList<>();
         List<Role> studentRoles = List.of(Role.STUDENT, Role.CLASS_LEADER, Role.CLASS_DEPUTY);
 
-        for (ClassEntity c : classes) {
-            long size = userRepository.countByClassEntityIdAndRoleIn(c.getId(), studentRoles);
-            long pending = scoreFormRepository.countByStatusAndStudentClassEntityId(ScoreFormStatus.CLASS_APPROVED, c.getId());
-            long done = scoreFormRepository.countByStatusAndStudentClassEntityId(ScoreFormStatus.DEAN_APPROVED, c.getId());
-            long submitted = scoreFormRepository.countByStatusAndStudentClassEntityId(ScoreFormStatus.SUBMITTED, c.getId());
+        // Tối ưu hoá truy vấn GROUP BY trước vòng lặp (giảm từ 5*N queries xuống còn 3 queries tổng hợp)
+        Map<Long, Long> classSizeMap = new HashMap<>();
+        for (Object[] r : userRepository.countStudentsByClassGrouped(studentRoles)) {
+            Long cId = ((Number) r[0]).longValue();
+            Long count = ((Number) r[1]).longValue();
+            classSizeMap.put(cId, count);
+        }
 
-            List<User> leaders = userRepository.findByClassEntityIdAndRole(c.getId(), Role.CLASS_LEADER);
-            String reviewer = !leaders.isEmpty() ? leaders.get(0).getFullName() : "Cán bộ lớp";
+        Map<Long, Map<ScoreFormStatus, Long>> classFormStatusMap = new HashMap<>();
+        for (Object[] r : scoreFormRepository.countFormsByClassAndStatusGrouped()) {
+            Long cId = ((Number) r[0]).longValue();
+            ScoreFormStatus status = (ScoreFormStatus) r[1];
+            Long count = ((Number) r[2]).longValue();
+            classFormStatusMap.computeIfAbsent(cId, k -> new HashMap<>()).put(status, count);
+        }
+
+        Map<Long, String> classLeaderMap = new HashMap<>();
+        for (User u : userRepository.findByRole(Role.CLASS_LEADER)) {
+            if (u.getClassEntity() != null) {
+                classLeaderMap.put(u.getClassEntity().getId(), u.getFullName());
+            }
+        }
+
+        for (ClassEntity c : classes) {
+            long size = classSizeMap.getOrDefault(c.getId(), 0L);
+            Map<ScoreFormStatus, Long> statusCounts = classFormStatusMap.getOrDefault(c.getId(), Collections.emptyMap());
+            long pending = statusCounts.getOrDefault(ScoreFormStatus.CLASS_APPROVED, 0L);
+            long done = statusCounts.getOrDefault(ScoreFormStatus.DEAN_APPROVED, 0L);
+            long submitted = statusCounts.getOrDefault(ScoreFormStatus.SUBMITTED, 0L);
+
+            String reviewer = classLeaderMap.getOrDefault(c.getId(), "Cán bộ lớp");
 
             String status;
             if (pending > 0) {
