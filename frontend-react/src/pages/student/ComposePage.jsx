@@ -841,12 +841,22 @@ export default function ComposePage() {
                           type="number"
                           min="0"
                           max={crit.maxScore}
-                          step="0.5"
+                          step="1"
+                          onKeyDown={(e) => {
+                            if (["e", "E", "+", "-", ".", ","].includes(e.key)) {
+                              e.preventDefault()
+                            }
+                          }}
                           disabled={isReadOnly}
                           value={currentScore}
                           onChange={(e) => {
                             const val = e.target.value
-                            setScore(crit.fieldCode, val === "" ? "" : Number(val))
+                            if (val === "") {
+                              setScore(crit.fieldCode, "")
+                            } else {
+                              const parsed = parseInt(val, 10)
+                              setScore(crit.fieldCode, isNaN(parsed) ? "" : parsed)
+                            }
                           }}
                           placeholder="0"
                           error={

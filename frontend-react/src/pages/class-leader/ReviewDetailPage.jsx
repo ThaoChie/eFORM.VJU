@@ -359,15 +359,30 @@ export default function ReviewDetailPage() {
                   <div className="flex justify-center">
                     <Input
                       type="number"
+                      step="1"
+                      onKeyDown={(e) => {
+                        if (["e", "E", "+", "-", ".", ","].includes(e.key)) {
+                          e.preventDefault()
+                        }
+                      }}
                       min="0"
                       max={max}
                       value={clScore}
                       onChange={(e) => {
-                        const val = e.target.value === "" ? "" : Math.min(max, Math.max(0, Number(e.target.value)))
-                        setScores({
-                          ...scores,
-                          [key]: val,
-                        })
+                        const raw = e.target.value
+                        if (raw === "") {
+                          setScores({
+                            ...scores,
+                            [key]: "",
+                          })
+                        } else {
+                          const parsed = parseInt(raw, 10)
+                          const val = isNaN(parsed) ? "" : Math.min(max, Math.max(0, parsed))
+                          setScores({
+                            ...scores,
+                            [key]: val,
+                          })
+                        }
                       }}
                       className="w-20 text-center font-mono font-bold text-slate-900 border-slate-300 focus:border-brand"
                     />
