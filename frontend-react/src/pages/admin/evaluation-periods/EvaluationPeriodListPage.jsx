@@ -32,10 +32,13 @@ import {
   Input,
   Select,
   Table,
+  Pagination,
 } from "../../../components/ui/Primitives"
 
 export default function EvaluationPeriodListPage() {
   const [periods, setPeriods] = useState([])
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
   const [loading, setLoading] = useState(true)
 
   // Filter & Search states
@@ -502,12 +505,23 @@ export default function EvaluationPeriodListPage() {
       </Card>
 
       {/* Periods Table */}
-      <Table columns={columns} rows={periods} loading={loading} />
-
-      <div className="mt-3 flex justify-between text-xs text-muted">
-        <span>Hiển thị {periods.length} kỳ chấm</span>
-        <span>Trang 1 / 1</span>
-      </div>
+      {(() => {
+        const paginatedPeriods = periods.slice((page - 1) * pageSize, page * pageSize);
+        return (
+          <>
+            <Table columns={columns} rows={paginatedPeriods} loading={loading} />
+            <Pagination
+              currentPage={page}
+              pageSize={pageSize}
+              totalItems={periods.length}
+              pageSizeOptions={[10, 25, 50]}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+              className="mt-3 rounded-lg border shadow-xs"
+            />
+          </>
+        );
+      })()}
 
       {/* ========================================================================= */}
       {/* 1. Modal: Mở kỳ mới (C) */}

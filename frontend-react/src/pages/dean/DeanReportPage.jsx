@@ -9,6 +9,7 @@ import {
   PageTitle,
   Select,
   Table,
+  Pagination,
 } from "../../components/ui/Primitives"
 import PdfViewer from "../../components/ui/PdfViewer"
 import { client } from "../../lib/axios/client"
@@ -24,7 +25,7 @@ export default function DeanReportPage({ school = false }) {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalElements, setTotalElements] = useState(0)
-  const pageSize = 15
+  const [pageSize, setPageSize] = useState(10)
 
   // Dropdown options
   const [classes, setClasses] = useState([])
@@ -90,7 +91,7 @@ export default function DeanReportPage({ school = false }) {
 
   useEffect(() => {
     fetchReport()
-  }, [page, classId, deptId, semesterId])
+  }, [page, pageSize, classId, deptId, semesterId])
 
   const handleSearchSubmit = (e) => {
     e?.preventDefault?.()
@@ -316,35 +317,16 @@ export default function DeanReportPage({ school = false }) {
         />
       </div>
 
-      {/* Phân trang */}
-      <div className="mt-4 flex items-center justify-between text-xs text-slate-500">
-        <span>
-          Hiển thị <strong>{data.length}</strong> / <strong>{totalElements}</strong> phiếu
-        </span>
-        {totalPages > 1 && (
-          <div className="flex items-center gap-1.5">
-            <Button
-              variant="secondary"
-              className="text-xs px-2.5 py-1"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              <ChevronLeft className="size-3.5" />
-            </Button>
-            <span className="px-2">
-              Trang {page} / {totalPages}
-            </span>
-            <Button
-              variant="secondary"
-              className="text-xs px-2.5 py-1"
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            >
-              <ChevronRight className="size-3.5" />
-            </Button>
-          </div>
-        )}
-      </div>
+      {/* Phân trang chuẩn */}
+      <Pagination
+        currentPage={page}
+        pageSize={pageSize}
+        totalItems={totalElements}
+        pageSizeOptions={[10, 25, 50]}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+        className="mt-4 rounded-lg border shadow-xs"
+      />
 
       {/* Modal xem PDF */}
       {activePdfUrl && (

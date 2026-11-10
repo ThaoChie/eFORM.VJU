@@ -461,3 +461,6 @@ export function Table({ columns, rows = [], onRow, loading = false }) {
     </div>
   )
 }
+
+
+export { default as Pagination } from "./Pagination"
