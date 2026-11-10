@@ -449,15 +449,15 @@ export default function FormVersionDetailPage() {
                       >
                         <td className="px-4 py-3 text-slate-600">{idx + 1}</td>
                         <td className="px-4 py-3">
-                          <span className="font-mono font-bold text-brand text-xs px-2 py-0.5 rounded bg-brand-soft border border-brand/20">
+                          <span className="font-mono font-semibold text-brand text-xs">
                             {ver.versionNo || "v1.0"}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-slate-900 font-medium">
                           {ver.formName}
                           {isCurrent && (
-                            <span className="ml-2 inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-800">
-                              Đang xem
+                            <span className="ml-1.5 text-xs font-medium text-brand">
+                              (Đang xem)
                             </span>
                           )}
                         </td>
