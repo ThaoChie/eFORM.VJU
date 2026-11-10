@@ -1,6 +1,7 @@
 package vn.edu.drl.backend.controller;
 
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -12,13 +13,10 @@ import vn.edu.drl.backend.service.MajorService;
 
 @RestController
 @RequestMapping("/api/v1/majors")
+@RequiredArgsConstructor
 public class MajorController {
 
     private final MajorService majorService;
-
-    public MajorController(MajorService majorService) {
-        this.majorService = majorService;
-    }
 
     @GetMapping
     public ApiResponse<?> getAll() {

@@ -1,5 +1,6 @@
 package vn.edu.drl.backend.controller;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -10,13 +11,10 @@ import vn.edu.drl.backend.service.OfficeService;
 
 @RestController
 @RequestMapping("/api/v1/offices")
+@RequiredArgsConstructor
 public class OfficeController {
 
     private final OfficeService service;
-
-    public OfficeController(OfficeService service) {
-        this.service = service;
-    }
 
     @GetMapping
     public ApiResponse<?> getAll() {

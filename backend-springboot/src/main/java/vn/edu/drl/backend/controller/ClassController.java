@@ -1,4 +1,5 @@
 package vn.edu.drl.backend.controller;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import vn.edu.drl.backend.Wrapper.ApiResponse;
@@ -8,9 +9,9 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/classes")
+@RequiredArgsConstructor
 public class ClassController {
     private final ClassService service;
-    public ClassController(ClassService service) { this.service = service; }
     
     @GetMapping
     public ApiResponse<?> getAll() {

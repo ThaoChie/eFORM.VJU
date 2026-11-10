@@ -562,4 +562,16 @@ public class UserServiceImpl implements UserService {
 
         return hashHex;
     }
+
+    @Override
+    @Transactional
+    public Map<String, Object> updateSignature(Long userId, String signatureUrl) {
+        String hashHex = updateSignatureSpecimen(userId, signatureUrl);
+        User user = repository.findById(userId).orElseThrow(() -> new RuntimeException("USER_NOT_FOUND"));
+        Map<String, Object> res = new HashMap<>();
+        res.put("signature", user.getSignatureSpecimenUrl());
+        res.put("signatureHash", hashHex);
+        res.put("isSignatureLocked", true);
+        return res;
+    }
 }

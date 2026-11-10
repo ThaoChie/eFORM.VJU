@@ -1,5 +1,6 @@
 package vn.edu.drl.backend.controller;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -7,16 +8,18 @@ import org.springframework.web.multipart.MultipartFile;
 import vn.edu.drl.backend.Wrapper.ApiResponse;
 import vn.edu.drl.backend.dto.request.UserRequest;
 import vn.edu.drl.backend.dto.response.UserResponse;
+import vn.edu.drl.backend.security.SecurityUtils;
 import vn.edu.drl.backend.service.UserService;
 import jakarta.validation.Valid;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping({"/api/v1/directory/users", "/api/v1/users"})
+@RequiredArgsConstructor
 public class UserController {
     private final UserService service;
-    public UserController(UserService service) { this.service = service; }
     
     @GetMapping
     public ApiResponse<List<UserResponse>> getAll(@RequestParam(required = false) Long deptId,
@@ -68,19 +71,11 @@ public class UserController {
     }
 
     @PostMapping("/signature")
-    public ApiResponse<java.util.Map<String, Object>> updateSignature(@RequestBody java.util.Map<String, String> body) {
-        Long currentUserId = vn.edu.drl.backend.security.SecurityUtils.getCurrentUserId();
+    public ApiResponse<Map<String, Object>> updateSignature(@RequestBody Map<String, String> body) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
         if (currentUserId == null) {
             throw new RuntimeException("UNAUTHORIZED");
         }
-        String signature = body.get("signature");
-        signature = vn.edu.drl.backend.service.engine.ImageConversionUtils.ensureStandardWebImage(signature);
-        signature = vn.edu.drl.backend.service.engine.ImageConversionUtils.removeBackground(signature);
-        String hashHex = service.updateSignatureSpecimen(currentUserId, signature);
-        java.util.Map<String, Object> res = new java.util.HashMap<>();
-        res.put("signature", signature);
-        res.put("signatureHash", hashHex);
-        res.put("isSignatureLocked", true);
-        return ApiResponse.success(res);
+        return ApiResponse.success(service.updateSignature(currentUserId, body.get("signature")));
     }
 }
