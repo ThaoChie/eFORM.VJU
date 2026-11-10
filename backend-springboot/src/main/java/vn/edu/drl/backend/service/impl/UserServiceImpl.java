@@ -55,7 +55,7 @@ public class UserServiceImpl implements UserService {
     }
     
     public List<User> findAll() { 
-        return repository.findAll(); 
+        return repository.findAll(org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.ASC, "id")); 
     }
     
     public List<UserResponse> findUsers(Long deptId, Long classId, String cohort, String role) {

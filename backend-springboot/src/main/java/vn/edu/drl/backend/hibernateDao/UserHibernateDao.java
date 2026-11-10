@@ -42,6 +42,7 @@ public class UserHibernateDao extends GenericHibernateDao<User, Long> {
         }
         
         query.where(predicates.toArray(new Predicate[0]));
+        query.orderBy(cb.asc(root.get("id")));
         return entityManager.createQuery(query).getResultList();
     }
 }

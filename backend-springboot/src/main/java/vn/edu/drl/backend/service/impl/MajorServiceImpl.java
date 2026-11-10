@@ -32,7 +32,7 @@ public class MajorServiceImpl implements MajorService {
 
     @Override
     public List<MajorResponse> findAll() {
-        return majorRepository.findAll().stream()
+        return majorRepository.findAll(org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.ASC, "id")).stream()
                 .map(MajorResponse::new)
                 .collect(Collectors.toList());
     }

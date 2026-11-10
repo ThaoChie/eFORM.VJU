@@ -3,9 +3,11 @@ import { directoryService } from "../services/directory-service"
 
 export const useDirectoryStore = create((set, get) => ({
   items: [],
+  currentType: null,
   loading: false,
   fetchItems: async (type) => {
-    set({ loading: true, items: [] });
+    const isSameType = get().currentType === type && get().items.length > 0;
+    set(isSameType ? { loading: true } : { loading: true, items: [], currentType: type });
     try {
       let data = [];
       if (type === 'departments') {
@@ -19,7 +21,10 @@ export const useDirectoryStore = create((set, get) => ({
       } else if (type === 'users') {
         data = await directoryService.getUsers();
       }
-      set({ items: data, loading: false });
+      const sorted = Array.isArray(data)
+        ? [...data].sort((a, b) => Number(a?.id ?? 0) - Number(b?.id ?? 0))
+        : [];
+      set({ items: sorted, currentType: type, loading: false });
     } catch (e) {
       console.error(e);
       set({ items: [], loading: false });
