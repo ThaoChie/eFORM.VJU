@@ -1306,6 +1306,9 @@ export default function DirectoryPage() {
               <Button variant="primary" onClick={async () => {
                 if (form.mode === 'create' && !form.userCode?.trim()) return toast.error("Vui lòng nhập mã người dùng");
                 if (!form.fullName?.trim() || !form.email?.trim()) return toast.error("Vui lòng nhập tên người dùng và email");
+                if (["STUDENT", "CLASS_LEADER", "CLASS_DEPUTY"].includes(form.role || "STUDENT") && !form.classId) {
+                  return toast.error("Vui lòng chọn Lớp");
+                }
                 try {
                   const { client } = await import("../../../lib/axios/client");
                   const payload = {
@@ -1386,7 +1389,7 @@ export default function DirectoryPage() {
               )}
 
               {["STUDENT", "CLASS_LEADER", "CLASS_DEPUTY"].includes(form.role) && (
-                <Select label="Lớp" value={form.classId || ""} onChange={e => {
+                <Select label="Lớp *" value={form.classId || ""} onChange={e => {
                   const classId = e.target.value ? Number(e.target.value) : null;
                   const foundClass = classes.find(c => c.id === classId);
                   const classMajor = foundClass?.majorId ? majors.find(m => m.id === foundClass.majorId) : null;

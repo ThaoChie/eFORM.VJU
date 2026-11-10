@@ -80,6 +80,9 @@ public class UserServiceImpl implements UserService {
         } catch (Exception e) {
             u.setRole(Role.STUDENT);
         }
+        if ((u.getRole() == Role.STUDENT || u.getRole() == Role.CLASS_LEADER || u.getRole() == Role.CLASS_DEPUTY) && req.getClassId() == null) {
+            throw new vn.edu.drl.backend.exception.BusinessException("Trường Lớp là bắt buộc.");
+        }
         u.setPasswordHash(passwordEncoder.encode("123456"));
         u.setPositionTitle(req.getPositionTitle());
         u.setAcademicCohort(req.getAcademicCohort());
@@ -139,6 +142,9 @@ public class UserServiceImpl implements UserService {
             try {
                 u.setRole(Role.valueOf(req.getRole()));
             } catch (Exception ignored) {}
+        }
+        if ((u.getRole() == Role.STUDENT || u.getRole() == Role.CLASS_LEADER || u.getRole() == Role.CLASS_DEPUTY) && req.getClassId() == null && u.getClassEntity() == null) {
+            throw new vn.edu.drl.backend.exception.BusinessException("Trường Lớp là bắt buộc.");
         }
         u.setPositionTitle(req.getPositionTitle());
         u.setAcademicCohort(req.getAcademicCohort());
