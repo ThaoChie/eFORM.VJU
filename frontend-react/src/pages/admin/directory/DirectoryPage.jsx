@@ -2,7 +2,7 @@ import toast from "react-hot-toast";
 import { AlertTriangle, CircleOff, CheckCircle, Download, Pencil, Plus, Search, Settings, Upload, ChevronLeft, ChevronRight, Filter, ChevronDown, ChevronUp } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
-import { Button, Card, IconButton, Input, Modal, PageTitle, Select, Table, ResetFilterButton } from "../../../components/ui/Primitives"
+import { Button, Card, IconButton, Input, Modal, PageTitle, Select, Table, ResetFilterButton, Pagination } from "../../../components/ui/Primitives"
 import { useDirectoryStore } from "../../../stores/useDirectoryStore"
 import ReactSelect from "react-select";
 import { downloadBlob, downloadExcelTemplate } from "../../../lib/downloadHelper";
@@ -30,6 +30,7 @@ export default function DirectoryPage() {
   const [filters, setFilters] = useState({ query: "", status: "Tất cả" });
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [deans, setDeans] = useState([]);
   const [admins, setAdmins] = useState([]);
   const [colConfig, setColConfig] = useState(false);
@@ -758,26 +759,19 @@ export default function DirectoryPage() {
       {renderFilters()}
 
       {(() => {
-        const pageSize = 10;
         const totalPages = Math.ceil(rows.length / pageSize) || 1;
         const currentData = rows.slice((page - 1) * pageSize, page * pageSize);
         return (
           <Card className="p-0">
             <Table columns={columns.filter(c => !hiddenCols[c.key])} rows={currentData} loading={loading} emptyMessage="Không có dữ liệu danh mục" />
-            <div className="flex items-center justify-between border-t border-line px-4 py-3">
-              <span className="text-sm text-muted">
-                Hiển thị {rows.length === 0 ? 0 : (page - 1) * pageSize + 1} đến {Math.min(page * pageSize, rows.length)} trong số {rows.length} mục
-              </span>
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" disabled={page === 1} onClick={() => setPage(p => Math.max(1, p - 1))}>
-                  <ChevronLeft className="size-4" />
-                </Button>
-                <span className="text-sm font-medium px-2">Trang {page} / {totalPages}</span>
-                <Button variant="ghost" disabled={page === totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>
-                  <ChevronRight className="size-4" />
-                </Button>
-              </div>
-            </div>
+            <Pagination
+              currentPage={page}
+              pageSize={pageSize}
+              totalItems={rows.length}
+              pageSizeOptions={[10, 25, 50]}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+            />
           </Card>
         );
       })()}

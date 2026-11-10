@@ -698,3 +698,6 @@ export function Table({
     </div>
   );
 }
+
+
+export { default as Pagination } from "./Pagination"
