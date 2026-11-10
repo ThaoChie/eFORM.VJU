@@ -538,7 +538,7 @@ export default function DirectoryPage() {
             </Select>
             <Input
               label="Niên khóa"
-              placeholder="Ví dụ: K21"
+              placeholder="Nhập niên khoá (ví dụ: 2023-2027)"
               value={filters.cohort || ""}
               onChange={(e) => setFilters(prev => ({ ...prev, cohort: e.target.value }))}
             />
@@ -1234,14 +1234,13 @@ export default function DirectoryPage() {
                 ))}
               </Select>
               <Input 
-                label="Tên Khoa" 
+                label="Khoa" 
                 disabled 
                 value={displayedDeptName} 
-                placeholder="Tự động ánh xạ theo ngành"
               />
               <Input label="Mã lớp *" value={classForm.classCode} onChange={(e) => setClassForm({...classForm, classCode: e.target.value})} disabled={classForm.mode === 'edit'} />
               <Input label="Tên lớp *" value={classForm.className} onChange={(e) => setClassForm({...classForm, className: e.target.value})} />
-              <Input label="Niên khóa" placeholder="Nhập niên khóa (Ví dụ: K21)" value={classForm.academicCohort || ""} onChange={(e) => setClassForm({...classForm, academicCohort: e.target.value})} />
+              <Input label="Niên khóa" placeholder="Nhập niên khoá (ví dụ: 2023-2027)" value={classForm.academicCohort || ""} onChange={(e) => setClassForm({...classForm, academicCohort: e.target.value})} />
               <Input label="Trưởng Khoa" disabled value={displayedDean} />
               {(() => {
                 const studentOptions = students.map(s => ({
@@ -1376,7 +1375,6 @@ export default function DirectoryPage() {
                     label="Khoa" 
                     disabled 
                     value={displayedDeptName} 
-                    placeholder="Tự động ánh xạ theo ngành"
                   />
                 </>
               )}
@@ -1411,7 +1409,7 @@ export default function DirectoryPage() {
               )}
 
               {["STUDENT", "CLASS_LEADER", "CLASS_DEPUTY"].includes(form.role) && (
-                <Input label="Niên khóa" placeholder="Ví dụ: K21" value={form.academicCohort || ""} onChange={e => setForm({...form, academicCohort: e.target.value})} />
+                <Input label="Niên khóa" placeholder="Nhập niên khoá (ví dụ: 2023-2027)" value={form.academicCohort || ""} onChange={e => setForm({...form, academicCohort: e.target.value})} />
               )}
 
               <Select label="Trạng thái" value={form.status !== undefined ? form.status : 1} onChange={e => setForm({...form, status: Number(e.target.value)})}>

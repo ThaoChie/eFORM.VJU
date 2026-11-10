@@ -249,7 +249,7 @@ export function Input({ label, required, error, className = "", ...props }) {
         </span>
       )}
       <input
-        className={`h-10 w-full rounded-lg border bg-white px-3 outline-none transition focus:border-brand focus:ring-2 focus:ring-brand-soft ${
+        className={`h-10 w-full rounded-lg border bg-white px-3 outline-none transition focus:border-brand focus:ring-2 focus:ring-brand-soft disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed ${
           error ? "border-brand" : "border-line"
         }`}
         {...props}
