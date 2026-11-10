@@ -442,9 +442,9 @@ export default function SignatureUploader({ level = 1 }) {
               <div className="border-t border-slate-100 pt-2.5">
                 <span className="text-muted block text-[11px]">Mã vân tay mật mã (SHA-256)</span>
                 {isLocked ? (
-                  <code className="mt-1 block font-mono text-xs text-slate-700 bg-slate-100 px-2 py-1 rounded inline-block border border-slate-200">
+                  <span className="mt-1 block font-mono text-xs text-slate-700">
                     {fingerprintText}
-                  </code>
+                  </span>
                 ) : (
                   <span className="text-[11px] text-slate-400 italic block mt-0.5">
                     Chưa tạo (Sẽ sinh mã băm sau khi tải chữ ký)

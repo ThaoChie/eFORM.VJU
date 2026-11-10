@@ -1054,7 +1054,7 @@ export default function EvaluationPeriodListPage() {
               {
                 key: "code",
                 title: "Mã học kỳ",
-                render: (r) => <code className="font-mono text-xs">{r.semesterCode}</code>,
+                render: (r) => <span className="font-mono text-xs text-slate-700">{r.semesterCode}</span>,
               },
               { key: "name", title: "Tên học kỳ", render: (r) => <span className="font-medium text-slate-800">{r.semesterName}</span> },
               { key: "year", title: "Năm học", render: (r) => r.academicYear },

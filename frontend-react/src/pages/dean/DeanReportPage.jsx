@@ -274,9 +274,9 @@ export default function DeanReportPage({ school = false }) {
               key: "code",
               title: "Mã sinh viên",
               render: (r) => (
-                <code className="text-xs bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded">
+                <span className="font-mono text-xs text-slate-700">
                   {r.studentCode || "—"}
-                </code>
+                </span>
               ),
             },
             {

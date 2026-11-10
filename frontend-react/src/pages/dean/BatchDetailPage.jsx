@@ -287,7 +287,7 @@ export default function BatchDetailPage() {
                       <span className="font-bold text-sm text-brand block">
                         {item.classScore != null ? `${item.classScore}đ` : `${item.score}đ`}
                       </span>
-                      <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 inline-block mt-0.5">
+                      <span className="text-xs font-medium text-emerald-700 block mt-0.5">
                         Lớp đã thông qua
                       </span>
                     </div>
