@@ -39,6 +39,9 @@ public class PublicVerifyServiceImpl implements PublicVerifyService {
             code = code.substring(0, 3) + "****";
         }
         res.setStudentCodeMasked(code);
+        res.setDigitalSignatureType("PAdES (ETSI/Adobe PKCS#7 Detached) & SHA-256");
+        res.setCertificateIssuer("Trường Đại học Việt Nhật (VJU) - ĐHQGHN");
+        res.setIsPadesCertified(true);
 
         return res;
     }

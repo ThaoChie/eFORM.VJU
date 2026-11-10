@@ -26,3 +26,12 @@ minio:
 render-service:
   url: ${RENDER_SERVICE_URL:http://localhost:8000/render}
   timeoutMs: ${RENDER_TIMEOUT_MS:30000}
+
+pades:
+  keystore:
+    base64: ${KEYSTORE_BASE64:}
+    password: ${KEYSTORE_PASSWORD:vju_drl_secure_key_2026}
+  signer:
+    name: ${PADES_SIGNER_NAME:Trường Đại học Việt Nhật (VJU) - ĐHQGHN}
+    reason: ${PADES_SIGNER_REASON:Chứng thực số Bảng Điểm Rèn Luyện Sinh Viên (E-Form VJU)}
+    location: ${PADES_SIGNER_LOCATION:Hà Nội, Việt Nam}
