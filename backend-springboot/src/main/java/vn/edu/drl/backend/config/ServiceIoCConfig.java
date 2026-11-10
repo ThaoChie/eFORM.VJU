@@ -1,13 +1,6 @@
 package vn.edu.drl.backend.config;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
-import vn.edu.drl.backend.service.impl.LocalFileSystemStorageService;
-import vn.edu.drl.backend.service.impl.S3StorageService;
-import vn.edu.drl.backend.service.interfaces.StorageService;
-import vn.edu.drl.backend.service.impl.StorageServiceImpl;
 
 /**
  * CẤU HÌNH TẬP TRUNG IoC / DI CONTAINER (Inversion of Control & Dependency Injection)
@@ -22,66 +15,15 @@ import vn.edu.drl.backend.service.impl.StorageServiceImpl;
  *    - 100% Controller sử dụng Constructor Injection (thông qua @RequiredArgsConstructor / private final)
  *      để đảm bảo tính bất biến (immutability), fail-fast khi thiếu bean, và dễ dàng Unit Test độc lập.
  *
- * 2. Centralized Mapping & Hot-swappable Implementations:
- *    - Toàn bộ việc mapping và điều phối implementation được cấu hình tại đây.
- *    - Khi cần chuyển đổi nhà cung cấp (Storage: MinIO <-> AWS S3 <-> Local Disk),
- *      hoặc áp dụng Caching Proxy, Audit Decorator, Multi-tenancy Dispatcher, hay Mock Service,
- *      ta chỉ cần cấu hình tại DI Container này mà KHÔNG LÀM BIẾN ĐỘNG bất kỳ Controller nào.
+ * 2. Multi-implementation Provider Resolution:
+ *    - Các implementation của StorageService (StorageServiceImpl, S3StorageService, LocalFileSystemStorageService)
+ *      được Spring Boot tự động phân giải động theo cấu hình 'storage.provider' thông qua @ConditionalOnProperty và @Primary.
+ *
+ * 3. Service Registry:
+ *    - Toàn bộ 21 Service Interfaces đặt tại package: vn.edu.drl.backend.service.interfaces
+ *    - Toàn bộ Implementations đặt tại package: vn.edu.drl.backend.service.impl
  */
 @Configuration
 public class ServiceIoCConfig {
-
-    // =========================================================================
-    // 1. STORAGE SERVICE ABSTRACTION MAPPING
-    // Cho phép switch linh hoạt giữa 3 implementations:
-    //   - MinIO (Mặc định cho môi trường Production / On-Premise)
-    //   - AWS S3 (Khi deploy Cloud AWS)
-    //   - Local File System (Cho môi trường Local Dev / Offline Testing)
-    // =========================================================================
-
-    @Bean
-    @Primary
-    @ConditionalOnProperty(name = "storage.provider", havingValue = "minio", matchIfMissing = true)
-    public StorageService minioStorageService(StorageServiceImpl storageServiceImpl) {
-        return storageServiceImpl;
-    }
-
-    @Bean
-    @ConditionalOnProperty(name = "storage.provider", havingValue = "s3")
-    public StorageService s3StorageService(S3StorageService s3StorageService) {
-        return s3StorageService;
-    }
-
-    @Bean
-    @ConditionalOnProperty(name = "storage.provider", havingValue = "local")
-    public StorageService localStorageService(LocalFileSystemStorageService localFileSystemStorageService) {
-        return localFileSystemStorageService;
-    }
-
-    // =========================================================================
-    // 2. SERVICE ABSTRACTION REGISTRY / DOCUMENTATION
-    // Các mapping Interface -> Implementation được Spring Boot IoC Container
-    // quản lý tự động theo mô hình Single Implementation per Abstraction:
-    //
-    //   - AdminApprovalService       -> AdminApprovalServiceImpl
-    //   - AuditService               -> AuditServiceImpl
-    //   - AuthService                -> AuthServiceImpl
-    //   - ClassService               -> ClassServiceImpl
-    //   - CriteriaService            -> CriteriaServiceImpl
-    //   - DashboardService           -> DashboardServiceImpl
-    //   - DepartmentService          -> DepartmentServiceImpl
-    //   - EditorService              -> EditorServiceImpl
-    //   - EvaluationPeriodService    -> EvaluationPeriodServiceImpl
-    //   - FieldMasterService         -> FieldMasterServiceImpl
-    //   - FormVersionService         -> FormVersionServiceImpl
-    //   - MajorService               -> MajorServiceImpl
-    //   - NotificationService        -> NotificationServiceImpl
-    //   - OfficeService              -> OfficeServiceImpl
-    //   - PublicVerifyService        -> PublicVerifyServiceImpl
-    //   - ReportService              -> ReportServiceImpl
-    //   - SemesterService            -> SemesterServiceImpl
-    //   - UserService                -> UserServiceImpl
-    //   - WorkflowBatchHelperService -> WorkflowBatchHelperServiceImpl
-    //   - WorkflowService            -> WorkflowServiceImpl
-    // =========================================================================
+    // Registry và configuration documentation cho IoC Container
 }
