@@ -54,7 +54,6 @@ export function IconButton({
   ...props
 }) {
   const tooltipText = label || title
-  const isBottom = tooltipPlacement === "bottom"
 
   const alignStyles = {
     center: "left-1/2 -translate-x-1/2",
@@ -66,6 +65,20 @@ export function IconButton({
     center: "left-1/2 -translate-x-1/2",
     right: "right-3 translate-x-0",
     left: "left-3 translate-x-0",
+  }
+
+  let positionClass = `bottom-full mb-1.5 group-first/row:top-full group-first/row:mt-1.5 group-first/row:bottom-auto ${alignStyles[tooltipAlign] || alignStyles.center}`
+  let arrowClass = `top-full -mt-0.5 border-t-slate-900 border-b-transparent border-l-transparent border-r-transparent group-first/row:bottom-full group-first/row:top-auto group-first/row:-mb-0.5 group-first/row:border-b-slate-900 group-first/row:border-t-transparent ${arrowAlignStyles[tooltipAlign] || arrowAlignStyles.center}`
+
+  if (tooltipPlacement === "bottom") {
+    positionClass = `top-full mt-1.5 ${alignStyles[tooltipAlign] || alignStyles.center}`
+    arrowClass = `bottom-full -mb-0.5 border-b-slate-900 border-t-transparent border-l-transparent border-r-transparent ${arrowAlignStyles[tooltipAlign] || arrowAlignStyles.center}`
+  } else if (tooltipPlacement === "right") {
+    positionClass = "left-full ml-2 top-1/2 -translate-y-1/2"
+    arrowClass = "right-full top-1/2 -translate-y-1/2 border-r-slate-900 border-l-transparent border-t-transparent border-b-transparent"
+  } else if (tooltipPlacement === "left") {
+    positionClass = "right-full mr-2 top-1/2 -translate-y-1/2"
+    arrowClass = "left-full top-1/2 -translate-y-1/2 border-l-slate-900 border-r-transparent border-t-transparent border-b-transparent"
   }
 
   const isMlAuto = className.includes("ml-auto")
@@ -87,23 +100,11 @@ export function IconButton({
       {tooltipText && (
         <span
           role="tooltip"
-          className={`pointer-events-none absolute ${
-            isBottom
-              ? "top-full mt-1.5"
-              : "bottom-full mb-1.5 group-first/row:top-full group-first/row:mt-1.5 group-first/row:bottom-auto"
-          } ${
-            alignStyles[tooltipAlign] || alignStyles.center
-          } hidden group-hover/btn:inline-flex items-center justify-center whitespace-nowrap rounded-md bg-slate-900 px-2.5 py-1 text-[11px] font-medium text-white shadow-xl ring-1 ring-white/10 z-[100]`}
+          className={`pointer-events-none absolute ${positionClass} hidden group-hover/btn:inline-flex items-center justify-center whitespace-nowrap rounded-md bg-slate-900 px-2.5 py-1 text-[11px] font-medium text-white shadow-xl ring-1 ring-white/10 z-[100]`}
         >
           {tooltipText}
           <span
-            className={`absolute ${
-              isBottom
-                ? "bottom-full -mb-0.5 border-b-slate-900 border-t-transparent"
-                : "top-full -mt-0.5 border-t-slate-900 border-b-transparent group-first/row:bottom-full group-first/row:top-auto group-first/row:-mb-0.5 group-first/row:border-b-slate-900 group-first/row:border-t-transparent"
-            } ${
-              arrowAlignStyles[tooltipAlign] || arrowAlignStyles.center
-            } border-4 border-l-transparent border-r-transparent`}
+            className={`absolute border-4 ${arrowClass}`}
           />
         </span>
       )}

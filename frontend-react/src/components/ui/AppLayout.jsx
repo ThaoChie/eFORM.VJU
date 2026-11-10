@@ -119,7 +119,7 @@ export default function AppLayout() {
             /* Mini-sidebar mode: chỉ 1 nút mở rộng duy nhất ở đỉnh cột icon */
             <IconButton
               label="Mở rộng thanh bên"
-              tooltipAlign="right"
+              tooltipPlacement="right"
               className="text-brand hover:bg-brand-soft rounded-xl p-2.5 transition"
               onClick={openSidebar}
             >
@@ -138,6 +138,7 @@ export default function AppLayout() {
               </div>
               <IconButton
                 label="Thu gọn thanh bên"
+                tooltipPlacement="bottom"
                 tooltipAlign="right"
                 className="text-muted hover:text-brand hover:bg-brand-soft rounded-lg transition"
                 onClick={closeSidebar}
@@ -190,7 +191,7 @@ export default function AppLayout() {
                             {item.badge}
                           </span>
                         )}
-                        <span className="absolute right-full top-1/2 -mt-1 border-4 border-slate-900 border-l-transparent border-t-transparent border-b-transparent" />
+                        <span className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-r-slate-900 border-transparent" />
                       </span>
                     </div>
                   )
@@ -234,7 +235,7 @@ export default function AppLayout() {
             <div className="flex justify-center">
               <IconButton
                 label="Đăng xuất"
-                tooltipAlign="right"
+                tooltipPlacement="right"
                 className="text-muted hover:text-brand hover:bg-brand-soft rounded-xl size-11 transition"
                 onClick={signOut}
               >
