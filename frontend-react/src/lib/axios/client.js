@@ -13,6 +13,23 @@ const resolvedBaseURL = isLocalhost
   ? (envApiUrl || 'http://localhost:8080/api/v1')
   : (!isEnvUrlLocal && envApiUrl ? envApiUrl : 'https://drl-backend-v5xb.onrender.com/api/v1');
 
+export const getApiOrigin = () => {
+  return resolvedBaseURL.replace(/\/api\/v1\/?$/, '');
+};
+
+export const getProofUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  const origin = getApiOrigin();
+  let path = url;
+  if (!path.startsWith('/api/')) {
+    path = `/api/v1/editor/proofs/${path.replace(/^\/+/, '')}`;
+  }
+  return `${origin}${path}`;
+};
+
 export const client = axios.create({
   baseURL: resolvedBaseURL,
   headers: {

@@ -32,6 +32,7 @@ import { useAuthStore } from "../../stores/useAuthStore"
 import { authService } from "../../services/auth-service"
 import { useSubmissionStore } from "../../stores/useSubmissionStore"
 import { submissionService } from "../../services/submission-service"
+import { getProofUrl } from "../../lib/axios/client"
 import SignConfirmModal from "../../components/signature/SignConfirmModal"
 import PdfViewer, { isValidSignatureImage } from "../../components/ui/PdfViewer"
 import { Button, Card, Input, Modal } from "../../components/ui/Primitives"
@@ -357,10 +358,8 @@ export default function ComposePage() {
         try {
           const res = await submissionService.uploadProof(semester?.id, file)
           const rawUrl = typeof res === "string" ? res : res?.url
-          if (rawUrl && (rawUrl.startsWith("http://") || rawUrl.startsWith("https://") || rawUrl.startsWith("/"))) {
-            fileUrl = rawUrl
-          } else if (rawUrl && rawUrl !== file.name) {
-            fileUrl = `/api/v1/editor/proofs/${rawUrl}`
+          if (rawUrl) {
+            fileUrl = getProofUrl(rawUrl)
           }
         } catch {
           // Fallback to Data URL if storage is not connected
@@ -716,7 +715,7 @@ export default function ComposePage() {
                                           title="Bấm để xem ảnh lớn"
                                         >
                                           <img
-                                            src={item.url}
+                                            src={getProofUrl(item.url)}
                                             alt={item.name}
                                             className="size-full object-cover"
                                           />
@@ -1126,7 +1125,7 @@ export default function ComposePage() {
           <div className="flex items-center justify-between w-full">
             {previewProof?.url && (
               <a
-                href={previewProof.url}
+                href={getProofUrl(previewProof.url)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 text-xs text-brand font-semibold hover:underline"
@@ -1154,7 +1153,7 @@ export default function ComposePage() {
               <p className="text-xs text-slate-500 mt-1">Bảng tính Microsoft Excel (.xlsx)</p>
               {previewProof?.url && (
                 <a
-                  href={previewProof.url}
+                  href={getProofUrl(previewProof.url)}
                   target="_blank"
                   rel="noopener noreferrer"
                   download={previewProof.name}
@@ -1166,15 +1165,16 @@ export default function ComposePage() {
               )}
             </div>
           ) : previewProof?.type === "application/pdf" ||
+          previewProof?.name?.toLowerCase().endsWith(".pdf") ||
           (typeof previewProof?.url === "string" && previewProof.url.toLowerCase().endsWith(".pdf")) ? (
             <iframe
-              src={previewProof.url}
+              src={getProofUrl(previewProof.url)}
               title={previewProof.name}
               className="size-full min-h-[480px] rounded border border-slate-200"
             />
           ) : (
             <img
-              src={previewProof?.url}
+              src={getProofUrl(previewProof?.url)}
               alt={previewProof?.name}
               className="max-h-[500px] max-w-full rounded object-contain shadow-xs"
             />

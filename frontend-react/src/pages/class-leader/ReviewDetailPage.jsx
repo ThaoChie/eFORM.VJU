@@ -5,6 +5,7 @@ import { toast } from "react-hot-toast"
 import { rankScore } from "../../common/constants/index.js"
 import { useReviewStore } from "../../stores/useReviewStore"
 import { reviewService } from "../../services/review-service"
+import { getProofUrl } from "../../lib/axios/client"
 import SignConfirmModal from "../../components/signature/SignConfirmModal"
 import PdfViewer from "../../components/ui/PdfViewer"
 import StatusTag from "../../components/ui/StatusTag"
@@ -615,9 +616,9 @@ export default function ReviewDetailPage() {
         onClose={() => setPreviewProof(null)}
         footer={
           <div className="flex items-center justify-between w-full">
-            {previewProof?.url && (previewProof.url.startsWith("http") || previewProof.url.startsWith("data:") || previewProof.url.startsWith("blob:")) ? (
+            {previewProof?.url ? (
               <a
-                href={previewProof.url}
+                href={getProofUrl(previewProof.url)}
                 target="_blank"
                 rel="noopener noreferrer"
                 download={previewProof.name || "minh_chung"}
@@ -655,7 +656,7 @@ export default function ReviewDetailPage() {
               <p className="text-xs text-slate-500 mt-1">Bảng tính Microsoft Excel (.xlsx)</p>
               {previewProof?.url && (
                 <a
-                  href={previewProof.url}
+                  href={getProofUrl(previewProof.url)}
                   download={previewProof.name}
                   className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 transition"
                 >
@@ -664,17 +665,17 @@ export default function ReviewDetailPage() {
                 </a>
               )}
             </div>
-          ) : previewProof?.url && (previewProof.url.startsWith("data:application/pdf") || previewProof.url.startsWith("blob:") || (previewProof.url.startsWith("http") && previewProof.name?.toLowerCase().endsWith(".pdf"))) ? (
+          ) : previewProof?.name?.toLowerCase().endsWith(".pdf") || (previewProof?.url && (previewProof.url.startsWith("data:application/pdf") || previewProof.url.startsWith("blob:") || previewProof.url.toLowerCase().endsWith(".pdf") || previewProof.type === "application/pdf")) ? (
             <div className="w-full flex flex-col items-center gap-2">
               <iframe
-                src={previewProof.url}
+                src={getProofUrl(previewProof.url)}
                 title={previewProof.name}
                 className="w-full min-h-[560px] rounded border border-slate-200 bg-white"
               />
             </div>
-          ) : previewProof?.url && (previewProof.url.startsWith("data:image") || previewProof.url.startsWith("blob:") || previewProof.url.startsWith("http")) ? (
+          ) : previewProof?.url ? (
             <img
-              src={previewProof.url}
+              src={getProofUrl(previewProof.url)}
               alt={previewProof.name}
               className="max-h-[560px] max-w-full rounded object-contain shadow-xs"
             />

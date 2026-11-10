@@ -4,5 +4,14 @@
       "VITE_API_URL": "https://drl-backend-v5xb.onrender.com/api/v1"
     }
   },
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://drl-backend-v5xb.onrender.com/api/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
 }
