@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { Layers, ArrowRight, RefreshCw, CheckCircle2 } from "lucide-react"
-import StatusTag from "../../components/ui/StatusTag"
+import { Layers, ArrowRight, RefreshCw } from "lucide-react"
 import { ActionViewButton, Button, Card, PageTitle, Table } from "../../components/ui/Primitives"
 import { batchService } from "../../services/batch-service"
 
@@ -72,25 +71,31 @@ export default function BatchListPage() {
               title: "Lớp",
               render: (r) => (
                 <div>
-                  <b className="text-slate-800 text-sm block">{r.className || r.classCode}</b>
-                  <small className="text-xs text-muted font-mono">{r.classCode || `Lớp #${r.id}`}</small>
+                  <span className="font-semibold text-slate-900 text-sm block">
+                    {r.className || r.classCode}
+                  </span>
+                  <span className="text-xs text-slate-400 font-mono">
+                    {r.classCode || `Lớp #${r.id}`}
+                  </span>
                 </div>
               ),
             },
             {
               key: "size",
               title: "Sĩ số",
-              render: (r) => <span className="font-medium text-slate-700">{r.size || 0} SV</span>,
+              render: (r) => (
+                <span className="text-sm text-slate-700">
+                  {r.size || 0} SV
+                </span>
+              ),
             },
             {
               key: "pending",
               title: "Chờ khoa ký",
               render: (r) => (
                 <span
-                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                    r.pending > 0
-                      ? "bg-rose-100 text-rose-800 border border-rose-200"
-                      : "bg-slate-100 text-slate-600"
+                  className={`text-sm ${
+                    r.pending > 0 ? "font-semibold text-rose-600" : "text-slate-500"
                   }`}
                 >
                   {r.pending || 0} phiếu
@@ -101,7 +106,11 @@ export default function BatchListPage() {
               key: "done",
               title: "Đã hoàn tất",
               render: (r) => (
-                <span className="text-xs font-semibold text-emerald-700">
+                <span
+                  className={`text-sm ${
+                    r.done > 0 ? "font-semibold text-emerald-600" : "text-slate-500"
+                  }`}
+                >
                   {r.done || 0} phiếu
                 </span>
               ),
@@ -109,12 +118,47 @@ export default function BatchListPage() {
             {
               key: "reviewer",
               title: "Người duyệt cấp lớp",
-              render: (r) => <span className="text-xs text-slate-700">{r.reviewer || "Cán bộ lớp"}</span>,
+              render: (r) => (
+                <span className="text-sm text-slate-700">
+                  {r.reviewer || "Cán bộ lớp"}
+                </span>
+              ),
             },
             {
               key: "status",
               title: "Trạng thái",
-              render: (r) => <StatusTag status={r.status || (r.pending > 0 ? "Chờ khoa duyệt" : "Hoàn tất")} />,
+              render: (r) => {
+                const status =
+                  r.status ||
+                  (r.pending > 0 ? "Chờ khoa duyệt" : r.done > 0 ? "Hoàn tất" : "Chưa có phiếu")
+                const isPending = status.includes("Chờ") || r.pending > 0
+                const isDone = status.includes("Hoàn tất") || status.includes("Đã duyệt")
+
+                return (
+                  <div className="flex items-center gap-2 text-sm">
+                    <span
+                      className={`size-1.5 rounded-full shrink-0 ${
+                        isPending
+                          ? "bg-amber-500"
+                          : isDone
+                            ? "bg-emerald-500"
+                            : "bg-slate-300"
+                      }`}
+                    />
+                    <span
+                      className={
+                        isPending
+                          ? "font-medium text-amber-700"
+                          : isDone
+                            ? "font-medium text-emerald-700"
+                            : "text-slate-500"
+                      }
+                    >
+                      {status}
+                    </span>
+                  </div>
+                )
+              },
             },
             {
               key: "action",
