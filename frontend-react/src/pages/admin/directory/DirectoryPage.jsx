@@ -9,6 +9,7 @@ import { downloadBlob, downloadExcelTemplate } from "../../../lib/downloadHelper
 
 const tabs = [
   ["departments", "Khoa"],
+  ["majors", "Ngành"],
   ["offices", "Phòng ban"],
   ["classes", "Lớp"],
   ["users", "Người dùng"],
@@ -44,6 +45,11 @@ export default function DirectoryPage() {
 
   useEffect(() => {
     fetchItems(active);
+    if (active === "majors") {
+      import("../../../lib/axios/client").then(({ client }) => {
+        client.get("/departments").then(res => setDepartments(res || []));
+      });
+    }
     if (active === "offices") {
       import("../../../lib/axios/client").then(({ client }) => {
         client.get("/directory/users?role=ADMIN").then(res => setAdmins(Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : [])));
@@ -92,6 +98,15 @@ export default function DirectoryPage() {
                 id: r.id,
                 deptCode: r.deptCode || r.code,
                 deptName: r.deptName || r.name,
+                status: r.rawStatus !== undefined ? r.rawStatus : 1,
+              });
+            } else if (active === "majors") {
+              setForm({
+                mode: 'edit',
+                id: r.id,
+                majorCode: r.majorCode || r.code,
+                majorName: r.majorName || r.name,
+                deptId: r.deptId || "",
                 status: r.rawStatus !== undefined ? r.rawStatus : 1,
               });
             } else if (active === "offices") {
@@ -160,6 +175,32 @@ export default function DirectoryPage() {
       dean: item.deanName || "Chưa chỉ định",
       deanId: item.deanId,
       classesCount: item.classesCount ?? item.classCount ?? 0,
+      status: item.status === 1 ? "Đang hoạt động" : "Vô hiệu hóa",
+      rawStatus: item.status,
+    }));
+  } else if (active === "majors") {
+    columns = [
+      { key: "stt", title: "STT", render: (_, i) => i + 1 },
+      { key: "code", title: "Mã Ngành", render: (r) => <code className="font-mono">{r.code}</code> },
+      { key: "name", title: "Tên Ngành" },
+      { key: "department", title: "Khoa trực thuộc", render: (r) => (
+        <div className="leading-tight">
+          <div className="font-medium">{r.deptName || "Chưa gắn khoa"}</div>
+          {r.deptCode && <div className="text-xs text-muted font-mono">{r.deptCode}</div>}
+        </div>
+      )},
+      { key: "status", title: "Trạng thái", render: (r) => renderStatus(r.status) },
+      { key: "action", title: "Thao tác", render: actionButtons },
+    ];
+    rows = items.map((item) => ({
+      id: item.id,
+      code: item.majorCode,
+      name: item.majorName,
+      majorCode: item.majorCode,
+      majorName: item.majorName,
+      deptId: item.deptId,
+      deptCode: item.deptCode,
+      deptName: item.deptName,
       status: item.status === 1 ? "Đang hoạt động" : "Vô hiệu hóa",
       rawStatus: item.status,
     }));
@@ -342,6 +383,38 @@ export default function DirectoryPage() {
         </Card>
       );
     }
+    if (active === "majors") {
+      rows = rows.filter(r => {
+        const itemStatus = (r.status === 1 || r.status === "Đang hoạt động") ? "Đang hoạt động" : "Vô hiệu hóa";
+        if (filters.status !== "Tất cả" && itemStatus !== filters.status) return false;
+        if (filters.dept && r.deptId !== Number(filters.dept)) return false;
+        if (filters.query) {
+           const q = filters.query.toLowerCase();
+           return r.code?.toLowerCase().includes(q) || r.name?.toLowerCase().includes(q) || r.deptName?.toLowerCase().includes(q);
+        }
+        return true;
+      });
+      return (
+        <Card className="mb-4">
+          <div className="grid gap-4 md:grid-cols-4">
+            <Input label="Mã - Tên Ngành" placeholder="Nhập mã hoặc tên ngành..." value={filters.query} onChange={(e) => setFilters({...filters, query: e.target.value})} />
+            <Select label="Khoa trực thuộc" value={filters.dept || ""} onChange={(e) => setFilters({...filters, dept: e.target.value})}>
+              <option value="">Tất cả Khoa (Mã - Tên)</option>
+              {departments.map(d => <option key={d.id} value={d.id}>{d.deptCode} - {d.deptName}</option>)}
+            </Select>
+            <Select label="Trạng thái" value={filters.status} onChange={(e) => setFilters({...filters, status: e.target.value})}>
+              <option>Tất cả</option>
+              <option>Đang hoạt động</option>
+              <option>Vô hiệu hóa</option>
+            </Select>
+            <div className="flex items-end gap-3 md:justify-end">
+              <Button variant="ghost" onClick={() => setFilters({query: "", status: "Tất cả", dept: ""})}>Xóa bộ lọc</Button>
+              <Button variant="primary"><Search className="size-4" /> Tìm kiếm</Button>
+            </div>
+          </div>
+        </Card>
+      );
+    }
     if (active === "classes") {
       rows = rows.filter(r => {
         if (filters.status !== "Tất cả" && (r.status === 1 ? "Đang hoạt động" : "Vô hiệu hóa") !== filters.status) return false;
@@ -485,6 +558,7 @@ export default function DirectoryPage() {
     }
     const tabNames = {
       departments: "Danh_sach_Khoa",
+      majors: "Danh_sach_Nganh",
       offices: "Danh_sach_Phong_ban",
       classes: "Danh_sach_Lop",
       users: "Danh_sach_Nguoi_dung"
@@ -504,7 +578,7 @@ export default function DirectoryPage() {
   };
 
   const renderToolbar = () => {
-    if (active === "classes" || active === "departments" || active === "users" || active === "offices") {
+    if (active === "classes" || active === "departments" || active === "majors" || active === "users" || active === "offices") {
       return (
         <div className="flex flex-wrap gap-2">
           <Button onClick={() => setColConfig(true)}>
@@ -513,24 +587,28 @@ export default function DirectoryPage() {
           <Button onClick={handleExportExcel}>
             <Download className="size-4" /> Xuất Excel
           </Button>
-          <Button onClick={handleDownloadTemplate}>
-            <Download className="size-4" /> Tải file mẫu
-          </Button>
-          <Button onClick={() => {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = '.xlsx, .xls';
-            input.onchange = (e) => {
-              if (e.target.files.length > 0) {
-                 setSelectedFile(e.target.files[0]);
-                 setImportData(null);
-                 setImportExcel(true);
-              }
-            };
-            input.click();
-          }}>
-            <Upload className="size-4" /> Thêm mới theo lô
-          </Button>
+          {active !== "majors" && (
+            <>
+              <Button onClick={handleDownloadTemplate}>
+                <Download className="size-4" /> Tải file mẫu
+              </Button>
+              <Button onClick={() => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.xlsx, .xls';
+                input.onchange = (e) => {
+                  if (e.target.files.length > 0) {
+                     setSelectedFile(e.target.files[0]);
+                     setImportData(null);
+                     setImportExcel(true);
+                  }
+                };
+                input.click();
+              }}>
+                <Upload className="size-4" /> Thêm mới theo lô
+              </Button>
+            </>
+          )}
           {active === "classes" ? (
             <Button variant="primary" onClick={() => setClassForm({ mode: 'create', deptId: "", classCode: "", className: "", academicCohort: "", leaderIds: [], deputyIds: [], status: 1 })}>
               <Plus className="size-4" /> Thêm mới
@@ -541,6 +619,10 @@ export default function DirectoryPage() {
             </Button>
           ) : active === "departments" ? (
             <Button variant="primary" onClick={() => setForm({ mode: 'create', deptCode: "", deptName: "", status: 1 })}>
+              <Plus className="size-4" /> Thêm mới
+            </Button>
+          ) : active === "majors" ? (
+            <Button variant="primary" onClick={() => setForm({ mode: 'create', majorCode: "", majorName: "", deptId: "", status: 1 })}>
               <Plus className="size-4" /> Thêm mới
             </Button>
           ) : active === "offices" ? (
@@ -724,6 +806,85 @@ export default function DirectoryPage() {
               value={form.deptName || form.name || ""} 
               onChange={e => setForm({...form, deptName: e.target.value})} 
             />
+            <Select 
+              label="Trạng thái" 
+              value={form.status !== undefined ? form.status : (form.statusStr === 'Vô hiệu hóa' ? 0 : 1)} 
+              onChange={e => setForm({...form, status: Number(e.target.value)})}
+            >
+              <option value={1}>Đang hoạt động</option>
+              <option value={0}>Vô hiệu hóa</option>
+            </Select>
+          </div>
+        </Modal>
+      )}
+
+      {active === "majors" && form && (
+        <Modal 
+          open={true} 
+          title={form.mode === 'edit' ? "Chỉnh sửa Ngành" : "Thêm mới Ngành"} 
+          onClose={() => setForm(false)} 
+          footer={
+            <>
+              <Button onClick={() => setForm(false)}>Hủy</Button>
+              <Button variant="primary" onClick={async () => {
+                try {
+                  const { client } = await import("../../../lib/axios/client");
+                  const code = form.majorCode || form.code;
+                  const name = form.majorName || form.name;
+                  const deptId = form.deptId;
+                  if (!code?.trim()) return toast.error("Vui lòng nhập mã ngành");
+                  if (!name?.trim()) return toast.error("Vui lòng nhập tên ngành");
+                  if (!deptId) return toast.error("Vui lòng chọn khoa trực thuộc");
+
+                  const payload = {
+                    majorCode: code?.trim(),
+                    majorName: name?.trim(),
+                    deptId: Number(deptId),
+                    status: form.status !== undefined ? Number(form.status) : 1
+                  };
+
+                  if (form.mode === 'create') {
+                    await client.post("/majors", payload);
+                    toast.success("Tạo Ngành thành công!");
+                  } else {
+                    await client.put(`/majors/${form.id}`, payload);
+                    toast.success("Cập nhật Ngành thành công!");
+                  }
+                  setForm(false);
+                  fetchItems(active);
+                } catch (e) {
+                  toast.error(e.response?.data?.message || "Lỗi xử lý Ngành");
+                }
+              }}>Lưu</Button>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            <Input 
+              label={form.mode === 'edit' ? "Mã ngành" : "Mã ngành *"} 
+              placeholder="Nhập mã ngành (ví dụ: CNTT, KHMT, CNKT...)" 
+              value={form.majorCode || form.code || ""} 
+              onChange={e => setForm({...form, majorCode: e.target.value})} 
+              disabled={form.mode === 'edit'} 
+            />
+            <Input 
+              label="Tên ngành *" 
+              placeholder="Nhập tên ngành (ví dụ: Công nghệ Thông tin...)" 
+              value={form.majorName || form.name || ""} 
+              onChange={e => setForm({...form, majorName: e.target.value})} 
+            />
+            <Select 
+              label="Khoa trực thuộc *" 
+              value={form.deptId || ""} 
+              onChange={e => setForm({...form, deptId: e.target.value})}
+            >
+              <option value="">-- Chọn Khoa trực thuộc --</option>
+              {departments.map(d => (
+                <option key={d.id} value={d.id}>
+                  {d.deptCode} - {d.deptName}
+                </option>
+              ))}
+            </Select>
             <Select 
               label="Trạng thái" 
               value={form.status !== undefined ? form.status : (form.statusStr === 'Vô hiệu hóa' ? 0 : 1)} 

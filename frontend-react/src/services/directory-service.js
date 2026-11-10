@@ -4,6 +4,9 @@ export const directoryService = {
   getDepartments: async () => {
     return await client.get("/departments");
   },
+  getMajors: async () => {
+    return await client.get("/majors");
+  },
   getOffices: async () => {
     return await client.get("/offices");
   },

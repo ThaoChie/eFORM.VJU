@@ -10,6 +10,8 @@ export const useDirectoryStore = create((set, get) => ({
       let data = [];
       if (type === 'departments') {
         data = await directoryService.getDepartments();
+      } else if (type === 'majors') {
+        data = await directoryService.getMajors();
       } else if (type === 'offices') {
         data = await directoryService.getOffices();
       } else if (type === 'classes') {
