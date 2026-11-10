@@ -10,7 +10,8 @@ import {
   Calendar,
   AlertTriangle,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  History
 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { useEffect, useState } from "react"
@@ -266,9 +267,14 @@ export default function FormVersionListPage() {
       key: "versionNo",
       title: "Mã phiên bản",
       render: (r) => (
-        <span className="font-mono text-sm font-semibold text-brand">
+        <button
+          type="button"
+          onClick={() => handleOpenVersions(r)}
+          className="font-mono text-sm font-semibold text-brand hover:underline cursor-pointer"
+          title="Nhấn để xem danh sách phiên bản"
+        >
           {r.versionNo || "v1.0"}
-        </span>
+        </button>
       ),
     },
     {
@@ -322,9 +328,17 @@ export default function FormVersionListPage() {
             {/* 1. Xem chi tiết */}
             <IconButton
               label="Xem chi tiết"
-              onClick={() => handleOpenVersions(r)}
+              onClick={() => navigate(`/admin/form-versions/${r.id}`)}
             >
               <Eye className="size-4 text-slate-600 hover:text-brand" />
+            </IconButton>
+
+            {/* 2. Lịch sử phiên bản */}
+            <IconButton
+              label="Lịch sử phiên bản"
+              onClick={() => handleOpenVersions(r)}
+            >
+              <History className="size-4 text-slate-600 hover:text-brand" />
             </IconButton>
 
             {/* 2. Yêu cầu sửa: Ẩn nếu trạng thái là Vô hiệu hóa */}
