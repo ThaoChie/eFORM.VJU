@@ -1,4 +1,5 @@
 import {
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
@@ -66,30 +67,37 @@ export default function Pagination({
       className={`flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-line bg-white ${className}`}
     >
       {/* GÓC TRÁI: DROPDOWN CHỌN SỐ BẢN GHI & TEXT THÔNG TIN CHUẨN */}
-      <div className="flex flex-wrap items-center gap-4">
+      <div className="flex flex-wrap items-center gap-3">
         {onPageSizeChange && (
-          <div className="flex items-center gap-2 text-xs text-slate-600">
-            <span className="text-muted">Xem</span>
-            <select
-              value={pageSize}
-              onChange={(e) => {
-                const newSize = Number(e.target.value)
-                onPageSizeChange(newSize)
-                onPageChange?.(1)
-              }}
-              className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-800 shadow-2xs cursor-pointer hover:border-slate-300 focus:border-brand focus:outline-hidden"
-            >
-              {pageSizeOptions.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-            </select>
-            <span className="text-muted">bản ghi / trang</span>
+          <div className="flex items-center gap-1.5 text-xs text-slate-500">
+            <span>Xem</span>
+            <div className="relative inline-flex items-center">
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  const newSize = Number(e.target.value)
+                  onPageSizeChange(newSize)
+                  onPageChange?.(1)
+                }}
+                className="h-7.5 appearance-none rounded-md border border-slate-200 bg-white pl-2.5 pr-6 text-xs font-medium text-slate-700 shadow-2xs hover:border-slate-300 hover:bg-slate-50/70 focus:border-brand focus:ring-2 focus:ring-brand/15 focus:outline-hidden transition cursor-pointer"
+              >
+                {pageSizeOptions.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-1.5 size-3.5 text-slate-400" />
+            </div>
+            <span>bản ghi / trang</span>
           </div>
         )}
 
-        <span className="text-xs text-slate-600">
+        {onPageSizeChange && (
+          <span className="hidden sm:inline-block h-3.5 w-px bg-slate-200" />
+        )}
+
+        <span className="text-xs text-slate-500">
           Hiển thị từ <span className="font-semibold text-slate-800">{from}</span>{" "}
           đến <span className="font-semibold text-slate-800">{to}</span> trong{" "}
           <span className="font-semibold text-slate-800">{totalItems}</span> bản
