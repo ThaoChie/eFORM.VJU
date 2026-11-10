@@ -98,7 +98,7 @@ export default function DirectoryPage() {
   const actionButtons = (r) => {
     const isActive = r.status === "Đang hoạt động" || r.status === 1;
     return (
-      <div className="flex">
+      <div className="flex items-center justify-center gap-1">
         {isActive && (
           <IconButton label="Sửa" onClick={() => {
             if (active === "departments") {
