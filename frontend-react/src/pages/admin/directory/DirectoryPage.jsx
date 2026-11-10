@@ -168,7 +168,7 @@ export default function DirectoryPage() {
 
   if (active === "departments") {
     columns = [
-      { key: "stt", title: "STT", render: (_, i) => i + 1 },
+      { key: "stt", title: "STT", render: (_, i) => (page - 1) * pageSize + i + 1 },
       { key: "code", title: "Mã Khoa", render: (r) => <code className="font-mono">{r.code}</code> },
       { key: "name", title: "Tên Khoa" },
       { key: "dean", title: "Trưởng Khoa" },
@@ -190,7 +190,7 @@ export default function DirectoryPage() {
     }));
   } else if (active === "majors") {
     columns = [
-      { key: "stt", title: "STT", render: (_, i) => i + 1 },
+      { key: "stt", title: "STT", render: (_, i) => (page - 1) * pageSize + i + 1 },
       { key: "code", title: "Mã Ngành", render: (r) => <code className="font-mono">{r.code}</code> },
       { key: "name", title: "Tên Ngành" },
       { key: "department", title: "Khoa trực thuộc", render: (r) => (
@@ -216,7 +216,7 @@ export default function DirectoryPage() {
     }));
   } else if (active === "classes") {
     columns = [
-      { key: "stt", title: "STT", render: (_, i) => i + 1 },
+      { key: "stt", title: "STT", render: (_, i) => (page - 1) * pageSize + i + 1 },
       { key: "code", title: "Mã lớp", render: (r) => <code className="font-mono">{r.code}</code> },
       { key: "name", title: "Tên lớp" },
       { key: "academicCohort", title: "Niên khóa" },
@@ -287,7 +287,7 @@ export default function DirectoryPage() {
     }));
   } else if (active === "users") {
     columns = [
-      { key: "stt", title: "STT", render: (_, i) => i + 1 },
+      { key: "stt", title: "STT", render: (_, i) => (page - 1) * pageSize + i + 1 },
       { key: "userCode", title: "Mã người dùng", render: (r) => r.userCode ? <code className="font-mono">{r.userCode}</code> : <span className="text-muted">—</span> },
       { key: "fullName", title: "Họ và tên", render: (r) => r.fullName || <span className="text-muted">—</span> },
       { key: "dob", title: "Ngày sinh", render: (r) => r.dob || <span className="text-muted">—</span> },
@@ -329,7 +329,7 @@ export default function DirectoryPage() {
     });
   } else if (active === "offices") {
     columns = [
-      { key: "stt", title: "STT", render: (_, i) => i + 1 },
+      { key: "stt", title: "STT", render: (_, i) => (page - 1) * pageSize + i + 1 },
       { key: "code", title: "Mã phòng ban", render: (r) => <code className="font-mono">{r.code}</code> },
       { key: "name", title: "Tên phòng ban" },
       { key: "head", title: "Trưởng phòng", render: (r) => r.headName || "Chưa chỉ định" },
