@@ -15,9 +15,12 @@ import {
   RefreshCw,
   ArrowRight,
   History,
+  Pencil,
+  Trash2,
 } from "lucide-react"
 import toast from "react-hot-toast"
 import { evaluationPeriodService } from "../../../services/evaluation-period-service"
+import { semesterService } from "../../../services/semester-service"
 import {
   ActionViewButton,
   Button,
@@ -76,6 +79,128 @@ export default function EvaluationPeriodListPage() {
 
   // Action loading states
   const [actionLoading, setActionLoading] = useState(false)
+
+  // Semester Management state
+  const [semesterManagerOpen, setSemesterManagerOpen] = useState(false)
+  const [semesterFormModalOpen, setSemesterFormModalOpen] = useState(false)
+  const [semesterList, setSemesterList] = useState([])
+  const [semesterListLoading, setSemesterListLoading] = useState(false)
+  const [semesterForm, setSemesterForm] = useState({
+    id: null,
+    semesterCode: "",
+    semesterName: "Học kỳ 1",
+    academicYear: "2026-2027",
+    startDate: "",
+    endDate: "",
+    isActive: false,
+  })
+  const [semesterSaving, setSemesterSaving] = useState(false)
+  const [semesterErrors, setSemesterErrors] = useState({})
+
+  const loadSemesters = async () => {
+    setSemesterListLoading(true)
+    try {
+      const data = await semesterService.getAll()
+      setSemesterList(Array.isArray(data) ? data : [])
+    } catch (err) {
+      console.error("Lỗi tải danh sách học kỳ:", err)
+      toast.error("Không thể tải danh sách học kỳ")
+    } finally {
+      setSemesterListLoading(false)
+    }
+  }
+
+  const handleOpenCreateSemester = () => {
+    setSemesterForm({
+      id: null,
+      semesterCode: "HK1_2026_2027",
+      semesterName: "Học kỳ 1 Năm 2026-2027",
+      academicYear: "2026-2027",
+      startDate: "",
+      endDate: "",
+      isActive: true,
+    })
+    setSemesterErrors({})
+    setSemesterFormModalOpen(true)
+  }
+
+  const handleOpenEditSemester = (sem) => {
+    setSemesterForm({
+      id: sem.id,
+      semesterCode: sem.semesterCode || "",
+      semesterName: sem.semesterName || "",
+      academicYear: sem.academicYear || "",
+      startDate: sem.startDate || "",
+      endDate: sem.endDate || "",
+      isActive: Boolean(sem.isActive),
+    })
+    setSemesterErrors({})
+    setSemesterFormModalOpen(true)
+  }
+
+  const handleDeleteSemester = async (sem) => {
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa học kỳ "${sem.semesterName}" (${sem.academicYear})?`)) return
+    try {
+      await semesterService.delete(sem.id)
+      toast.success("Đã xóa học kỳ thành công!")
+      loadSemesters()
+      fetchFormOptions()
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || "Không thể xóa học kỳ"
+      toast.error(msg)
+    }
+  }
+
+  const handleSaveSemester = async (e) => {
+    e?.preventDefault?.()
+    const errs = {}
+    if (!semesterForm.semesterName.trim()) errs.semesterName = "Vui lòng nhập tên học kỳ"
+    if (!semesterForm.academicYear.trim()) errs.academicYear = "Vui lòng nhập năm học (VD: 2026-2027)"
+    if (!semesterForm.semesterCode.trim()) errs.semesterCode = "Vui lòng nhập mã học kỳ"
+
+    if (Object.keys(errs).length > 0) {
+      setSemesterErrors(errs)
+      return
+    }
+
+    setSemesterSaving(true)
+    try {
+      const payload = {
+        semesterCode: semesterForm.semesterCode.trim(),
+        semesterName: semesterForm.semesterName.trim(),
+        academicYear: semesterForm.academicYear.trim(),
+        startDate: semesterForm.startDate || null,
+        endDate: semesterForm.endDate || null,
+        isActive: Boolean(semesterForm.isActive),
+      }
+
+      let saved
+      if (semesterForm.id) {
+        saved = await semesterService.update(semesterForm.id, payload)
+        toast.success("Cập nhật học kỳ thành công!")
+      } else {
+        saved = await semesterService.create(payload)
+        toast.success("Tạo học kỳ mới thành công!")
+        // Tự động chọn học kỳ vừa tạo nếu đang mở modal tạo kỳ chấm
+        if (createModalOpen && saved?.id) {
+          setCreateForm(prev => ({
+            ...prev,
+            semesterId: String(saved.id),
+            formVersionId: "",
+          }))
+        }
+      }
+
+      setSemesterFormModalOpen(false)
+      loadSemesters()
+      fetchFormOptions()
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || "Lỗi lưu học kỳ"
+      toast.error(msg)
+    } finally {
+      setSemesterSaving(false)
+    }
+  }
 
   // Load form options once
   useEffect(() => {
@@ -436,9 +561,22 @@ export default function EvaluationPeriodListPage() {
         title="Quản lý kỳ chấm điểm rèn luyện"
         description="Mở kỳ chấm mới, phân bổ biểu mẫu áp dụng, theo dõi tiến độ nộp và đóng kỳ chấm điểm."
         action={
-          <CreateButton onClick={handleOpenCreateModal}>
-            Mở kỳ mới
-          </CreateButton>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                loadSemesters();
+                setSemesterManagerOpen(true);
+              }}
+              className="gap-1.5"
+            >
+              <CalendarDays className="size-4" />
+              Quản lý học kỳ
+            </Button>
+            <CreateButton onClick={handleOpenCreateModal}>
+              Mở kỳ mới
+            </CreateButton>
+          </div>
         }
       />
 
@@ -530,9 +668,18 @@ export default function EvaluationPeriodListPage() {
 
           {/* Học kỳ */}
           <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">
-              Học kỳ áp dụng <span className="text-brand">*</span>
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-medium text-slate-700">
+                Học kỳ áp dụng <span className="text-brand">*</span>
+              </label>
+              <button
+                type="button"
+                onClick={handleOpenCreateSemester}
+                className="text-xs text-brand hover:underline font-medium inline-flex items-center gap-1 cursor-pointer"
+              >
+                <Plus className="size-3.5" /> Thêm học kỳ mới
+              </button>
+            </div>
             <select
               value={createForm.semesterId}
               onChange={(e) => {
@@ -873,6 +1020,223 @@ export default function EvaluationPeriodListPage() {
             </ul>
           </div>
         </div>
+      </Modal>
+
+      {/* ========================================================================= */}
+      {/* 6. Modal: Quản lý danh mục Học kỳ */}
+      {/* ========================================================================= */}
+      <Modal
+        open={semesterManagerOpen}
+        onClose={() => setSemesterManagerOpen(false)}
+        title="Quản lý danh mục Học kỳ"
+        wide={true}
+        footer={
+          <Button onClick={() => setSemesterManagerOpen(false)}>Đóng</Button>
+        }
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-line">
+            <p className="text-xs text-muted">
+              Danh sách các học kỳ trong hệ thống dùng để mở kỳ chấm và áp dụng biểu mẫu đánh giá ĐRL.
+            </p>
+            <Button
+              variant="primary"
+              onClick={handleOpenCreateSemester}
+              className="text-xs h-8 px-3 gap-1.5"
+            >
+              <Plus className="size-3.5" /> Thêm học kỳ mới
+            </Button>
+          </div>
+
+          <Table
+            columns={[
+              { key: "stt", title: "STT", render: (_, i) => i + 1 },
+              {
+                key: "code",
+                title: "Mã học kỳ",
+                render: (r) => <code className="font-mono text-xs">{r.semesterCode}</code>,
+              },
+              { key: "name", title: "Tên học kỳ", render: (r) => <span className="font-medium text-slate-800">{r.semesterName}</span> },
+              { key: "year", title: "Năm học", render: (r) => r.academicYear },
+              {
+                key: "duration",
+                title: "Thời gian",
+                render: (r) => (
+                  <span className="text-xs text-slate-600">
+                    {r.startDate ? r.startDate : "—"} đến {r.endDate ? r.endDate : "—"}
+                  </span>
+                ),
+              },
+              {
+                key: "status",
+                title: "Trạng thái",
+                render: (r) => (
+                  <span
+                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
+                      r.isActive
+                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                        : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    {r.isActive ? "Đang kích hoạt" : "Chưa kích hoạt"}
+                  </span>
+                ),
+              },
+              {
+                key: "action",
+                title: "Thao tác",
+                render: (r, idx) => (
+                  <div className="flex items-center justify-center gap-1">
+                    <IconButton
+                      label="Sửa"
+                      tooltipPlacement={idx === 0 ? "bottom" : "top"}
+                      onClick={() => handleOpenEditSemester(r)}
+                    >
+                      <Pencil className="size-4" />
+                    </IconButton>
+                    <IconButton
+                      label="Xóa"
+                      tooltipPlacement={idx === 0 ? "bottom" : "top"}
+                      onClick={() => handleDeleteSemester(r)}
+                      className="text-rose-600 hover:bg-rose-50"
+                    >
+                      <Trash2 className="size-4" />
+                    </IconButton>
+                  </div>
+                ),
+              },
+            ]}
+            rows={semesterList}
+            loading={semesterListLoading}
+            emptyMessage="Chưa có học kỳ nào trong hệ thống"
+          />
+        </div>
+      </Modal>
+
+      {/* ========================================================================= */}
+      {/* 7. Modal: Thêm / Chỉnh sửa Học kỳ */}
+      {/* ========================================================================= */}
+      <Modal
+        open={semesterFormModalOpen}
+        onClose={() => setSemesterFormModalOpen(false)}
+        title={semesterForm.id ? "Chỉnh sửa Học kỳ" : "Thêm mới Học kỳ"}
+        wide={false}
+        footer={
+          <>
+            <CancelButton onClick={() => setSemesterFormModalOpen(false)}>
+              Hủy
+            </CancelButton>
+            <ConfirmButton
+              loading={semesterSaving}
+              onClick={handleSaveSemester}
+            >
+              {semesterForm.id ? "Cập nhật học kỳ" : "Tạo học kỳ"}
+            </ConfirmButton>
+          </>
+        }
+      >
+        <form onSubmit={handleSaveSemester} className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1">
+              Tên học kỳ <span className="text-brand">*</span>
+            </label>
+            <div className="grid grid-cols-3 gap-2 mb-2">
+              {["Học kỳ 1", "Học kỳ 2", "Học kỳ Hè"].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => {
+                    const yearSuffix = semesterForm.academicYear ? `_${semesterForm.academicYear.replace("-", "_")}` : "";
+                    const codePrefix = n === "Học kỳ 1" ? "HK1" : (n === "Học kỳ 2" ? "HK2" : "HK_HE");
+                    setSemesterForm(prev => ({
+                      ...prev,
+                      semesterName: `${n} Năm ${prev.academicYear || "2026-2027"}`,
+                      semesterCode: `${codePrefix}${yearSuffix}`,
+                    }));
+                  }}
+                  className={`text-xs py-1.5 px-2 rounded border transition text-center font-medium ${
+                    semesterForm.semesterName?.startsWith(n)
+                      ? "bg-brand text-white border-brand"
+                      : "bg-white border-line text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+            <Input
+              value={semesterForm.semesterName}
+              onChange={(e) => setSemesterForm({ ...semesterForm, semesterName: e.target.value })}
+              placeholder="VD: Học kỳ 1 Năm 2026-2027"
+              error={semesterErrors.semesterName}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">
+                Năm học <span className="text-brand">*</span>
+              </label>
+              <Input
+                value={semesterForm.academicYear}
+                onChange={(e) => {
+                  const y = e.target.value;
+                  setSemesterForm(prev => ({
+                    ...prev,
+                    academicYear: y,
+                  }));
+                }}
+                placeholder="VD: 2026-2027"
+                error={semesterErrors.academicYear}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">
+                Mã học kỳ <span className="text-brand">*</span>
+              </label>
+              <Input
+                value={semesterForm.semesterCode}
+                onChange={(e) => setSemesterForm({ ...semesterForm, semesterCode: e.target.value })}
+                placeholder="VD: HK1_2026_2027"
+                error={semesterErrors.semesterCode}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">Ngày bắt đầu</label>
+              <Input
+                type="date"
+                value={semesterForm.startDate || ""}
+                onChange={(e) => setSemesterForm({ ...semesterForm, startDate: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">Ngày kết thúc</label>
+              <Input
+                type="date"
+                value={semesterForm.endDate || ""}
+                onChange={(e) => setSemesterForm({ ...semesterForm, endDate: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="pt-2">
+            <label className="flex items-center gap-2 cursor-pointer text-sm">
+              <input
+                type="checkbox"
+                checked={semesterForm.isActive}
+                onChange={(e) => setSemesterForm({ ...semesterForm, isActive: e.target.checked })}
+                className="size-4 rounded border-line text-brand focus:ring-brand accent-brand"
+              />
+              <span className="font-medium text-slate-800">Đặt làm học kỳ kích hoạt hiện tại</span>
+            </label>
+            <p className="text-xs text-muted ml-6 mt-0.5">
+              Học kỳ được kích hoạt sẽ tự động được ưu tiên chọn khi mở kỳ chấm mới hoặc nộp phiếu.
+            </p>
+          </div>
+        </form>
       </Modal>
     </div>
   )
