@@ -800,6 +800,7 @@ export default function DirectoryPage() {
                   if (form.mode === 'create') {
                     await client.post("/offices", payload);
                     toast.success("Tạo Phòng ban thành công!");
+                    setPage(1);
                   } else {
                     await client.put(`/offices/${form.id}`, payload);
                     toast.success("Cập nhật Phòng ban thành công!");
@@ -864,6 +865,7 @@ export default function DirectoryPage() {
                   if (form.mode === 'create') {
                     await client.post("/departments", payload);
                     toast.success("Tạo Khoa thành công!");
+                    setPage(1);
                   } else {
                     await client.put(`/departments/${form.id}`, payload);
                     toast.success("Cập nhật Khoa thành công!");
@@ -931,6 +933,7 @@ export default function DirectoryPage() {
                   if (form.mode === 'create') {
                     await client.post("/majors", payload);
                     toast.success("Tạo Ngành thành công!");
+                    setPage(1);
                   } else {
                     await client.put(`/majors/${form.id}`, payload);
                     toast.success("Cập nhật Ngành thành công!");
@@ -1031,6 +1034,7 @@ export default function DirectoryPage() {
                      setImportExcel(false);
                      setImportData(null);
                      setSelectedFile(null);
+                     setPage(1);
                      fetchItems(active);
                    } catch (err) {
                      toast.error(err.response?.data?.message || err.message || "Có lỗi xảy ra khi nhập dữ liệu!");
@@ -1188,6 +1192,7 @@ export default function DirectoryPage() {
                     if (classForm.mode === 'create') {
                       await client.post("/classes", payload);
                       toast.success("Tạo Lớp thành công!");
+                      setPage(1);
                     } else {
                       await client.put(`/classes/${classForm.id}`, payload);
                       toast.success("Cập nhật Lớp thành công!");
@@ -1314,6 +1319,7 @@ export default function DirectoryPage() {
                   if (form.mode === 'create') {
                     await client.post("/directory/users", payload);
                     toast.success("Tạo Người dùng thành công!");
+                    setPage(1);
                   } else {
                     await client.put(`/directory/users/${form.id}`, payload);
                     toast.success("Cập nhật Người dùng thành công!");

@@ -35,7 +35,7 @@ public class DepartmentServiceImpl implements DepartmentService {
     }
     
     public List<DepartmentResponse> findAll() {
-        return repository.findAll(org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.ASC, "id")).stream().map(d -> {
+        return repository.findAll(org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id")).stream().map(d -> {
             long classesCount = classRepository.countActiveByDepartmentId(d.getId());
             long usersCount = userRepository.countByDepartmentId(d.getId());
             String deanName = "Chưa chỉ định";

@@ -52,7 +52,7 @@ public class OfficeServiceImpl implements OfficeService {
 
     @Override
     public List<OfficeResponse> findAll() {
-        return repository.findAll(org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.ASC, "id")).stream().map(this::toResponse).collect(Collectors.toList());
+        return repository.findAll(org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id")).stream().map(this::toResponse).collect(Collectors.toList());
     }
 
     @Override

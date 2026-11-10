@@ -92,7 +92,7 @@ public class ClassServiceImpl implements ClassService {
 
     @Override
     public List<ClassResponse> findAll() {
-        return repository.findAll(org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.ASC, "id")).stream().map(this::mapToResponse).collect(Collectors.toList());
+        return repository.findAll(org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "id")).stream().map(this::mapToResponse).collect(Collectors.toList());
     }
 
     @Override
