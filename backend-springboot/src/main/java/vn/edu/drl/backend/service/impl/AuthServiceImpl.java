@@ -1,6 +1,6 @@
 package vn.edu.drl.backend.service.impl;
 
-import vn.edu.drl.backend.service.AuthService;
+import vn.edu.drl.backend.service.interfaces.AuthService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import vn.edu.drl.backend.dao.UserRepository;

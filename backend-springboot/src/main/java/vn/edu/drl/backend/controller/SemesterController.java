@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.*;
 import vn.edu.drl.backend.Wrapper.ApiResponse;
 import vn.edu.drl.backend.dto.request.SemesterRequest;
 import vn.edu.drl.backend.dto.response.SemesterResponse;
-import vn.edu.drl.backend.service.SemesterService;
+import vn.edu.drl.backend.service.interfaces.SemesterService;
 
 import java.util.List;
 

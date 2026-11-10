@@ -17,9 +17,9 @@ import vn.edu.drl.backend.model.FormVersion;
 import vn.edu.drl.backend.model.ScoreForm;
 import vn.edu.drl.backend.model.User;
 import vn.edu.drl.backend.security.SecurityUtils;
-import vn.edu.drl.backend.service.AdminApprovalService;
-import vn.edu.drl.backend.service.FormVersionService;
-import vn.edu.drl.backend.service.WorkflowService;
+import vn.edu.drl.backend.service.interfaces.AdminApprovalService;
+import vn.edu.drl.backend.service.interfaces.FormVersionService;
+import vn.edu.drl.backend.service.interfaces.WorkflowService;
 
 import java.time.Instant;
 import java.util.ArrayList;

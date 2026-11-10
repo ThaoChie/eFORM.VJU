@@ -1,4 +1,4 @@
-package vn.edu.drl.backend.service;
+package vn.edu.drl.backend.service.interfaces;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

@@ -1,8 +1,8 @@
 package vn.edu.drl.backend.service.impl;
 
-import vn.edu.drl.backend.service.*;
+import vn.edu.drl.backend.service.interfaces.*;
 
-import vn.edu.drl.backend.service.EditorService;
+import vn.edu.drl.backend.service.interfaces.EditorService;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

@@ -5,7 +5,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import vn.edu.drl.backend.Wrapper.ApiResponse;
 import vn.edu.drl.backend.dto.response.PublicVerifyResponse;
-import vn.edu.drl.backend.service.PublicVerifyService;
+import vn.edu.drl.backend.service.interfaces.PublicVerifyService;
 
 @RestController
 @RequestMapping("/api/v1/public/verify")

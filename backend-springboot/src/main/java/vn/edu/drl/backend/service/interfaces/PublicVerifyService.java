@@ -1,4 +1,4 @@
-package vn.edu.drl.backend.service;
+package vn.edu.drl.backend.service.interfaces;
 
 import org.springframework.web.multipart.MultipartFile;
 import vn.edu.drl.backend.dao.ScoreFormRepository;

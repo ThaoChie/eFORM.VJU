@@ -7,7 +7,7 @@ import vn.edu.drl.backend.Wrapper.ApiResponse;
 import vn.edu.drl.backend.dto.request.LoginRequest;
 import vn.edu.drl.backend.dto.response.AuthResponse;
 import vn.edu.drl.backend.security.SecurityUtils;
-import vn.edu.drl.backend.service.AuthService;
+import vn.edu.drl.backend.service.interfaces.AuthService;
 
 @RestController
 @RequestMapping("/api/v1/auth")

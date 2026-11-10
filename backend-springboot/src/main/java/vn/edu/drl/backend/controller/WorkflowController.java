@@ -16,7 +16,7 @@ import vn.edu.drl.backend.dto.response.DeanApproveBatchResponse;
 import vn.edu.drl.backend.dto.response.WorkflowDetailResponse;
 import vn.edu.drl.backend.dto.response.WorkflowQueueItemResponse;
 import vn.edu.drl.backend.security.SecurityUtils;
-import vn.edu.drl.backend.service.WorkflowService;
+import vn.edu.drl.backend.service.interfaces.WorkflowService;
 import jakarta.servlet.http.HttpServletRequest;
 
 @RestController

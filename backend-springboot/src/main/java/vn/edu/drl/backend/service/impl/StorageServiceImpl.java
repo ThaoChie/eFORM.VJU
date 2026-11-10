@@ -1,8 +1,8 @@
 package vn.edu.drl.backend.service.impl;
 
-import vn.edu.drl.backend.service.*;
+import vn.edu.drl.backend.service.interfaces.*;
 
-import vn.edu.drl.backend.service.StorageService;
+import vn.edu.drl.backend.service.interfaces.StorageService;
 
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;

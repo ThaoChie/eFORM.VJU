@@ -14,7 +14,7 @@ import vn.edu.drl.backend.dto.response.FieldMasterHistoryResponse;
 import vn.edu.drl.backend.dto.response.FieldMasterResponse;
 import vn.edu.drl.backend.model.FieldMaster;
 import vn.edu.drl.backend.model.FieldMasterHistory;
-import vn.edu.drl.backend.service.FieldMasterService;
+import vn.edu.drl.backend.service.interfaces.FieldMasterService;
 
 import java.time.Instant;
 import java.util.*;

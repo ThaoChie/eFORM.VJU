@@ -14,8 +14,8 @@ import vn.edu.drl.backend.dto.request.SaveDraftRequest;
 import vn.edu.drl.backend.dto.request.SubmitFormRequest;
 import vn.edu.drl.backend.dto.response.EditorFormResponse;
 import vn.edu.drl.backend.security.SecurityUtils;
-import vn.edu.drl.backend.service.EditorService;
-import vn.edu.drl.backend.service.StorageService;
+import vn.edu.drl.backend.service.interfaces.EditorService;
+import vn.edu.drl.backend.service.interfaces.StorageService;
 
 @RestController
 @RequestMapping("/api/v1/editor")

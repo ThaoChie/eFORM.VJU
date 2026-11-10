@@ -9,7 +9,7 @@ import vn.edu.drl.backend.Wrapper.ApiResponse;
 import vn.edu.drl.backend.dto.request.UserRequest;
 import vn.edu.drl.backend.dto.response.UserResponse;
 import vn.edu.drl.backend.security.SecurityUtils;
-import vn.edu.drl.backend.service.UserService;
+import vn.edu.drl.backend.service.interfaces.UserService;
 import jakarta.validation.Valid;
 
 import java.util.List;

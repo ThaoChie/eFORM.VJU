@@ -1,4 +1,4 @@
-package vn.edu.drl.backend.service;
+package vn.edu.drl.backend.service.interfaces;
 
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;

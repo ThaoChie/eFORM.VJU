@@ -6,7 +6,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import vn.edu.drl.backend.service.impl.LocalFileSystemStorageService;
 import vn.edu.drl.backend.service.impl.S3StorageService;
-import vn.edu.drl.backend.service.StorageService;
+import vn.edu.drl.backend.service.interfaces.StorageService;
 import vn.edu.drl.backend.service.impl.StorageServiceImpl;
 
 /**

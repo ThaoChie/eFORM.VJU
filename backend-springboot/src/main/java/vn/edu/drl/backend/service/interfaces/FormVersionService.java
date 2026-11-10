@@ -1,4 +1,4 @@
-package vn.edu.drl.backend.service;
+package vn.edu.drl.backend.service.interfaces;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

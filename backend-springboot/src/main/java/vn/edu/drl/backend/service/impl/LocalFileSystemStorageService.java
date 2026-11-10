@@ -3,7 +3,7 @@ package vn.edu.drl.backend.service.impl;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-import vn.edu.drl.backend.service.StorageService;
+import vn.edu.drl.backend.service.interfaces.StorageService;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;

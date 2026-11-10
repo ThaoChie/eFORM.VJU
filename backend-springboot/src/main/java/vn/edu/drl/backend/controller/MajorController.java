@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import vn.edu.drl.backend.Wrapper.ApiResponse;
 import vn.edu.drl.backend.dto.request.MajorRequest;
-import vn.edu.drl.backend.service.MajorService;
+import vn.edu.drl.backend.service.interfaces.MajorService;
 
 @RestController
 @RequestMapping("/api/v1/majors")

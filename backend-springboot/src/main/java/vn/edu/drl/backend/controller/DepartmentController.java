@@ -3,7 +3,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import vn.edu.drl.backend.Wrapper.ApiResponse;
-import vn.edu.drl.backend.service.DepartmentService;
+import vn.edu.drl.backend.service.interfaces.DepartmentService;
 import vn.edu.drl.backend.dto.request.DepartmentRequest;
 import jakarta.validation.Valid;
 

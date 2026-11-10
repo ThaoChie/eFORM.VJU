@@ -11,7 +11,7 @@ import vn.edu.drl.backend.Wrapper.PageWrapper;
 import vn.edu.drl.backend.dto.request.FieldMasterRequest;
 import vn.edu.drl.backend.dto.response.FieldMasterHistoryResponse;
 import vn.edu.drl.backend.dto.response.FieldMasterResponse;
-import vn.edu.drl.backend.service.FieldMasterService;
+import vn.edu.drl.backend.service.interfaces.FieldMasterService;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;

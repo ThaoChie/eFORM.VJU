@@ -1,8 +1,8 @@
 package vn.edu.drl.backend.service.impl;
 
-import vn.edu.drl.backend.service.*;
+import vn.edu.drl.backend.service.interfaces.*;
 
-import vn.edu.drl.backend.service.WorkflowService;
+import vn.edu.drl.backend.service.interfaces.WorkflowService;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
