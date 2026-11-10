@@ -18,6 +18,7 @@ import { toast } from "react-hot-toast"
 import {
   Button,
   Card,
+  FilterBar,
   IconButton,
   Input,
   PageTitle,
@@ -382,84 +383,80 @@ export default function FormVersionListPage() {
         }
       />
 
-      {/* Filter Bar (Tìm kiếm theo các tiêu chí chuẩn E.2.1) */}
-      <Card className="mb-4">
-        <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
-          <Input
-            label="Biểu mẫu"
-            placeholder="Mã hoặc tên biểu mẫu"
-            value={filters.formQuery}
-            onChange={(e) => setFilters({ ...filters, formQuery: e.target.value })}
-          />
+      {/* Filter Bar */}
+      {(() => {
+        let extraCount = 0;
+        if (filters.status) extraCount++;
+        if (filters.scope) extraCount++;
+        if (filters.semesterId) extraCount++;
+        if (filters.nameQuery) extraCount++;
 
-          <Input
-            label="Tên phiên bản"
-            placeholder="Nhập tên phiên bản"
-            value={filters.nameQuery}
-            onChange={(e) => setFilters({ ...filters, nameQuery: e.target.value })}
-          />
-
-          <Select
-            label="Trạng thái"
-            value={filters.status}
-            onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-          >
-            <option value="">Tất cả trạng thái</option>
-            <option value="ACTIVE">Hiệu lực</option>
-            <option value="EXPIRED">Hết hiệu lực</option>
-            <option value="INACTIVE">Vô hiệu hóa</option>
-          </Select>
-
-          <Select
-            label="Đơn vị quản lý"
-            value={filters.scope}
-            onChange={(e) => setFilters({ ...filters, scope: e.target.value })}
-          >
-            <option value="">Tất cả đơn vị</option>
-            <option value="Toàn hệ thống">Toàn hệ thống</option>
-            {departments.map((d) => (
-              <option key={d.id} value={d.deptName}>
-                {d.deptName}
-              </option>
-            ))}
-          </Select>
-
-          <Select
-            label="Học kỳ áp dụng"
-            value={filters.semesterId}
-            onChange={(e) => setFilters({ ...filters, semesterId: e.target.value })}
-          >
-            <option value="">Tất cả học kỳ</option>
-            {semesters.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.semesterName}
-              </option>
-            ))}
-          </Select>
-        </div>
-
-        <div className="mt-4 flex items-center justify-end gap-2 border-t border-line pt-3">
-          <Button
-            variant="ghost"
-            onClick={() =>
+        return (
+          <FilterBar
+            searchQuery={filters.formQuery}
+            onSearchChange={(val) => setFilters(prev => ({ ...prev, formQuery: val }))}
+            searchPlaceholder="Tìm kiếm theo mã hoặc tên biểu mẫu..."
+            onSearch={() => setPage(1)}
+            onReset={() => {
               setFilters({
                 formQuery: "",
                 nameQuery: "",
                 status: "",
                 scope: "",
                 semesterId: "",
-              })
-            }
+              });
+              setPage(1);
+            }}
+            extraFilterCount={extraCount}
+            cols={4}
           >
-            <RotateCcw className="size-4" />
-            Xóa bộ lọc
-          </Button>
-          <Button variant="primary" onClick={() => setPage(1)}>
-            <Search className="size-4" />
-            Tìm kiếm
-          </Button>
-        </div>
-      </Card>
+            <Input
+              label="Tên phiên bản"
+              placeholder="Nhập tên phiên bản"
+              value={filters.nameQuery}
+              onChange={(e) => setFilters({ ...filters, nameQuery: e.target.value })}
+            />
+
+            <Select
+              label="Trạng thái"
+              value={filters.status}
+              onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+            >
+              <option value="">Tất cả trạng thái</option>
+              <option value="ACTIVE">Hiệu lực</option>
+              <option value="EXPIRED">Hết hiệu lực</option>
+              <option value="INACTIVE">Vô hiệu hóa</option>
+            </Select>
+
+            <Select
+              label="Đơn vị quản lý"
+              value={filters.scope}
+              onChange={(e) => setFilters({ ...filters, scope: e.target.value })}
+            >
+              <option value="">Tất cả đơn vị</option>
+              <option value="Toàn hệ thống">Toàn hệ thống</option>
+              {departments.map((d) => (
+                <option key={d.id} value={d.deptName}>
+                  {d.deptName}
+                </option>
+              ))}
+            </Select>
+
+            <Select
+              label="Học kỳ áp dụng"
+              value={filters.semesterId}
+              onChange={(e) => setFilters({ ...filters, semesterId: e.target.value })}
+            >
+              <option value="">Tất cả học kỳ</option>
+              {semesters.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.semesterName}
+                </option>
+              ))}
+            </Select>
+          </FilterBar>
+        );
+      })()}
 
       {/* Data Table */}
       <div className="mt-4">

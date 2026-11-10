@@ -1,9 +1,13 @@
+import React, { useState } from "react"
 import {
   ArrowLeft,
   Check,
   CheckCircle,
+  ChevronDown,
+  ChevronUp,
   CircleOff,
   Eye,
+  Filter,
   LoaderCircle,
   Pencil,
   Plus,
@@ -328,40 +332,125 @@ export function PageTitle({ title, description, action }) {
 }
 
 export function FilterBar({
-  children,
+  searchQuery,
+  onSearchChange,
+  searchPlaceholder = "Tìm kiếm theo tên hoặc mã...",
   onSearch,
-  cols = 4,
-  buttonVariant = "primary",
+  onReset,
+  children,
+  extraFilterCount = 0,
+  isOpen,
+  onToggle,
+  defaultOpen = false,
   showSearchButton = true,
+  showResetButton = true,
+  showFilterButton = true,
   searchButtonText = "Tìm kiếm",
+  resetButtonText = "Xóa bộ lọc",
+  filterButtonText = "Bộ lọc",
+  cols = 4,
+  className = "",
 }) {
+  const [localOpen, setLocalOpen] = useState(defaultOpen);
+  const showFilters = isOpen !== undefined ? isOpen : localOpen;
+  const toggleFilters = onToggle || (() => setLocalOpen((prev) => !prev));
+
+  const hasChildren = Boolean(children);
+
   const gridClass = {
-    1: "md:grid-cols-1",
-    2: "md:grid-cols-2",
-    3: "md:grid-cols-3",
-    4: "md:grid-cols-4",
-    5: "md:grid-cols-5",
-  }[cols] || "md:grid-cols-4";
+    1: "grid-cols-1",
+    2: "grid-cols-1 sm:grid-cols-2",
+    3: "grid-cols-1 sm:grid-cols-2 md:grid-cols-3",
+    4: "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4",
+    5: "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5",
+  }[cols] || "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4";
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      onSearch?.();
+    }
+  };
 
   return (
-    <Card className="mb-4">
-      <div className={`grid items-end gap-3 ${gridClass}`}>
-        {children}
-        {showSearchButton && (
-          <div className="flex flex-col justify-end">
+    <Card className={`mb-4 ${className}`}>
+      {/* Hàng tìm kiếm chính */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        <div className="relative flex-1">
+          <Input
+            placeholder={searchPlaceholder}
+            value={searchQuery ?? ""}
+            onChange={(e) => onSearchChange?.(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className="w-full"
+          />
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
+          {showSearchButton && (
             <Button
-              variant={buttonVariant}
+              variant="primary"
+              type="button"
               onClick={onSearch}
-              className="w-full h-10"
+              className="gap-1.5"
             >
-              <Search className="size-4 mr-1.5" />
+              <Search className="size-4" />
               {searchButtonText}
             </Button>
-          </div>
-        )}
+          )}
+
+          {showResetButton && onReset && (
+            <Button
+              variant="secondary"
+              type="button"
+              onClick={onReset}
+              className="gap-1.5"
+            >
+              <RotateCcw className="size-4" />
+              {resetButtonText}
+            </Button>
+          )}
+
+          {hasChildren && showFilterButton && (
+            <Button
+              variant={showFilters ? "primary" : "secondary"}
+              type="button"
+              onClick={toggleFilters}
+              className="gap-1.5"
+            >
+              <Filter className="size-4" />
+              {filterButtonText}
+              {extraFilterCount > 0 && (
+                <span
+                  className={`inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-xs font-semibold ${
+                    showFilters
+                      ? "bg-white text-brand"
+                      : "bg-brand/10 text-brand"
+                  }`}
+                >
+                  {extraFilterCount}
+                </span>
+              )}
+              {showFilters ? (
+                <ChevronUp className="size-4" />
+              ) : (
+                <ChevronDown className="size-4" />
+              )}
+            </Button>
+          )}
+        </div>
       </div>
+
+      {/* Khối bộ lọc mở rộng xổ ra khi ấn nút Bộ lọc */}
+      {hasChildren && showFilters && (
+        <div className="mt-4 pt-4 border-t border-line animate-in fade-in slide-in-from-top-1 duration-200">
+          <div className={`grid gap-3 ${gridClass}`}>
+            {children}
+          </div>
+        </div>
+      )}
     </Card>
-  )
+  );
 }
 
 export function Modal({

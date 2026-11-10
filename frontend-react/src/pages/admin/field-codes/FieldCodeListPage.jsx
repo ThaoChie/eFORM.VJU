@@ -204,47 +204,48 @@ export default function FieldCodeListPage() {
           </div>
         }
       />
-      <Card className="mb-4">
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="md:col-span-2">
-            <Input
-              label="Mã - Tên trường"
-              placeholder="Nhập mã hoặc tên trường"
-              value={filters.keyword}
-              onChange={e => setFilters({...filters, keyword: e.target.value})}
-            />
-          </div>
-          <Select label="Nhóm trường" value={filters.category} onChange={e => setFilters({...filters, category: e.target.value})}>
-            <option value="">Tất cả nhóm</option>
-            <option value="COMMON">COMMON</option>
-            <option value="HEADER">HEADER</option>
-            <option value="FOOTER">FOOTER</option>
-          </Select>
-          <Select label="Kiểu dữ liệu" value={filters.dataType} onChange={e => setFilters({...filters, dataType: e.target.value})}>
-            <option value="">Tất cả kiểu</option>
-            <option value="STRING">STRING</option>
-            <option value="NUMBER">NUMBER</option>
-            <option value="DATE">DATE</option>
-            <option value="BOOLEAN">BOOLEAN</option>
-            <option value="FILE">FILE</option>
-            <option value="SIGNATURE">SIGNATURE</option>
-          </Select>
-          <Select label="Trạng thái hiệu lực" value={filters.status} onChange={e => setFilters({...filters, status: e.target.value})}>
-            <option value="">Tất cả trạng thái</option>
-            <option value="ACTIVE">Đang hiệu lực</option>
-            <option value="INACTIVE">Vô hiệu hóa</option>
-          </Select>
-          
-          <div className="flex items-end gap-3 md:justify-end">
-            <Button variant="ghost" onClick={() => setFilters({ keyword: "", category: "", dataType: "", status: "" })}>
-              Xóa bộ lọc
-            </Button>
-            <Button variant="primary" onClick={() => { /* Filters are processed locally already */ }}>
-              <Search className="size-4" /> Tìm kiếm
-            </Button>
-          </div>
-        </div>
-      </Card>
+      {(() => {
+        let extraCount = 0;
+        if (filters.category) extraCount++;
+        if (filters.dataType) extraCount++;
+        if (filters.status) extraCount++;
+
+        return (
+          <FilterBar
+            searchQuery={filters.keyword}
+            onSearchChange={(val) => setFilters(prev => ({ ...prev, keyword: val }))}
+            searchPlaceholder="Tìm kiếm theo mã hoặc tên trường..."
+            onSearch={() => setPage(1)}
+            onReset={() => {
+              setFilters({ keyword: "", category: "", dataType: "", status: "" });
+              setPage(1);
+            }}
+            extraFilterCount={extraCount}
+            cols={3}
+          >
+            <Select label="Nhóm trường" value={filters.category} onChange={e => setFilters({...filters, category: e.target.value})}>
+              <option value="">Tất cả nhóm</option>
+              <option value="COMMON">COMMON</option>
+              <option value="HEADER">HEADER</option>
+              <option value="FOOTER">FOOTER</option>
+            </Select>
+            <Select label="Kiểu dữ liệu" value={filters.dataType} onChange={e => setFilters({...filters, dataType: e.target.value})}>
+              <option value="">Tất cả kiểu</option>
+              <option value="STRING">STRING</option>
+              <option value="NUMBER">NUMBER</option>
+              <option value="DATE">DATE</option>
+              <option value="BOOLEAN">BOOLEAN</option>
+              <option value="FILE">FILE</option>
+              <option value="SIGNATURE">SIGNATURE</option>
+            </Select>
+            <Select label="Trạng thái hiệu lực" value={filters.status} onChange={e => setFilters({...filters, status: e.target.value})}>
+              <option value="">Tất cả trạng thái</option>
+              <option value="ACTIVE">Đang hiệu lực</option>
+              <option value="INACTIVE">Vô hiệu hóa</option>
+            </Select>
+          </FilterBar>
+        );
+      })()}
       <div className="mt-4">
         <Table
           rows={filteredData}

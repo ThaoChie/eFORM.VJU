@@ -24,6 +24,7 @@ import {
   CancelButton,
   ConfirmButton,
   CreateButton,
+  FilterBar,
   IconButton,
   SearchButton,
   Card,
@@ -441,65 +442,53 @@ export default function EvaluationPeriodListPage() {
         }
       />
 
-      {/* Filter & Search Bar (UC006) */}
-      <Card className="mb-4">
-        <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
-          {/* Keyword Search */}
-          <Input
-            label="Từ khóa tìm kiếm"
-            placeholder="Tìm theo học kỳ, biểu mẫu, phạm vi..."
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-          />
+      {/* Filter & Search Bar */}
+      {(() => {
+        let extraCount = 0;
+        if (semesterFilter) extraCount++;
+        if (statusFilter) extraCount++;
 
-          {/* Semester Filter */}
-          <Select
-            label="Học kỳ áp dụng"
-            value={semesterFilter}
-            onChange={(e) => setSemesterFilter(e.target.value)}
+        return (
+          <FilterBar
+            searchQuery={keyword}
+            onSearchChange={setKeyword}
+            searchPlaceholder="Tìm theo học kỳ, biểu mẫu, phạm vi..."
+            onSearch={handleSearch}
+            onReset={() => {
+              setKeyword("")
+              setSemesterFilter("")
+              setStatusFilter("")
+              fetchPeriods()
+            }}
+            extraFilterCount={extraCount}
+            cols={2}
           >
-            <option value="">Tất cả học kỳ</option>
-            {options.semesters?.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.semesterName} ({s.academicYear})
-              </option>
-            ))}
-          </Select>
-
-          {/* Status Filter */}
-          <Select
-            label="Trạng thái kỳ"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="">Tất cả trạng thái</option>
-            <option value="CHUA_MO">Chưa mở</option>
-            <option value="DANG_MO">Đang mở</option>
-            <option value="DA_DONG">Đã đóng</option>
-          </Select>
-
-          {/* Action Buttons */}
-          <div className="flex gap-2">
-            <SearchButton className="flex-1 h-10">
-              Tìm kiếm
-            </SearchButton>
-            <Button
-              type="button"
-              variant="secondary"
-              className="h-10 px-3 text-muted hover:text-ink"
-              onClick={() => {
-                setKeyword("")
-                setSemesterFilter("")
-                setStatusFilter("")
-                fetchPeriods()
-              }}
-              title="Đặt lại bộ lọc"
+            <Select
+              label="Học kỳ áp dụng"
+              value={semesterFilter}
+              onChange={(e) => setSemesterFilter(e.target.value)}
             >
-              <RefreshCw className="size-4" />
-            </Button>
-          </div>
-        </form>
-      </Card>
+              <option value="">Tất cả học kỳ</option>
+              {options.semesters?.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.semesterName} ({s.academicYear})
+                </option>
+              ))}
+            </Select>
+
+            <Select
+              label="Trạng thái kỳ"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="">Tất cả trạng thái</option>
+              <option value="CHUA_MO">Chưa mở</option>
+              <option value="DANG_MO">Đang mở</option>
+              <option value="DA_DONG">Đã đóng</option>
+            </Select>
+          </FilterBar>
+        );
+      })()}
 
       {/* Periods Table */}
       <Table columns={columns} rows={periods} loading={loading} />

@@ -81,14 +81,16 @@ export default function PendingListPage() {
         </button>
       </div>
 
-      <FilterBar>
+      <FilterBar
+        searchPlaceholder="Tìm kiếm theo tên hoặc mã biểu mẫu..."
+        cols={2}
+      >
         <Select label="Học kỳ">
           <option>{semester?.semesterName || "Tất cả học kỳ"}</option>
         </Select>
         <Select label="Trạng thái">
           <option>Tất cả trạng thái</option>
         </Select>
-        <Input label="Từ khóa" placeholder="Tên biểu mẫu" />
       </FilterBar>
 
       <Table

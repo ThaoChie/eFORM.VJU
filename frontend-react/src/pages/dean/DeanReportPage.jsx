@@ -175,66 +175,81 @@ export default function DeanReportPage({ school = false }) {
         }
       />
 
-      <FilterBar showSearchButton={false}>
-        <form onSubmit={handleSearchSubmit} className="flex-1 flex gap-2">
-          <Input
-            placeholder="Mã sinh viên hoặc Họ tên..."
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-          />
-          <Button type="submit" variant="secondary" className="text-xs">
-            <Search className="size-3.5 mr-1" />
-            Tìm
-          </Button>
-        </form>
+      {(() => {
+        let extraCount = 0;
+        if (classId) extraCount++;
+        if (school && deptId) extraCount++;
+        if (semesterId) extraCount++;
 
-        <Select
-          value={classId}
-          onChange={(e) => {
-            setClassId(e.target.value)
-            setPage(1)
-          }}
-        >
-          <option value="">Tất cả lớp</option>
-          {classes.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.className || c.classCode}
-            </option>
-          ))}
-        </Select>
-
-        {school && (
-          <Select
-            value={deptId}
-            onChange={(e) => {
-              setDeptId(e.target.value)
+        return (
+          <FilterBar
+            searchQuery={keyword}
+            onSearchChange={setKeyword}
+            searchPlaceholder="Tìm kiếm theo mã sinh viên hoặc họ tên..."
+            onSearch={handleSearchSubmit}
+            onReset={() => {
+              setKeyword("")
+              setClassId("")
+              if (school) setDeptId("")
+              setSemesterId("")
               setPage(1)
+              fetchReport({ page: 1, keyword: "", classId: "", deptId: "", semesterId: "" })
             }}
+            extraFilterCount={extraCount}
+            cols={school ? 3 : 2}
           >
-            <option value="">Tất cả khoa quản lý</option>
-            {departments.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.deptName || d.deptCode}
-              </option>
-            ))}
-          </Select>
-        )}
+            <Select
+              label="Lớp"
+              value={classId}
+              onChange={(e) => {
+                setClassId(e.target.value)
+                setPage(1)
+              }}
+            >
+              <option value="">Tất cả lớp</option>
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.className || c.classCode}
+                </option>
+              ))}
+            </Select>
 
-        <Select
-          value={semesterId}
-          onChange={(e) => {
-            setSemesterId(e.target.value)
-            setPage(1)
-          }}
-        >
-          <option value="">Tất cả học kỳ</option>
-          {semesters.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.semesterName || s.semesterCode}
-            </option>
-          ))}
-        </Select>
-      </FilterBar>
+            {school && (
+              <Select
+                label="Khoa quản lý"
+                value={deptId}
+                onChange={(e) => {
+                  setDeptId(e.target.value)
+                  setPage(1)
+                }}
+              >
+                <option value="">Tất cả khoa quản lý</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.deptName || d.deptCode}
+                  </option>
+                ))}
+              </Select>
+            )}
+
+            <Select
+              label="Học kỳ"
+              value={semesterId}
+              onChange={(e) => {
+                setSemesterId(e.target.value)
+                setPage(1)
+              }}
+            >
+              <option value="">Tất cả học kỳ</option>
+              {semesters.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.semesterName || s.semesterCode}
+                </option>
+              ))}
+            </Select>
+          </FilterBar>
+        );
+      })()}
 
       <div className="mt-4">
         <Table
