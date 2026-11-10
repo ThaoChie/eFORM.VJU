@@ -1085,18 +1085,17 @@ export default function EvaluationPeriodListPage() {
               {
                 key: "action",
                 title: "Thao tác",
-                render: (r, idx) => (
+                render: (r) => (
                   <div className="flex items-center justify-center gap-1">
                     <IconButton
                       label="Sửa"
-                      tooltipPlacement={idx === 0 ? "bottom" : "top"}
                       onClick={() => handleOpenEditSemester(r)}
                     >
                       <Pencil className="size-4" />
                     </IconButton>
                     <IconButton
                       label="Xóa"
-                      tooltipPlacement={idx === 0 ? "bottom" : "top"}
+                      tooltipAlign="right"
                       onClick={() => handleDeleteSemester(r)}
                       className="text-rose-600 hover:bg-rose-50"
                     >

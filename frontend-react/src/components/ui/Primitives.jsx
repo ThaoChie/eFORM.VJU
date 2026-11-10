@@ -56,29 +56,29 @@ export function IconButton({
   const tooltipText = label || title
 
   const alignStyles = {
-    center: "left-1/2 -translate-x-1/2",
+    center: "left-1/2 -translate-x-1/2 tooltip-auto-align",
     right: "right-0 translate-x-0",
     left: "left-0 translate-x-0",
   }
 
   const arrowAlignStyles = {
-    center: "left-1/2 -translate-x-1/2",
+    center: "left-1/2 -translate-x-1/2 tooltip-arrow-auto-align",
     right: "right-3 translate-x-0",
     left: "left-3 translate-x-0",
   }
 
-  let positionClass = `bottom-full mb-1.5 group-first/row:top-full group-first/row:mt-1.5 group-first/row:bottom-auto ${alignStyles[tooltipAlign] || alignStyles.center}`
-  let arrowClass = `top-full -mt-0.5 border-t-slate-900 border-b-transparent border-l-transparent border-r-transparent group-first/row:bottom-full group-first/row:top-auto group-first/row:-mb-0.5 group-first/row:border-b-slate-900 group-first/row:border-t-transparent ${arrowAlignStyles[tooltipAlign] || arrowAlignStyles.center}`
+  let positionClass = `bottom-full mb-1.5 ${alignStyles[tooltipAlign] || alignStyles.center}`
+  let arrowClass = `top-full -mt-0.5 border-t-slate-300 border-b-transparent border-l-transparent border-r-transparent ${arrowAlignStyles[tooltipAlign] || arrowAlignStyles.center}`
 
   if (tooltipPlacement === "bottom") {
     positionClass = `top-full mt-1.5 ${alignStyles[tooltipAlign] || alignStyles.center}`
-    arrowClass = `bottom-full -mb-0.5 border-b-slate-900 border-t-transparent border-l-transparent border-r-transparent ${arrowAlignStyles[tooltipAlign] || arrowAlignStyles.center}`
+    arrowClass = `bottom-full -mb-0.5 border-b-slate-300 border-t-transparent border-l-transparent border-r-transparent ${arrowAlignStyles[tooltipAlign] || arrowAlignStyles.center}`
   } else if (tooltipPlacement === "right") {
     positionClass = "left-full ml-2 top-1/2 -translate-y-1/2"
-    arrowClass = "right-full top-1/2 -translate-y-1/2 border-r-slate-900 border-l-transparent border-t-transparent border-b-transparent"
+    arrowClass = "right-full top-1/2 -translate-y-1/2 border-r-slate-300 border-l-transparent border-t-transparent border-b-transparent"
   } else if (tooltipPlacement === "left") {
     positionClass = "right-full mr-2 top-1/2 -translate-y-1/2"
-    arrowClass = "left-full top-1/2 -translate-y-1/2 border-l-slate-900 border-r-transparent border-t-transparent border-b-transparent"
+    arrowClass = "left-full top-1/2 -translate-y-1/2 border-l-slate-300 border-r-transparent border-t-transparent border-b-transparent"
   }
 
   const isMlAuto = className.includes("ml-auto")
@@ -100,7 +100,7 @@ export function IconButton({
       {tooltipText && (
         <span
           role="tooltip"
-          className={`pointer-events-none absolute ${positionClass} hidden group-hover/btn:inline-flex items-center justify-center whitespace-nowrap rounded-md bg-slate-900 px-2.5 py-1 text-[11px] font-medium text-white shadow-xl ring-1 ring-white/10 z-[100]`}
+          className={`pointer-events-none absolute ${positionClass} hidden group-hover/btn:inline-flex items-center justify-center whitespace-nowrap rounded-md bg-slate-100 border border-slate-300/90 px-2.5 py-1 text-[11px] font-medium text-slate-700 shadow-md z-[100]`}
         >
           {tooltipText}
           <span
@@ -143,10 +143,11 @@ export function ActionEditButton({ label = "Chỉnh sửa", onClick, className =
   )
 }
 
-export function ActionDeactivateButton({ label = "Vô hiệu hóa", onClick, className = "", ...props }) {
+export function ActionDeactivateButton({ label = "Vô hiệu hóa", onClick, className = "", tooltipAlign = "right", ...props }) {
   return (
     <IconButton
       label={label}
+      tooltipAlign={tooltipAlign}
       onClick={onClick}
       className={`hover:text-rose-600 hover:bg-rose-50 ${className}`}
       {...props}
@@ -156,10 +157,11 @@ export function ActionDeactivateButton({ label = "Vô hiệu hóa", onClick, cla
   )
 }
 
-export function ActionActivateButton({ label = "Kích hoạt", onClick, className = "", ...props }) {
+export function ActionActivateButton({ label = "Kích hoạt", onClick, className = "", tooltipAlign = "right", ...props }) {
   return (
     <IconButton
       label={label}
+      tooltipAlign={tooltipAlign}
       onClick={onClick}
       className={`hover:text-emerald-600 hover:bg-emerald-50 ${className}`}
       {...props}
@@ -169,10 +171,11 @@ export function ActionActivateButton({ label = "Kích hoạt", onClick, classNam
   )
 }
 
-export function ActionDeleteButton({ label = "Xóa", onClick, className = "", ...props }) {
+export function ActionDeleteButton({ label = "Xóa", onClick, className = "", tooltipAlign = "right", ...props }) {
   return (
     <IconButton
       label={label}
+      tooltipAlign={tooltipAlign}
       onClick={onClick}
       className={`hover:text-rose-600 hover:bg-rose-50 ${className}`}
       {...props}
@@ -521,7 +524,7 @@ export function Table({
     const title = (col.title || "").toLowerCase();
 
     // Check sticky right for Action / Thao tác
-    const isAction = key === "action" || title.includes("thao tác") || col.sticky === "right";
+    const isAction = key === "action" || key === "actions" || title.includes("thao tác") || col.sticky === "right";
     if (isAction && columns.length > 3) {
       isStickyRight = true;
       stickyRight = 0;
@@ -556,7 +559,7 @@ export function Table({
     } else if (idx === 2 && isStickyLeft) {
       widthClass = "w-56 min-w-[220px]";
     } else if (isAction) {
-      widthClass = "w-28 min-w-[110px] text-center";
+      widthClass = "w-36 min-w-[130px] text-center";
     } else if (title.includes("ngày sinh") || key.includes("dob") || key.includes("date")) {
       widthClass = "min-w-[130px]";
     } else if (title.includes("email") || key.includes("email")) {
@@ -656,7 +659,7 @@ export function Table({
                 onClick={() => onRow?.(row)}
                 className={`group group/row ${
                   onRow ? "cursor-pointer" : ""
-                } h-12 transition-colors hover:bg-canvas relative hover:z-20`}
+                } h-12 transition-colors hover:bg-canvas relative hover:z-50`}
               >
                 {columns.map((column, idx) => {
                   const cfg = colConfigs[idx] || {};
@@ -677,8 +680,8 @@ export function Table({
                                 : ""
                             }`
                           : cfg.isStickyRight
-                          ? "sticky right-0 z-10 bg-white group-hover:bg-canvas hover:z-30 transition-colors border-l border-line shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.07)]"
-                          : "bg-white group-hover:bg-canvas hover:z-30 transition-colors"
+                          ? "sticky right-0 z-10 bg-white group-hover:bg-canvas group-hover/row:z-50 hover:z-50 transition-colors border-l border-line shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.07)]"
+                          : "bg-white group-hover:bg-canvas group-hover/row:z-40 hover:z-50 transition-colors"
                       }`}
                     >
                       {column.render

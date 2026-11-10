@@ -100,3 +100,16 @@ button:disabled {
 .pdf-times-roman * {
   font-family: "Times New Roman", Times, "Liberation Serif", serif !important;
 }
+
+/* Tooltip auto-alignment for trailing actions near the container right edge */
+.group\/btn:last-child .tooltip-auto-align {
+  left: auto !important;
+  right: 0 !important;
+  transform: none !important;
+}
+.group\/btn:last-child .tooltip-arrow-auto-align {
+  left: auto !important;
+  right: 12px !important;
+  transform: none !important;
+}
+

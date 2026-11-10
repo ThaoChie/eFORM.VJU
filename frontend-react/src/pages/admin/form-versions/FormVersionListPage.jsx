@@ -355,6 +355,7 @@ export default function FormVersionListPage() {
             {isActive && (
               <IconButton
                 label="Yêu cầu vô hiệu hóa"
+                tooltipAlign="right"
                 onClick={() => handleOpenDeactivate(r)}
                 className="text-red-600 hover:bg-red-50 hover:text-red-700"
               >
@@ -366,6 +367,7 @@ export default function FormVersionListPage() {
             {isDeactivated && (
               <IconButton
                 label="Yêu cầu kích hoạt"
+                tooltipAlign="right"
                 onClick={() => handleOpenActivate(r)}
                 className="text-green-600 hover:bg-green-50 hover:text-green-700"
               >

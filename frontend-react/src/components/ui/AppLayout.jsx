@@ -186,7 +186,7 @@ export default function AppLayout() {
                         {/* Tooltip hiển thị tên chức năng sang bên phải */}
                         <span
                           role="tooltip"
-                          className="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 hidden group-hover/navlink:inline-flex items-center whitespace-nowrap rounded-md bg-slate-900 px-2.5 py-1 text-[11px] font-medium text-white shadow-xl ring-1 ring-white/10 z-[100]"
+                          className="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 hidden group-hover/navlink:inline-flex items-center whitespace-nowrap rounded-md bg-slate-100 border border-slate-300/90 px-2.5 py-1 text-[11px] font-medium text-slate-700 shadow-md z-[100]"
                         >
                           {item.label}
                           {item.badge && (
@@ -194,7 +194,7 @@ export default function AppLayout() {
                               {item.badge}
                             </span>
                           )}
-                          <span className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-r-slate-900 border-l-transparent border-t-transparent border-b-transparent" />
+                          <span className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-r-slate-300 border-l-transparent border-t-transparent border-b-transparent" />
                         </span>
                       </NavLink>
                     </div>

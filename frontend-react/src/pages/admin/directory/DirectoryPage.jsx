@@ -95,13 +95,12 @@ export default function DirectoryPage() {
     </span>
   );
 
-  const actionButtons = (r, idx) => {
+  const actionButtons = (r) => {
     const isActive = r.status === "Đang hoạt động" || r.status === 1;
-    const placement = idx === 0 ? "bottom" : "top";
     return (
       <div className="flex items-center justify-center gap-1">
         {isActive && (
-          <IconButton label="Sửa" tooltipPlacement={placement} onClick={() => {
+          <IconButton label="Sửa" onClick={() => {
             if (active === "departments") {
               setForm({
                 mode: 'edit',
@@ -135,7 +134,7 @@ export default function DirectoryPage() {
           </IconButton>
         )}
         {isActive ? (
-          <IconButton label="Vô hiệu hóa" tooltipPlacement={placement} onClick={async () => {
+          <IconButton label="Vô hiệu hóa" tooltipAlign="right" onClick={async () => {
             try {
               const { client } = await import("../../../lib/axios/client");
               await client.put(`/${active}/${r.id}/toggle-status`);
@@ -147,7 +146,7 @@ export default function DirectoryPage() {
             <CircleOff className="size-4" />
           </IconButton>
         ) : (
-          <IconButton label="Kích hoạt" tooltipPlacement={placement} onClick={async () => {
+          <IconButton label="Kích hoạt" tooltipAlign="right" onClick={async () => {
             try {
               const { client } = await import("../../../lib/axios/client");
               await client.put(`/${active}/${r.id}/toggle-status`);
