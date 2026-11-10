@@ -717,17 +717,9 @@ export default function DirectoryPage() {
             <Download className="size-4" /> Tải file mẫu
           </Button>
           <Button onClick={() => {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = '.xlsx, .xls';
-            input.onchange = (e) => {
-              if (e.target.files.length > 0) {
-                 setSelectedFile(e.target.files[0]);
-                 setImportData(null);
-                 setImportExcel(true);
-              }
-            };
-            input.click();
+            setSelectedFile(null);
+            setImportData(null);
+            setImportExcel(true);
           }}>
             <Upload className="size-4" /> Thêm mới theo lô
           </Button>
@@ -1034,38 +1026,48 @@ export default function DirectoryPage() {
         </div>
       </Modal>
 
-      <Modal open={importExcel} wide={importData !== null} title="Thêm mới theo lô (Nhập từ Excel)" onClose={() => { setImportExcel(false); setImportData(null); setSelectedFile(null); }} footer={
+      <Modal 
+        open={importExcel} 
+        wide={importData !== null} 
+        title={`Thêm mới theo lô - ${tabs.find(t => t[0] === active)?.[1] || active}`} 
+        onClose={() => { setImportExcel(false); setImportData(null); setSelectedFile(null); }} 
+        footer={
           <>
             <Button onClick={() => { setImportExcel(false); setImportData(null); setSelectedFile(null); }}>Hủy</Button>
             {importData ? (
-               <Button variant="primary" loading={importing} disabled={!importData || importData.validRows === 0} onClick={async () => {
-                 setImporting(true);
-                 try {
-                   const { directoryService } = await import("../../../services/directory-service");
-                   let res;
-                   if (active === "classes") {
-                     res = await directoryService.importClasses(selectedFile, false);
-                   } else if (active === "majors") {
-                     res = await directoryService.importMajors(selectedFile, false);
-                   } else if (active === "offices") {
-                     res = await directoryService.importOffices(selectedFile, false);
-                   } else if (active === "users") {
-                     res = await directoryService.importUsers(selectedFile, false);
-                   } else {
-                     res = await directoryService.importDepartments(selectedFile, false);
+               <>
+                 <Button variant="secondary" onClick={() => setImportData(null)}>
+                   Chọn lại file
+                 </Button>
+                 <Button variant="primary" loading={importing} disabled={!importData || importData.validRows === 0} onClick={async () => {
+                   setImporting(true);
+                   try {
+                     const { directoryService } = await import("../../../services/directory-service");
+                     let res;
+                     if (active === "classes") {
+                       res = await directoryService.importClasses(selectedFile, false);
+                     } else if (active === "majors") {
+                       res = await directoryService.importMajors(selectedFile, false);
+                     } else if (active === "offices") {
+                       res = await directoryService.importOffices(selectedFile, false);
+                     } else if (active === "users") {
+                       res = await directoryService.importUsers(selectedFile, false);
+                     } else {
+                       res = await directoryService.importDepartments(selectedFile, false);
+                     }
+                     const count = res?.data?.validRows ?? importData.validRows;
+                     toast.success(`Nhập dữ liệu thành công (${count} dòng)!`);
+                     setImportExcel(false);
+                     setImportData(null);
+                     setSelectedFile(null);
+                     fetchItems(active);
+                   } catch (err) {
+                     toast.error(err.response?.data?.message || err.message || "Có lỗi xảy ra khi nhập dữ liệu!");
+                   } finally {
+                     setImporting(false);
                    }
-                   const count = res?.data?.validRows ?? importData.validRows;
-                   toast.success(`Nhập dữ liệu thành công (${count} dòng)!`);
-                   setImportExcel(false);
-                   setImportData(null);
-                   setSelectedFile(null);
-                   fetchItems(active);
-                 } catch (err) {
-                   toast.error(err.response?.data?.message || err.message || "Có lỗi xảy ra khi nhập dữ liệu!");
-                 } finally {
-                   setImporting(false);
-                 }
-               }}>Xác nhận Nhập ({importData.validRows} dòng)</Button>
+                 }}>Xác nhận Nhập ({importData.validRows} dòng)</Button>
+               </>
             ) : (
                <Button variant="primary" disabled={!selectedFile} loading={importing} onClick={async () => {
                  setImporting(true);
@@ -1095,55 +1097,94 @@ export default function DirectoryPage() {
         }
       >
         <div className="space-y-4">
+          <div className="flex items-center justify-between rounded-lg bg-slate-50 border border-line p-3">
+            <div className="text-sm">
+              <span className="font-medium text-ink">File mẫu dữ liệu chuẩn:</span>
+              <p className="text-xs text-muted mt-0.5">Tải template mẫu chuẩn (.xlsx) để điền đúng định dạng các cột</p>
+            </div>
+            <Button
+              variant="secondary"
+              onClick={handleDownloadTemplate}
+              className="shrink-0 text-xs h-8 px-3"
+            >
+              <Download className="size-3.5" /> Tải file mẫu
+            </Button>
+          </div>
+
           {!importData ? (
-            <>
-              <div onClick={() => {
-                  const input = document.createElement('input');
-                  input.type = 'file';
-                  input.accept = '.xlsx, .xls';
-                  input.onchange = (e) => {
-                    if (e.target.files.length > 0) setSelectedFile(e.target.files[0]);
-                  };
-                  input.click();
-                }}
-                className={`rounded-lg border-2 border-dashed p-8 text-center cursor-pointer transition ${selectedFile ? 'border-brand bg-brand-soft' : 'border-line hover:bg-canvas'}`}
-              >
-                <Upload className={`size-8 mx-auto mb-3 ${selectedFile ? 'text-brand' : 'text-muted'}`} />
-                <p className={`font-medium ${selectedFile ? 'text-brand' : ''}`}>{selectedFile ? selectedFile.name : 'Click để chọn file từ máy tính'}</p>
-                {!selectedFile && <p className="text-sm text-muted mt-1">hoặc kéo thả file Excel vào đây</p>}
-              </div>
-              <div className="flex justify-between items-center text-sm px-1">
-                <span className="text-muted">Chưa có file mẫu dữ liệu?</span>
-                <button
-                  type="button"
-                  onClick={handleDownloadTemplate}
-                  className="text-brand hover:underline font-medium inline-flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Download className="size-4" /> Tải file mẫu ({tabs.find(t => t[0] === active)?.[1] || active})
-                </button>
-              </div>
-            </>
+            <div
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (e.dataTransfer.files?.length > 0) {
+                  setSelectedFile(e.dataTransfer.files[0]);
+                }
+              }}
+              onClick={() => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.xlsx, .xls';
+                input.onchange = (e) => {
+                  if (e.target.files.length > 0) setSelectedFile(e.target.files[0]);
+                };
+                input.click();
+              }}
+              className={`rounded-lg border-2 border-dashed p-8 text-center cursor-pointer transition ${
+                selectedFile ? 'border-brand bg-brand-soft' : 'border-line hover:bg-canvas'
+              }`}
+            >
+              <Upload className={`size-8 mx-auto mb-3 ${selectedFile ? 'text-brand' : 'text-muted'}`} />
+              {selectedFile ? (
+                <div>
+                  <p className="font-semibold text-brand text-sm">{selectedFile.name}</p>
+                  <p className="text-xs text-muted mt-1">
+                    Dung lượng: {(selectedFile.size / 1024).toFixed(1)} KB — Click để đổi file khác
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <p className="font-medium text-ink text-sm">Click để chọn file từ máy tính</p>
+                  <p className="text-xs text-muted mt-1">hoặc kéo thả file Excel (.xlsx) vào đây</p>
+                </div>
+              )}
+            </div>
           ) : (
             <div className="space-y-4">
-              <div className="flex gap-4 mb-4">
-                <div className="flex-1 bg-green-50 text-green-700 p-4 rounded-lg border border-green-200">
-                  <p className="text-sm font-medium">Hợp lệ</p>
-                  <p className="text-2xl font-bold">{importData.validRows}</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-emerald-50 text-emerald-800 p-4 rounded-lg border border-emerald-200">
+                  <p className="text-xs uppercase font-semibold text-emerald-600">Số dòng hợp lệ</p>
+                  <p className="text-2xl font-bold mt-1">{importData.validRows}</p>
                 </div>
-                <div className="flex-1 bg-red-50 text-red-700 p-4 rounded-lg border border-red-200">
-                  <p className="text-sm font-medium">Lỗi</p>
-                  <p className="text-2xl font-bold">{importData.invalidRows}</p>
+                <div className={`p-4 rounded-lg border ${
+                  importData.invalidRows > 0 
+                    ? 'bg-rose-50 text-rose-800 border-rose-200' 
+                    : 'bg-slate-50 text-slate-600 border-line'
+                }`}>
+                  <p className={`text-xs uppercase font-semibold ${
+                    importData.invalidRows > 0 ? 'text-rose-600' : 'text-muted'
+                  }`}>Số dòng lỗi</p>
+                  <p className="text-2xl font-bold mt-1">{importData.invalidRows}</p>
                 </div>
               </div>
+
               {importData.invalidRows > 0 ? (
-                <div className="text-sm text-red-600">
-                  <p className="font-medium mb-2">Chi tiết lỗi:</p>
-                  <ul className="list-disc pl-5 space-y-1">
-                    {importData.errors.map((err, idx) => <li key={idx}>{err}</li>)}
+                <div className="rounded-lg border border-rose-200 bg-rose-50/50 p-4">
+                  <p className="font-semibold text-sm text-rose-800 mb-2">Chi tiết lỗi ({importData.errors?.length || 0}):</p>
+                  <ul className="list-disc pl-5 space-y-1 text-xs text-rose-700 max-h-48 overflow-y-auto">
+                    {importData.errors?.map((err, idx) => (
+                      <li key={idx}>{err}</li>
+                    ))}
                   </ul>
                 </div>
               ) : (
-                <p className="text-sm text-green-600 font-medium">Tất cả dữ liệu đều hợp lệ. Bạn có thể tiến hành nhập!</p>
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-4 text-center">
+                  <p className="text-sm font-semibold text-emerald-700">
+                    Tất cả {importData.validRows} dòng dữ liệu đều hợp lệ!
+                  </p>
+                  <p className="text-xs text-emerald-600 mt-0.5">
+                    Nhấn nút &ldquo;Xác nhận Nhập&rdquo; bên dưới để lưu vào hệ thống.
+                  </p>
+                </div>
               )}
             </div>
           )}

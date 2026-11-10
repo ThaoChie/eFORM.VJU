@@ -201,18 +201,20 @@ public class ClassServiceImpl implements ClassService {
             Row header = sheet.createRow(0);
             header.createCell(0).setCellValue("Mã lớp *");
             header.createCell(1).setCellValue("Tên lớp *");
-            header.createCell(2).setCellValue("Mã Khoa *");
-            header.createCell(3).setCellValue("Niên khóa");
+            header.createCell(2).setCellValue("Mã Ngành *");
+            header.createCell(3).setCellValue("Niên khóa (ví dụ: 2023-2027)");
             header.createCell(4).setCellValue("Mã Lớp trưởng (cách nhau dấu phẩy)");
             header.createCell(5).setCellValue("Mã Lớp phó (cách nhau dấu phẩy)");
+            header.createCell(6).setCellValue("Trạng thái (1=Hoạt động, 0=Vô hiệu hóa)");
             
             Row sample = sheet.createRow(1);
             sample.createCell(0).setCellValue("IT01");
             sample.createCell(1).setCellValue("Lớp Công nghệ thông tin 01");
-            sample.createCell(2).setCellValue("IT");
-            sample.createCell(3).setCellValue("K21");
-            sample.createCell(4).setCellValue("user01, user02");
-            sample.createCell(5).setCellValue("user03");
+            sample.createCell(2).setCellValue("BCSE");
+            sample.createCell(3).setCellValue("2023-2027");
+            sample.createCell(4).setCellValue("SV2026001");
+            sample.createCell(5).setCellValue("SV2026002");
+            sample.createCell(6).setCellValue("1");
             
             workbook.write(out);
             return out.toByteArray();
@@ -232,25 +234,67 @@ public class ClassServiceImpl implements ClassService {
         
         try (InputStream is = file.getInputStream(); Workbook workbook = WorkbookFactory.create(is)) {
             Sheet sheet = workbook.getSheetAt(0);
-            Iterator<Row> rows = sheet.iterator();
-            if (rows.hasNext()) rows.next(); // skip header
+            if (sheet.getPhysicalNumberOfRows() <= 1) {
+                return Map.of(
+                    "validRows", 0,
+                    "invalidRows", 0,
+                    "errors", List.of("File Excel không có dữ liệu để nhập.")
+                );
+            }
+
+            // Detect column indices dynamically
+            Row headerRow = sheet.getRow(0);
+            Map<String, Integer> colMap = new HashMap<>();
+            if (headerRow != null) {
+                for (int c = 0; c < headerRow.getLastCellNum(); c++) {
+                    String h = getCellVal(formatter, headerRow.getCell(c)).toLowerCase().trim();
+                    if (h.contains("mã lớp") || (h.startsWith("mã") && !h.contains("ngành") && !h.contains("khoa") && !h.contains("trưởng") && !h.contains("phó"))) {
+                        colMap.put("classCode", c);
+                    } else if (h.contains("tên lớp") || (h.contains("tên") && !h.contains("khoa") && !h.contains("ngành"))) {
+                        colMap.put("className", c);
+                    } else if (h.contains("ngành") || h.contains("khoa") || h.contains("major") || h.contains("dept")) {
+                        colMap.put("majorOrDept", c);
+                    } else if (h.contains("khóa") || h.contains("khoá") || h.contains("cohort")) {
+                        colMap.put("cohort", c);
+                    } else if (h.contains("trưởng") || h.contains("leader")) {
+                        colMap.put("leader", c);
+                    } else if (h.contains("phó") || h.contains("deputy")) {
+                        colMap.put("deputy", c);
+                    } else if (h.contains("trạng thái") || h.contains("status")) {
+                        colMap.put("status", c);
+                    }
+                }
+            }
+
+            boolean hasDynamicHeaders = colMap.containsKey("classCode") && colMap.containsKey("className");
             
-            int rowIndex = 1;
-            while (rows.hasNext()) {
-                Row row = rows.next();
-                rowIndex++;
+            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+                Row row = sheet.getRow(i);
                 if (isRowEmpty(row, formatter)) continue;
                 
-                String classCode = getCellVal(formatter, row.getCell(0));
-                String className = getCellVal(formatter, row.getCell(1));
-                String deptCode = getCellVal(formatter, row.getCell(2));
-                String cohort = getCellVal(formatter, row.getCell(3));
-                String leaderCodesStr = getCellVal(formatter, row.getCell(4));
-                String deputyCodesStr = getCellVal(formatter, row.getCell(5));
+                int rowIndex = i + 1;
+                String classCode, className, deptCode, cohort, leaderCodesStr, deputyCodesStr, statusStr;
+                if (hasDynamicHeaders) {
+                    classCode = colMap.containsKey("classCode") ? getCellVal(formatter, row.getCell(colMap.get("classCode"))) : "";
+                    className = colMap.containsKey("className") ? getCellVal(formatter, row.getCell(colMap.get("className"))) : "";
+                    deptCode = colMap.containsKey("majorOrDept") ? getCellVal(formatter, row.getCell(colMap.get("majorOrDept"))) : "";
+                    cohort = colMap.containsKey("cohort") ? getCellVal(formatter, row.getCell(colMap.get("cohort"))) : "";
+                    leaderCodesStr = colMap.containsKey("leader") ? getCellVal(formatter, row.getCell(colMap.get("leader"))) : "";
+                    deputyCodesStr = colMap.containsKey("deputy") ? getCellVal(formatter, row.getCell(colMap.get("deputy"))) : "";
+                    statusStr = colMap.containsKey("status") ? getCellVal(formatter, row.getCell(colMap.get("status"))) : "1";
+                } else {
+                    classCode = getCellVal(formatter, row.getCell(0));
+                    className = getCellVal(formatter, row.getCell(1));
+                    deptCode = getCellVal(formatter, row.getCell(2));
+                    cohort = getCellVal(formatter, row.getCell(3));
+                    leaderCodesStr = getCellVal(formatter, row.getCell(4));
+                    deputyCodesStr = getCellVal(formatter, row.getCell(5));
+                    statusStr = row.getCell(6) != null ? getCellVal(formatter, row.getCell(6)) : "1";
+                }
                 
                 if (classCode.isEmpty() || className.isEmpty() || deptCode.isEmpty()) {
                     invalidRows++;
-                    errors.add("Dòng " + rowIndex + ": Thiếu dữ liệu bắt buộc (Mã lớp, Tên lớp hoặc Mã Khoa)");
+                    errors.add("Dòng " + rowIndex + ": Thiếu dữ liệu bắt buộc (Mã lớp, Tên lớp hoặc Mã Ngành/Khoa)");
                     continue;
                 }
                 
@@ -344,7 +388,7 @@ public class ClassServiceImpl implements ClassService {
                         c.setDepartment(deptOpt.get());
                     }
                     c.setAcademicCohort(cohort.isEmpty() ? null : cohort);
-                    c.setStatus(1);
+                    c.setStatus("0".equals(statusStr.trim()) ? 0 : 1);
                     c = repository.save(c);
                     
                     // Clear old leaders/deputies for this class
