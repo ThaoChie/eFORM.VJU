@@ -94,14 +94,14 @@ export default function AppLayout() {
       {isMobile && sidebarOpen && (
         <button
           aria-label="Đóng menu"
-          className="fixed inset-0 z-30 bg-night/30 backdrop-blur-xs transition-opacity"
+          className="fixed inset-0 z-40 bg-night/30 backdrop-blur-xs transition-opacity"
           onClick={closeSidebar}
         />
       )}
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex flex-col border-r border-line bg-white transition-[width,transform] duration-300 ease-in-out ${
+        className={`fixed inset-y-0 left-0 z-50 flex flex-col border-r border-line bg-white transition-[width,transform] duration-300 ease-in-out ${
           isMobile
             ? `w-[248px] ${sidebarOpen ? "translate-x-0 shadow-xl" : "-translate-x-full"}`
             : sidebarOpen
@@ -268,7 +268,7 @@ export default function AppLayout() {
             : "md:pl-[68px]"
         }`}
       >
-        <header className="sticky top-0 z-20 flex h-14 items-center border-b border-line bg-white px-4 md:px-6">
+        <header className="sticky top-0 z-30 flex h-14 items-center border-b border-line bg-white px-4 md:px-6">
           {/* Nút Hamburger chỉ hiển thị trên Mobile */}
           <button
             type="button"

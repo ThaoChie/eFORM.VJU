@@ -469,7 +469,7 @@ export function Modal({
   if (!open) return null
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-night/45 p-4"
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-night/45 p-4"
       onMouseDown={onClose}
     >
       <div

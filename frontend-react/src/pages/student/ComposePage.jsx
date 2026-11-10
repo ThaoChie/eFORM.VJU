@@ -903,7 +903,7 @@ export default function ComposePage() {
   return (
     <>
       {/* 1. THANH CÔNG CỤ PHÍA TRÊN (CỐ ĐỊNH KHI CUỘN) */}
-      <div className="sticky top-14 z-20 -mx-4 mb-4 flex flex-wrap items-center justify-between gap-3 border-y border-line bg-white px-4 py-3 shadow-xs md:-mx-6 md:px-6">
+      <div className="sticky top-14 z-10 -mx-4 mb-4 flex flex-wrap items-center justify-between gap-3 border-y border-line bg-white px-4 py-3 shadow-xs md:-mx-6 md:px-6">
         <Button onClick={handleBackClick} variant="secondary">
           <ArrowLeft className="size-4" />
           Quay lại
