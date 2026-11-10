@@ -31,6 +31,10 @@ class DataSeederTest {
     @Mock
     private SemesterRepository semesterRepository;
     @Mock
+    private vn.edu.drl.backend.dao.MajorRepository majorRepository;
+    @Mock
+    private vn.edu.drl.backend.dao.SignatureLogRepository signatureLogRepository;
+    @Mock
     private PasswordEncoder passwordEncoder;
 
     @InjectMocks
@@ -41,7 +45,7 @@ class DataSeederTest {
         when(departmentRepository.count()).thenReturn(0L);
         when(departmentRepository.save(any(Department.class))).thenReturn(new Department());
         when(classRepository.save(any(ClassEntity.class))).thenReturn(new ClassEntity());
-        when(passwordEncoder.encode("password123")).thenReturn("hashed");
+        when(passwordEncoder.encode("123456")).thenReturn("hashed");
 
         dataSeeder.run();
 

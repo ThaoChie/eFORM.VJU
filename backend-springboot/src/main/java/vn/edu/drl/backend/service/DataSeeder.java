@@ -19,6 +19,7 @@ public class DataSeeder implements CommandLineRunner {
     private final ClassRepository classRepository;
     private final UserRepository userRepository;
     private final SemesterRepository semesterRepository;
+    private final MajorRepository majorRepository;
     private final vn.edu.drl.backend.dao.SignatureLogRepository signatureLogRepository;
     private final PasswordEncoder passwordEncoder;
 
@@ -26,12 +27,14 @@ public class DataSeeder implements CommandLineRunner {
                       ClassRepository classRepository,
                       UserRepository userRepository,
                       SemesterRepository semesterRepository,
+                      MajorRepository majorRepository,
                       vn.edu.drl.backend.dao.SignatureLogRepository signatureLogRepository,
                       PasswordEncoder passwordEncoder) {
         this.departmentRepository = departmentRepository;
         this.classRepository = classRepository;
         this.userRepository = userRepository;
         this.semesterRepository = semesterRepository;
+        this.majorRepository = majorRepository;
         this.signatureLogRepository = signatureLogRepository;
         this.passwordEncoder = passwordEncoder;
     }
@@ -49,7 +52,7 @@ public class DataSeeder implements CommandLineRunner {
             cls.setClassCode("IT01");
             cls.setClassName("Lớp IT Khóa 1");
             cls.setDepartment(dept);
-            cls.setAcademicCohort("2023");
+            cls.setAcademicCohort("2023 - 2027");
             cls = classRepository.save(cls);
 
             if (!semesterRepository.existsBySemesterCode("HK1_2026")) {
@@ -93,18 +96,51 @@ public class DataSeeder implements CommandLineRunner {
             student.setEmail("student@drl.edu.vn");
             student.setFullName("Nguyễn Văn A");
             student.setUserCode("SV2026001");
+            student.setDob(LocalDate.of(2004, 9, 15));
             student.setPasswordHash(defaultPassword);
             student.setRole(Role.STUDENT);
             student.setDepartment(dept);
             student.setClassEntity(cls);
+            student.setAcademicCohort(cls.getAcademicCohort());
             student.setSignatureSpecimenUrl(null);
             student.setIsSignatureLocked(false);
             userRepository.save(student);
         }
 
-        // Auto-heal: Ensure all leaders and students have a valid class assigned
-        ClassEntity defaultClass = classRepository.findAll().stream().findFirst().orElse(null);
+        // Auto-heal: Ensure all classes have Major, Department, and academic cohort set
         Department defaultDept = departmentRepository.findAll().stream().findFirst().orElse(null);
+        Major defaultMajor = null;
+        if (majorRepository != null) {
+            defaultMajor = majorRepository.findByMajorCode("CNTT").orElse(null);
+            if (defaultMajor == null && defaultDept != null) {
+                defaultMajor = new Major();
+                defaultMajor.setMajorCode("CNTT");
+                defaultMajor.setMajorName("Công nghệ Thông tin");
+                defaultMajor.setDepartment(defaultDept);
+                defaultMajor = majorRepository.save(defaultMajor);
+            }
+        }
+
+        for (ClassEntity clsItem : classRepository.findAll()) {
+            boolean clsChanged = false;
+            if (clsItem.getMajor() == null && defaultMajor != null) {
+                clsItem.setMajor(defaultMajor);
+                clsChanged = true;
+            }
+            if (clsItem.getDepartment() == null && defaultDept != null) {
+                clsItem.setDepartment(defaultDept);
+                clsChanged = true;
+            }
+            if (clsItem.getAcademicCohort() == null || clsItem.getAcademicCohort().trim().isEmpty() || "2023".equals(clsItem.getAcademicCohort())) {
+                clsItem.setAcademicCohort("2023 - 2027");
+                clsChanged = true;
+            }
+            if (clsChanged) {
+                classRepository.save(clsItem);
+            }
+        }
+
+        ClassEntity defaultClass = classRepository.findAll().stream().findFirst().orElse(null);
 
         if (defaultClass != null) {
             java.util.List<User> usersToUpdate = userRepository.findAll();
@@ -117,6 +153,21 @@ public class DataSeeder implements CommandLineRunner {
                 if (u.getDepartment() == null && defaultDept != null && (u.getRole() == Role.STUDENT || u.getRole() == Role.CLASS_LEADER || u.getRole() == Role.CLASS_DEPUTY || u.getRole() == Role.DEAN)) {
                     u.setDepartment(defaultDept);
                     changed = true;
+                }
+                if (u.getDob() == null && (u.getRole() == Role.STUDENT || u.getRole() == Role.CLASS_LEADER || u.getRole() == Role.CLASS_DEPUTY)) {
+                    u.setDob(LocalDate.of(2004, 9, 15));
+                    changed = true;
+                }
+                if (u.getClassEntity() != null) {
+                    ClassEntity uc = u.getClassEntity();
+                    if (uc.getAcademicCohort() != null && (u.getAcademicCohort() == null || !u.getAcademicCohort().equals(uc.getAcademicCohort()))) {
+                        u.setAcademicCohort(uc.getAcademicCohort());
+                        changed = true;
+                    }
+                    if (uc.getMajor() != null && u.getMajor() == null) {
+                        u.setMajor(uc.getMajor());
+                        changed = true;
+                    }
                 }
                 if (changed) {
                     userRepository.save(u);

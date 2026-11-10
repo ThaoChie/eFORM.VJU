@@ -448,11 +448,14 @@ export default function ComposePage() {
     )
   }
 
-  // Student details info
+  // Student details info (Ánh xạ chuẩn theo Lớp học và Người dùng)
   const studentFullName = user?.fullName || "Sinh viên"
   const studentCode = user?.userID || user?.userCode || "—"
   const studentClass = user?.className || "—"
-  const studentFaculty = user?.facultyName || user?.departmentName || "Khoa"
+  const studentMajor = user?.majorName || "Công nghệ Thông tin"
+  const studentCohort = user?.academicCohort || "2023 - 2027"
+  const studentDob = user?.dob || "15/09/2004"
+  const studentFaculty = user?.facultyName || user?.departmentName || "Khoa Công nghệ Thông tin"
   const semesterTitle = semester?.semesterName || "Học kỳ đánh giá rèn luyện"
 
   // Status badge config
@@ -997,9 +1000,10 @@ export default function ComposePage() {
               userID: studentCode,
               userCode: studentCode,
               className: studentClass,
-              majorName: "Công nghệ Thông tin",
+              majorName: studentMajor,
               facultyName: studentFaculty,
-              academicCohort: "2023 - 2027",
+              academicCohort: studentCohort,
+              dob: studentDob,
               signatureSpecimenUrl: currentSignatureImg || studentSignature || user?.signatureSpecimenUrl,
             }}
             semesterName={semesterTitle}

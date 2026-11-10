@@ -324,9 +324,10 @@ export default function BatchDetailPage() {
                 userID: activeDetail?.studentCode || currentForm?.code || "SV2026",
                 userCode: activeDetail?.studentCode || currentForm?.code || "SV2026",
                 className: activeDetail?.className || currentForm?.className || classNameInfo || "",
-                majorName: "Công nghệ Thông tin",
+                majorName: activeDetail?.majorName || "Công nghệ Thông tin",
                 facultyName: activeDetail?.departmentName || "Khoa Công nghệ Thông tin",
                 academicCohort: activeDetail?.academicCohort || "2023 - 2027",
+                dob: activeDetail?.dob || "15/09/2004",
               }}
               semesterName={activeDetail?.semesterName || "Học kỳ 1"}
               academicYear="2026 - 2027"

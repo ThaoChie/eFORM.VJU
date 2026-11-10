@@ -59,6 +59,30 @@ export function generateSignatureSvg(name = "Nguyễn Văn A") {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`
 }
 
+export function formatDob(dateVal) {
+  if (!dateVal) return "15/09/2004"
+  try {
+    const s = String(dateVal).trim()
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
+      return s
+    }
+    const cleanDate = s.split("T")[0]
+    const parts = cleanDate.split("-")
+    if (parts.length === 3) {
+      const [y, m, d] = parts
+      return `${d.padStart(2, "0")}/${m.padStart(2, "0")}/${y}`
+    }
+    const dt = new Date(dateVal)
+    if (!isNaN(dt.getTime())) {
+      const day = String(dt.getDate()).padStart(2, "0")
+      const month = String(dt.getMonth() + 1).padStart(2, "0")
+      const year = dt.getFullYear()
+      return `${day}/${month}/${year}`
+    }
+  } catch {}
+  return String(dateVal)
+}
+
 export function normalizeSignatureImage(sig) {
   if (!isValidSignatureImage(sig)) {
     return null
@@ -680,17 +704,17 @@ export default function PdfViewer({
               </p>
             </div>
 
-            {/* THÔNG TIN SINH VIÊN */}
+            {/* THÔNG TIN SINH VIÊN (Ánh xạ chuẩn theo Lớp học và Người dùng) */}
             <div className="my-3 space-y-1.5 text-[13px] leading-relaxed">
               <div className="flex flex-wrap justify-between">
-                <span>Họ và tên: <b className="uppercase">{user?.fullName || "Nguyễn Văn A"}</b></span>
-                <span>Ngày sinh: <b>{user?.dob || "15/09/2004"}</b></span>
-                <span>Mã SV: <b>{user?.userCode || user?.studentCode || "SV2026001"}</b></span>
+                <span>Họ và tên: <b className="uppercase">{user?.fullName || user?.name || "Nguyễn Văn A"}</b></span>
+                <span>Ngày sinh: <b>{formatDob(user?.dob || user?.dateOfBirth || user?.birthDate)}</b></span>
+                <span>Mã SV: <b>{user?.userCode || user?.studentCode || user?.userID || "—"}</b></span>
               </div>
               <div className="flex flex-wrap justify-between">
-                <span>Lớp: <b>{user?.className || "IT01"}</b></span>
-                <span>Ngành: <b>{user?.majorName || "Công nghệ Thông tin"}</b></span>
-                <span>Khóa: <b>{user?.academicCohort || "2023 - 2027"}</b></span>
+                <span>Lớp: <b>{user?.className || user?.classCode || "—"}</b></span>
+                <span>Ngành: <b>{user?.majorName || user?.major || "Công nghệ Thông tin"}</b></span>
+                <span>Khóa: <b>{user?.academicCohort || user?.cohort || "2023 - 2027"}</b></span>
                 <span>Khoa: <b>{user?.facultyName || user?.departmentName || "Khoa Công nghệ Thông tin"}</b></span>
               </div>
             </div>
