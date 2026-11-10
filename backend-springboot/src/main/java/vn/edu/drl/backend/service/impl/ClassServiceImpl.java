@@ -6,12 +6,14 @@ import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import vn.edu.drl.backend.dao.ClassRepository;
 import vn.edu.drl.backend.dao.DepartmentRepository;
+import vn.edu.drl.backend.dao.MajorRepository;
 import vn.edu.drl.backend.dao.UserRepository;
 import vn.edu.drl.backend.dto.request.ClassRequest;
 import vn.edu.drl.backend.dto.response.ClassResponse;
 import vn.edu.drl.backend.enu.Role;
 import vn.edu.drl.backend.model.ClassEntity;
 import vn.edu.drl.backend.model.Department;
+import vn.edu.drl.backend.model.Major;
 import vn.edu.drl.backend.model.User;
 import vn.edu.drl.backend.service.ClassService;
 
@@ -26,11 +28,13 @@ import org.springframework.transaction.annotation.Transactional;
 public class ClassServiceImpl implements ClassService {
     private final ClassRepository repository;
     private final DepartmentRepository deptRepo;
+    private final MajorRepository majorRepo;
     private final UserRepository userRepo;
 
-    public ClassServiceImpl(ClassRepository repository, DepartmentRepository deptRepo, UserRepository userRepo) {
+    public ClassServiceImpl(ClassRepository repository, DepartmentRepository deptRepo, MajorRepository majorRepo, UserRepository userRepo) {
         this.repository = repository;
         this.deptRepo = deptRepo;
+        this.majorRepo = majorRepo;
         this.userRepo = userRepo;
     }
 
@@ -41,11 +45,24 @@ public class ClassServiceImpl implements ClassService {
         res.setClassName(c.getClassName());
         res.setAcademicCohort(c.getAcademicCohort());
         res.setStatus(c.getStatus());
+        if (c.getMajor() != null) {
+            res.setMajorId(c.getMajor().getId());
+            res.setMajorCode(c.getMajor().getMajorCode());
+            res.setMajorName(c.getMajor().getMajorName());
+        }
         if (c.getDepartment() != null) {
             res.setDeptId(c.getDepartment().getId());
             res.setDeptCode(c.getDepartment().getDeptCode());
             res.setDeptName(c.getDepartment().getDeptName());
             User dean = userRepo.findFirstByDepartmentIdAndRole(c.getDepartment().getId(), Role.DEAN).orElse(null);
+            if (dean != null) {
+                res.setDeanName(dean.getFullName());
+            }
+        } else if (c.getMajor() != null && c.getMajor().getDepartment() != null) {
+            res.setDeptId(c.getMajor().getDepartment().getId());
+            res.setDeptCode(c.getMajor().getDepartment().getDeptCode());
+            res.setDeptName(c.getMajor().getDepartment().getDeptName());
+            User dean = userRepo.findFirstByDepartmentIdAndRole(c.getMajor().getDepartment().getId(), Role.DEAN).orElse(null);
             if (dean != null) {
                 res.setDeanName(dean.getFullName());
             }
@@ -89,7 +106,16 @@ public class ClassServiceImpl implements ClassService {
         c.setClassName(req.getClassName());
         c.setAcademicCohort(req.getAcademicCohort());
         c.setStatus(req.getStatus() != null ? req.getStatus() : 1);
-        deptRepo.findById(req.getDeptId()).ifPresent(c::setDepartment);
+        if (req.getMajorId() != null) {
+            majorRepo.findById(req.getMajorId()).ifPresent(m -> {
+                c.setMajor(m);
+                if (m.getDepartment() != null) {
+                    c.setDepartment(m.getDepartment());
+                }
+            });
+        } else if (req.getDeptId() != null) {
+            deptRepo.findById(req.getDeptId()).ifPresent(c::setDepartment);
+        }
         ClassEntity saved = repository.save(c);
         updateOfficers(saved.getId(), req.getLeaderIds(), req.getDeputyIds());
         return mapToResponse(saved);
@@ -102,7 +128,14 @@ public class ClassServiceImpl implements ClassService {
         c.setClassName(req.getClassName());
         c.setAcademicCohort(req.getAcademicCohort());
         if (req.getStatus() != null) c.setStatus(req.getStatus());
-        if (req.getDeptId() != null) {
+        if (req.getMajorId() != null) {
+            majorRepo.findById(req.getMajorId()).ifPresent(m -> {
+                c.setMajor(m);
+                if (m.getDepartment() != null) {
+                    c.setDepartment(m.getDepartment());
+                }
+            });
+        } else if (req.getDeptId() != null) {
             deptRepo.findById(req.getDeptId()).ifPresent(c::setDepartment);
         }
         ClassEntity saved = repository.save(c);
@@ -241,10 +274,11 @@ public class ClassServiceImpl implements ClassService {
 
                 seenClassCodes.add(classCode.toLowerCase());
                 
+                var majorOpt = majorRepo.findByMajorCode(deptCode);
                 var deptOpt = deptRepo.findByDeptCode(deptCode);
-                if (deptOpt.isEmpty()) {
+                if (majorOpt.isEmpty() && deptOpt.isEmpty()) {
                     invalidRows++;
-                    errors.add("Dòng " + rowIndex + ": Mã Khoa '" + deptCode + "' không tồn tại trong hệ thống");
+                    errors.add("Dòng " + rowIndex + ": Mã Ngành hoặc Mã Khoa '" + deptCode + "' không tồn tại trong hệ thống");
                     continue;
                 }
                 
@@ -301,7 +335,14 @@ public class ClassServiceImpl implements ClassService {
                     ClassEntity c = opt.orElseGet(ClassEntity::new);
                     c.setClassCode(classCode);
                     c.setClassName(className);
-                    c.setDepartment(deptOpt.get());
+                    if (majorOpt.isPresent()) {
+                        c.setMajor(majorOpt.get());
+                        if (majorOpt.get().getDepartment() != null) {
+                            c.setDepartment(majorOpt.get().getDepartment());
+                        }
+                    } else if (deptOpt.isPresent()) {
+                        c.setDepartment(deptOpt.get());
+                    }
                     c.setAcademicCohort(cohort.isEmpty() ? null : cohort);
                     c.setStatus(1);
                     c = repository.save(c);

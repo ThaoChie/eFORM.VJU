@@ -7,10 +7,11 @@ import {
   ShieldCheck,
   Upload,
 } from "lucide-react"
-import { useMemo, useState, useRef } from "react"
+import { useMemo, useState, useEffect } from "react"
 import { toast } from "react-hot-toast"
 import { IconButton } from "./Primitives"
 import { rankScore } from "../../common/constants/index.js"
+import { removePaperBackground } from "../../lib/image-processing"
 
 // Kiểm tra chữ ký hợp lệ (loại trừ các chuỗi placeholder, pixel rỗng hoặc ký tự bị lỗi)
 export function isValidSignatureImage(sig) {
@@ -420,105 +421,13 @@ export default function PdfViewer({
   const finalScoreText = numberToVietnameseWords(finalScore)
   const finalRanking = rankScore(finalScore)
 
-  // Trạng thái và ref để sinh viên / người dùng tải ảnh chữ ký trực tiếp lên phiếu
-  const studentFileInputRef = useRef(null)
-  const [uploadedStudentSig, setUploadedStudentSig] = useState(null)
+  // Tách nền tự động (Background Removal) để chữ ký hiển thị trong suốt tinh tế trên phôi PDF
+  const [cleanStudentSig, setCleanStudentSig] = useState(null)
+  const [cleanClassSig, setCleanClassSig] = useState(null)
+  const [cleanDeanSig, setCleanDeanSig] = useState(null)
 
-  const handleStudentSigUpload = (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    if (!["image/png", "image/jpeg", "image/jpg", "image/webp"].includes(file.type)) {
-      toast.error("Chỉ chấp nhận file ảnh PNG, JPG hoặc WEBP.")
-      return
-    }
-    if (file.size > 3 * 1024 * 1024) {
-      toast.error("Dung lượng ảnh tối đa 3 MB.")
-      return
-    }
-    const reader = new FileReader()
-    reader.onload = () => {
-      const result = reader.result
-      setUploadedStudentSig(result)
-      const uId = user?.id || 4
-      try {
-        localStorage.setItem(`user_signature_${uId}`, result)
-      } catch (err) {
-        console.warn("Storage warning:", err)
-      }
-      toast.success("Đã chèn ảnh chữ ký thành công!")
-    }
-    reader.readAsDataURL(file)
-  }
-
-  // Trạng thái và ref để cán bộ lớp tải ảnh chữ ký trực tiếp lên phiếu
-  const classFileInputRef = useRef(null)
-  const [uploadedClassSig, setUploadedClassSig] = useState(null)
-
-  const handleClassSigUpload = (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    if (!["image/png", "image/jpeg", "image/jpg", "image/webp"].includes(file.type)) {
-      toast.error("Chỉ chấp nhận file ảnh PNG, JPG hoặc WEBP.")
-      return
-    }
-    if (file.size > 3 * 1024 * 1024) {
-      toast.error("Dung lượng ảnh tối đa 3 MB.")
-      return
-    }
-    const reader = new FileReader()
-    reader.onload = () => {
-      const result = reader.result
-      setUploadedClassSig(result)
-      try {
-        localStorage.setItem("user_signature_3", result)
-        const storedUser = JSON.parse(localStorage.getItem("user") || "{}")
-        if (storedUser?.id) {
-          localStorage.setItem(`user_signature_${storedUser.id}`, result)
-        }
-      } catch (err) {
-        console.warn("Storage warning:", err)
-      }
-      toast.success("Đã tải và áp dụng ảnh chữ ký Cán bộ lớp thành công!")
-    }
-    reader.readAsDataURL(file)
-  }
-
-  // Trạng thái và ref để GVCN / Khoa tải ảnh chữ ký trực tiếp lên phiếu
-  const deanFileInputRef = useRef(null)
-  const [uploadedDeanSig, setUploadedDeanSig] = useState(null)
-
-  const handleDeanSigUpload = (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    if (!["image/png", "image/jpeg", "image/jpg", "image/webp"].includes(file.type)) {
-      toast.error("Chỉ chấp nhận file ảnh PNG, JPG hoặc WEBP.")
-      return
-    }
-    if (file.size > 3 * 1024 * 1024) {
-      toast.error("Dung lượng ảnh tối đa 3 MB.")
-      return
-    }
-    const reader = new FileReader()
-    reader.onload = () => {
-      const result = reader.result
-      setUploadedDeanSig(result)
-      try {
-        localStorage.setItem("user_signature_2", result)
-        const storedUser = JSON.parse(localStorage.getItem("user") || "{}")
-        if (storedUser?.id) {
-          localStorage.setItem(`user_signature_${storedUser.id}`, result)
-        }
-      } catch (err) {
-        console.warn("Storage warning:", err)
-      }
-      toast.success("Đã tải và áp dụng ảnh chữ ký GVCN / Khoa thành công!")
-    }
-    reader.readAsDataURL(file)
-  }
-
-  // Robust student signature resolution (strictly scoped to student)
+  // Robust student signature resolution (strictly scoped to student, read-only)
   const effectiveStudentSig = useMemo(() => {
-    if (uploadedStudentSig) return uploadedStudentSig
     if (studentSignature) return studentSignature
     if (user?.signatureSpecimenUrl) return user.signatureSpecimenUrl
     const uId = user?.id || user?.studentId
@@ -530,50 +439,92 @@ export default function PdfViewer({
       }
     }
     return null
-  }, [uploadedStudentSig, studentSignature, user])
+  }, [studentSignature, user])
 
   // Luôn đảm bảo sinh viên có ảnh chữ ký hiển thị trên bản in/xem trước
   const studentSigImage = useMemo(() => {
-    if (uploadedStudentSig) return uploadedStudentSig
     if (effectiveStudentSig) {
       return normalizeSignatureImage(effectiveStudentSig, user?.fullName || "Nguyễn Văn A")
     }
     return null
-  }, [uploadedStudentSig, effectiveStudentSig, user?.fullName])
+  }, [effectiveStudentSig, user?.fullName])
 
-  // Class leader signature resolution: priority to uploaded image, then explicit prop
+  // Class leader signature resolution: strictly read-only
   const effectiveClassSig = useMemo(() => {
-    if (uploadedClassSig) return uploadedClassSig
     if (classSignature && typeof classSignature === "string" && classSignature.trim() !== "") {
       return classSignature
     }
     return null
-  }, [uploadedClassSig, classSignature])
+  }, [classSignature])
 
   const classSigImage = useMemo(() => {
-    if (uploadedClassSig) return uploadedClassSig
     if (effectiveClassSig) {
       return normalizeSignatureImage(effectiveClassSig, classLeaderName || "Lớp trưởng")
     }
     return null
-  }, [uploadedClassSig, effectiveClassSig, classLeaderName])
+  }, [effectiveClassSig, classLeaderName])
 
-  // Dean signature resolution: priority to uploaded image, then explicit prop
+  // Dean signature resolution: strictly read-only
   const effectiveDeanSig = useMemo(() => {
-    if (uploadedDeanSig) return uploadedDeanSig
     if (deanSignature && typeof deanSignature === "string" && deanSignature.trim() !== "") {
       return deanSignature
     }
     return null
-  }, [uploadedDeanSig, deanSignature])
+  }, [deanSignature])
 
   const deanSigImage = useMemo(() => {
-    if (uploadedDeanSig) return uploadedDeanSig
     if (effectiveDeanSig) {
       return normalizeSignatureImage(effectiveDeanSig, deanName || "Trưởng Khoa CNTT")
     }
     return null
-  }, [uploadedDeanSig, effectiveDeanSig, deanName])
+  }, [effectiveDeanSig, deanName])
+
+  // Tự động khử màu nền giấy (trắng, xám, bóng tối) trên Canvas để chỉ giữ nét mực trong suốt
+  useEffect(() => {
+    let active = true
+    if (studentSigImage) {
+      removePaperBackground(studentSigImage).then((res) => {
+        if (active) setCleanStudentSig(res)
+      })
+    } else {
+      setCleanStudentSig(null)
+    }
+    return () => {
+      active = false
+    }
+  }, [studentSigImage])
+
+  useEffect(() => {
+    let active = true
+    if (classSigImage) {
+      removePaperBackground(classSigImage).then((res) => {
+        if (active) setCleanClassSig(res)
+      })
+    } else {
+      setCleanClassSig(null)
+    }
+    return () => {
+      active = false
+    }
+  }, [classSigImage])
+
+  useEffect(() => {
+    let active = true
+    if (deanSigImage) {
+      removePaperBackground(deanSigImage).then((res) => {
+        if (active) setCleanDeanSig(res)
+      })
+    } else {
+      setCleanDeanSig(null)
+    }
+    return () => {
+      active = false
+    }
+  }, [deanSigImage])
+
+  const displayStudentSig = cleanStudentSig || studentSigImage
+  const displayClassSig = cleanClassSig || classSigImage
+  const displayDeanSig = cleanDeanSig || deanSigImage
 
   // Chuẩn hóa tên học kỳ: loại bỏ phần năm học bị trùng lặp (ví dụ "Học kỳ 2 Năm 2026-2027" -> "Học kỳ 2")
   const displaySemester = useMemo(() => {
@@ -607,31 +558,6 @@ export default function PdfViewer({
 
   return (
     <div className="flex flex-col overflow-hidden rounded-xl border border-slate-300 bg-slate-100 shadow-sm">
-      {/* Hidden file input for uploading student signature image */}
-      <input
-        type="file"
-        ref={studentFileInputRef}
-        accept="image/png,image/jpeg,image/jpg,image/webp"
-        className="hidden"
-        onChange={handleStudentSigUpload}
-      />
-      {/* Hidden file input for uploading class leader signature image */}
-      <input
-        type="file"
-        ref={classFileInputRef}
-        accept="image/png,image/jpeg,image/jpg,image/webp"
-        className="hidden"
-        onChange={handleClassSigUpload}
-      />
-      {/* Hidden file input for uploading dean signature image */}
-      <input
-        type="file"
-        ref={deanFileInputRef}
-        accept="image/png,image/jpeg,image/jpg,image/webp"
-        className="hidden"
-        onChange={handleDeanSigUpload}
-      />
-
       {/* TOOLBAR */}
       <div className="flex h-12 flex-wrap items-center justify-between border-b border-slate-200 bg-white px-3 text-xs gap-2">
         <div className="flex items-center gap-2">
@@ -862,21 +788,19 @@ export default function PdfViewer({
                 <div className="font-bold uppercase tracking-wide text-black">SINH VIÊN</div>
                 <div className="text-[12px] italic text-black">(Ký và ghi rõ họ tên)</div>
                 <div
-                  className="h-16 flex items-center justify-center my-0.5 cursor-pointer hover:bg-slate-50/70 rounded transition"
-                  onClick={() => studentFileInputRef.current?.click()}
-                  title="Bấm để tải/thay đổi ảnh chữ ký sinh viên"
+                  className="h-16 flex items-center justify-center my-0.5 select-none"
+                  title="Chữ ký Sinh viên (Đã khóa bảo mật danh tính)"
                 >
-                  {studentSigImage ? (
+                  {displayStudentSig ? (
                     <div className="flex flex-col items-center">
                       <img
-                        src={studentSigImage}
+                        src={displayStudentSig}
                         alt="Chữ ký Sinh viên"
-                        className="mx-auto max-h-12 max-w-[150px] object-contain drop-shadow-xs"
-                        style={{ mixBlendMode: "multiply" }}
+                        className="mx-auto max-h-12 max-w-[150px] object-contain"
                       />
                     </div>
                   ) : (
-                    <span className="text-black/60 italic text-xs hover:text-brand cursor-pointer">— (Bấm để tải chữ ký) —</span>
+                    <span className="text-black/40 italic text-xs select-none">— (Chưa ký) —</span>
                   )}
                 </div>
                 <div className="font-bold text-[13px] mt-0.5 text-black">{user?.fullName || "Nguyễn Văn A"}</div>
@@ -937,41 +861,37 @@ export default function PdfViewer({
                   <tr className="h-16 align-middle text-black">
                     {/* Ô KÝ CÁN BỘ LỚP */}
                     <td
-                      className="p-1 align-middle text-black cursor-pointer hover:bg-slate-50/70 rounded transition"
-                      onClick={() => classFileInputRef.current?.click()}
-                      title="Bấm để tải/thay đổi ảnh chữ ký Cán bộ lớp"
+                      className="p-1 align-middle text-black select-none"
+                      title="Chữ ký Cán bộ lớp (Đã khóa bảo mật)"
                     >
-                      {classSigImage ? (
+                      {displayClassSig ? (
                         <div className="flex flex-col items-center justify-center">
                           <img
-                            src={classSigImage}
+                            src={displayClassSig}
                             alt="Chữ ký Cán bộ lớp"
-                            className="mx-auto max-h-12 max-w-[150px] object-contain drop-shadow-xs"
-                            style={{ mixBlendMode: "multiply" }}
+                            className="mx-auto max-h-12 max-w-[150px] object-contain"
                           />
                         </div>
                       ) : (
-                        <span className="text-black/60 italic text-xs hover:text-brand">— (Chờ duyệt) —</span>
+                        <span className="text-black/40 italic text-xs select-none">— (Chờ duyệt) —</span>
                       )}
                     </td>
 
                     {/* Ô KÝ GIÁO VIÊN CHỦ NHIỆM */}
                     <td
-                      className="p-1 align-middle text-black cursor-pointer hover:bg-slate-50/70 rounded transition"
-                      onClick={() => deanFileInputRef.current?.click()}
-                      title="Bấm để tải/thay đổi ảnh chữ ký GVCN / Khoa"
+                      className="p-1 align-middle text-black select-none"
+                      title="Chữ ký Giáo viên chủ nhiệm / Khoa (Đã khóa bảo mật)"
                     >
-                      {deanSigImage ? (
+                      {displayDeanSig ? (
                         <div className="flex flex-col items-center justify-center">
                           <img
-                            src={deanSigImage}
+                            src={displayDeanSig}
                             alt="Chữ ký Giáo viên chủ nhiệm"
-                            className="mx-auto max-h-12 max-w-[150px] object-contain drop-shadow-xs"
-                            style={{ mixBlendMode: "multiply" }}
+                            className="mx-auto max-h-12 max-w-[150px] object-contain"
                           />
                         </div>
                       ) : (
-                        <span className="text-black/60 italic text-xs hover:text-brand">— (Chờ duyệt) —</span>
+                        <span className="text-black/40 italic text-xs select-none">— (Chờ duyệt) —</span>
                       )}
                     </td>
                   </tr>

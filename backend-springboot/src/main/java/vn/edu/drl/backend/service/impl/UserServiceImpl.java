@@ -378,6 +378,7 @@ public class UserServiceImpl implements UserService {
         }
 
         signatureUrl = vn.edu.drl.backend.service.engine.ImageConversionUtils.ensureStandardWebImage(signatureUrl);
+        signatureUrl = vn.edu.drl.backend.service.engine.ImageConversionUtils.removeBackground(signatureUrl);
 
         // 1. Compute cryptographic SHA-256 fingerprint of signature data
         String hashHex = "";

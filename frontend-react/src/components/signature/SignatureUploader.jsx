@@ -6,6 +6,7 @@ import { useAuthStore } from "../../stores/useAuthStore"
 import { client } from "../../lib/axios/client"
 import { Button, Card, Modal } from "../ui/Primitives"
 import { isValidSignatureImage } from "../ui/PdfViewer"
+import { removePaperBackground } from "../../lib/image-processing"
 
 async function isHeicFile(file) {
   try {
@@ -104,7 +105,7 @@ export default function SignatureUploader({ level = 1 }) {
     try {
       const reader = new FileReader()
       reader.onerror = () => setError("Không thể đọc file ảnh từ thiết bị")
-      reader.onload = () => {
+      reader.onload = async () => {
         const raw = reader.result
         if (typeof raw === "string") {
           let safeUrl = raw
@@ -113,7 +114,13 @@ export default function SignatureUploader({ level = 1 }) {
             const mime = (detectedExt === "jpg" || detectedExt === "jpeg") ? "image/jpeg" : detectedExt === "webp" ? "image/webp" : "image/png"
             safeUrl = safeUrl.replace(/^data:[^;]*;/, "data:" + mime + ";")
           }
-          setPreview(safeUrl)
+          try {
+            // Tự động tách nền loại bỏ màu giấy và crop viền nét chữ ký
+            const transparentUrl = await removePaperBackground(safeUrl)
+            setPreview(transparentUrl)
+          } catch {
+            setPreview(safeUrl)
+          }
         }
       }
       reader.readAsDataURL(fileToProcess)
@@ -130,11 +137,12 @@ export default function SignatureUploader({ level = 1 }) {
     setSaving(true)
     setError("")
     try {
-      // 1. Gửi lên backend API để tính băm SHA-256 và khóa vĩnh viễn
+      // 1. Tách nền giấy và gửi lên backend API để tính băm SHA-256 và khóa vĩnh viễn
       let backendHash = null
-      let finalSignature = preview
+      const cleanSig = await removePaperBackground(preview)
+      let finalSignature = cleanSig
       try {
-        const res = await client.post("/users/signature", { signature: preview })
+        const res = await client.post("/users/signature", { signature: cleanSig })
         backendHash = res?.signatureHash || res?.data?.signatureHash || null
         if (res?.signature || res?.data?.signature) {
           finalSignature = res?.signature || res?.data?.signature

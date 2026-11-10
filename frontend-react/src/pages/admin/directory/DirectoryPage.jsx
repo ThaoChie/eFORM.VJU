@@ -22,6 +22,7 @@ export default function DirectoryPage() {
   const [form, setForm] = useState(false);
   const [classForm, setClassForm] = useState(null);
   const [departments, setDepartments] = useState([]);
+  const [majors, setMajors] = useState([]);
   const [students, setStudents] = useState([]);
   const [offices, setOffices] = useState([]);
   const [classes, setClasses] = useState([]);
@@ -74,6 +75,7 @@ export default function DirectoryPage() {
     if (active === "classes") {
       import("../../../lib/axios/client").then(({ client }) => {
         client.get("/departments").then(res => setDepartments(res || []));
+        client.get("/majors").then(res => setMajors(Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : [])));
         client.get("/directory/users?role=STUDENT").then(res => setStudents(res || []));
       });
     }
@@ -210,10 +212,16 @@ export default function DirectoryPage() {
       { key: "code", title: "Mã lớp", render: (r) => <code className="font-mono">{r.code}</code> },
       { key: "name", title: "Tên lớp" },
       { key: "academicCohort", title: "Niên khóa" },
+      { key: "major", title: "Ngành", render: (r) => (
+        <div className="leading-tight">
+          <div className="font-medium">{r.majorName || "Chưa gắn ngành"}</div>
+          {r.majorCode && <div className="text-xs text-muted font-mono">{r.majorCode}</div>}
+        </div>
+      )},
       { key: "department", title: "Khoa", render: (r) => (
         <div className="leading-tight">
-          <div className="font-medium">{r.deptName}</div>
-          <div className="text-xs text-muted font-mono">{r.deptCode}</div>
+          <div className="font-medium">{r.deptName || "Chưa gắn khoa"}</div>
+          {r.deptCode && <div className="text-xs text-muted font-mono">{r.deptCode}</div>}
         </div>
       )},
       { key: "dean", title: "Trưởng Khoa", render: (r) => r.deanName || "Chưa chỉ định" },
@@ -224,7 +232,18 @@ export default function DirectoryPage() {
       { key: "action", title: "Thao tác", render: (r) => (
         <div className="flex">
           {r.status === 1 && (
-            <IconButton label="Sửa" onClick={() => setClassForm({ mode: 'edit', id: r.id, deptId: r.deptId, classCode: r.code, className: r.name, academicCohort: r.academicCohort || "", leaderIds: r.leaders?.map(l=>l.id) || [], deputyIds: r.deputies?.map(l=>l.id) || [], status: r.status })}>
+            <IconButton label="Sửa" onClick={() => setClassForm({
+              mode: 'edit',
+              id: r.id,
+              majorId: r.majorId || "",
+              deptId: r.deptId || "",
+              classCode: r.code,
+              className: r.name,
+              academicCohort: r.academicCohort || "",
+              leaderIds: r.leaders?.map(l=>l.id) || [],
+              deputyIds: r.deputies?.map(l=>l.id) || [],
+              status: r.status
+            })}>
               <Pencil className="size-4" />
             </IconButton>
           )}
@@ -251,7 +270,12 @@ export default function DirectoryPage() {
       code: item.classCode,
       name: item.className,
       academicCohort: item.academicCohort,
-      deptId: item.deptId
+      majorId: item.majorId,
+      majorCode: item.majorCode,
+      majorName: item.majorName,
+      deptId: item.deptId,
+      deptCode: item.deptCode,
+      deptName: item.deptName
     }));
   } else if (active === "users") {
     columns = [
@@ -418,33 +442,39 @@ export default function DirectoryPage() {
     if (active === "classes") {
       rows = rows.filter(r => {
         if (filters.status !== "Tất cả" && (r.status === 1 ? "Đang hoạt động" : "Vô hiệu hóa") !== filters.status) return false;
+        if (filters.major && r.majorId !== Number(filters.major)) return false;
         if (filters.dept && r.deptId !== Number(filters.dept)) return false;
         if (filters.cohort && r.academicCohort && !r.academicCohort.toLowerCase().includes(filters.cohort.toLowerCase())) return false;
         if (filters.query) {
            const q = filters.query.toLowerCase();
-           return r.code?.toLowerCase().includes(q) || r.name?.toLowerCase().includes(q);
+           return r.code?.toLowerCase().includes(q) || r.name?.toLowerCase().includes(q) || r.majorName?.toLowerCase().includes(q) || r.deptName?.toLowerCase().includes(q);
         }
         return true;
       });
       return (
         <Card className="mb-4">
-          <div className="grid gap-4 md:grid-cols-3">
-            <Select label="Khoa" value={filters.dept} onChange={(e) => setFilters({...filters, dept: e.target.value})}>
+          <div className="grid gap-4 md:grid-cols-4">
+            <Select label="Ngành" value={filters.major || ""} onChange={(e) => setFilters({...filters, major: e.target.value})}>
+              <option value="">Tất cả Ngành</option>
+              {majors.map(m => <option key={m.id} value={m.id}>{m.majorCode} - {m.majorName}</option>)}
+            </Select>
+            <Select label="Khoa" value={filters.dept || ""} onChange={(e) => setFilters({...filters, dept: e.target.value})}>
               <option value="">Tất cả Khoa (Mã - Tên)</option>
               {departments.map(d => <option key={d.id} value={d.id}>{d.deptCode} - {d.deptName}</option>)}
             </Select>
-            <Input label="Mã - Tên lớp" placeholder="Nhập mã hoặc tên lớp" value={filters.query} onChange={(e) => setFilters({...filters, query: e.target.value})} />
-            <div className="hidden md:block"></div>
-            
+            <Input label="Mã - Tên lớp" placeholder="Nhập mã hoặc tên lớp..." value={filters.query || ""} onChange={(e) => setFilters({...filters, query: e.target.value})} />
             <Select label="Trạng thái" value={filters.status} onChange={(e) => setFilters({...filters, status: e.target.value})}>
               <option>Tất cả</option>
               <option>Đang hoạt động</option>
               <option>Vô hiệu hóa</option>
             </Select>
-            <Input label="Niên khóa" placeholder="Ví dụ: K21" value={filters.cohort} onChange={(e) => setFilters({...filters, cohort: e.target.value})} />
-            
-            <div className="flex items-end gap-3 md:justify-end">
-              <Button variant="ghost" onClick={() => setFilters({query: "", status: "Tất cả", dept: "", cohort: ""})}>Xóa bộ lọc</Button>
+          </div>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="w-full md:w-64">
+              <Input label="Niên khóa" placeholder="Ví dụ: K21" value={filters.cohort || ""} onChange={(e) => setFilters({...filters, cohort: e.target.value})} />
+            </div>
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" onClick={() => setFilters({query: "", status: "Tất cả", major: "", dept: "", cohort: ""})}>Xóa bộ lọc</Button>
               <Button variant="primary"><Search className="size-4" /> Tìm kiếm</Button>
             </div>
           </div>
@@ -606,7 +636,7 @@ export default function DirectoryPage() {
             <Upload className="size-4" /> Thêm mới theo lô
           </Button>
           {active === "classes" ? (
-            <Button variant="primary" onClick={() => setClassForm({ mode: 'create', deptId: "", classCode: "", className: "", academicCohort: "", leaderIds: [], deputyIds: [], status: 1 })}>
+            <Button variant="primary" onClick={() => setClassForm({ mode: 'create', majorId: "", deptId: "", classCode: "", className: "", academicCohort: "", leaderIds: [], deputyIds: [], status: 1 })}>
               <Plus className="size-4" /> Thêm mới
             </Button>
           ) : active === "users" ? (
@@ -1025,20 +1055,33 @@ export default function DirectoryPage() {
       </Modal>
 
       {classForm && (() => {
-        const selectedDept = departments.find(d => d.id === Number(classForm.deptId));
+        const selectedMajor = majors.find(m => m.id === Number(classForm.majorId));
+        const effectiveDeptId = selectedMajor ? selectedMajor.deptId : (classForm.deptId ? Number(classForm.deptId) : null);
+        const selectedDept = departments.find(d => d.id === effectiveDeptId) || (selectedMajor ? { deptName: selectedMajor.deptName, deptCode: selectedMajor.deptCode } : null);
+        const displayedDeptName = selectedDept 
+          ? (selectedDept.deptCode ? `${selectedDept.deptCode} - ${selectedDept.deptName}` : selectedDept.deptName)
+          : (selectedMajor ? `${selectedMajor.deptCode || ""} - ${selectedMajor.deptName || ""}`.replace(/^ - /, "") : "");
+        const displayedDean = selectedDept?.deanName || "Chưa chỉ định";
+
         return (
           <Modal open={true} title={classForm.mode === 'edit' ? "Chỉnh sửa Lớp" : "Thêm mới Lớp"} onClose={() => setClassForm(null)} footer={
               <>
                 <Button onClick={() => setClassForm(null)}>Hủy</Button>
                 <Button variant="primary" onClick={async () => {
-                  if (!classForm.deptId || !classForm.classCode || !classForm.className) return toast.error("Vui lòng nhập đủ Khoa, Mã lớp, Tên lớp");
+                  if (!classForm.majorId && !classForm.deptId) return toast.error("Vui lòng chọn Ngành");
+                  if (!classForm.classCode || !classForm.className) return toast.error("Vui lòng nhập đủ Mã lớp, Tên lớp");
                   try {
                     const { client } = await import("../../../lib/axios/client");
+                    const payload = {
+                      ...classForm,
+                      majorId: classForm.majorId ? Number(classForm.majorId) : null,
+                      deptId: effectiveDeptId
+                    };
                     if (classForm.mode === 'create') {
-                      await client.post("/classes", classForm);
+                      await client.post("/classes", payload);
                       toast.success("Tạo Lớp thành công!");
                     } else {
-                      await client.put(`/classes/${classForm.id}`, classForm);
+                      await client.put(`/classes/${classForm.id}`, payload);
                       toast.success("Cập nhật Lớp thành công!");
                     }
                     setClassForm(null);
@@ -1051,15 +1094,36 @@ export default function DirectoryPage() {
             }
           >
             <div className="space-y-4">
-              <Select label="Khoa *" value={classForm.deptId} onChange={(e) => setClassForm({...classForm, deptId: e.target.value})}>
-                <option value="">Chọn Khoa</option>
-                {departments.map(d => <option key={d.id} value={d.id}>{d.deptCode} - {d.deptName}</option>)}
+              <Select 
+                label="Ngành *" 
+                value={classForm.majorId || ""} 
+                onChange={(e) => {
+                  const mId = e.target.value;
+                  const m = majors.find(item => item.id === Number(mId));
+                  setClassForm({
+                    ...classForm, 
+                    majorId: mId,
+                    deptId: m ? m.deptId : classForm.deptId
+                  });
+                }}
+              >
+                <option value="">Chọn Ngành</option>
+                {majors.map(m => (
+                  <option key={m.id} value={m.id}>
+                    {m.majorCode} - {m.majorName}
+                  </option>
+                ))}
               </Select>
-              <Input label="Tên Khoa" disabled value={selectedDept ? selectedDept.deptName : ""} />
+              <Input 
+                label="Tên Khoa" 
+                disabled 
+                value={displayedDeptName} 
+                placeholder="Tự động ánh xạ theo ngành"
+              />
               <Input label="Mã lớp *" value={classForm.classCode} onChange={(e) => setClassForm({...classForm, classCode: e.target.value})} disabled={classForm.mode === 'edit'} />
               <Input label="Tên lớp *" value={classForm.className} onChange={(e) => setClassForm({...classForm, className: e.target.value})} />
               <Input label="Niên khóa" placeholder="Nhập niên khóa (Ví dụ: K21)" value={classForm.academicCohort || ""} onChange={(e) => setClassForm({...classForm, academicCohort: e.target.value})} />
-              <Input label="Trưởng Khoa" disabled value={selectedDept ? (selectedDept.deanName || "Chưa chỉ định") : ""} />
+              <Input label="Trưởng Khoa" disabled value={displayedDean} />
               {(() => {
                 const studentOptions = students.map(s => ({
                   value: s.id,

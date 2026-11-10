@@ -20,6 +20,10 @@ public class ClassEntity {
     private String className;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "major_id")
+    private Major major;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "dept_id")
     private Department department;
 
