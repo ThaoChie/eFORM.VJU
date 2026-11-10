@@ -108,11 +108,6 @@ export const menus = {
           icon: Users,
         },
         {
-          label: "Danh sách chờ xử lý",
-          path: "/admin/pending",
-          icon: ListChecks,
-        },
-        {
           label: "Báo cáo toàn trường",
           path: "/admin/reports",
           icon: BookOpenCheck,
