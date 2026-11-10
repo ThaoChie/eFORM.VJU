@@ -11,7 +11,7 @@ const isEnvUrlLocal = Boolean(
 
 const resolvedBaseURL = isLocalhost
   ? (envApiUrl || 'http://localhost:8080/api/v1')
-  : (!isEnvUrlLocal && envApiUrl ? envApiUrl : 'https://drl-backend-f0sx.onrender.com/api/v1');
+  : (!isEnvUrlLocal && envApiUrl ? envApiUrl : 'https://drl-backend-v5xb.onrender.com/api/v1');
 
 export const client = axios.create({
   baseURL: resolvedBaseURL,
