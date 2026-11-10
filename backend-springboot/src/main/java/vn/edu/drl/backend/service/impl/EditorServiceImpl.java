@@ -316,6 +316,16 @@ public class EditorServiceImpl implements EditorService {
         response.setStudentTotal(form.getStudentTotal());
         response.setClassTotal(form.getClassTotal());
 
+        User st = form.getStudent();
+        vn.edu.drl.backend.model.ClassEntity c = (st != null) ? st.getClassEntity() : null;
+        response.setStudentName(st != null ? st.getFullName() : "");
+        response.setStudentCode(st != null ? st.getUserCode() : "");
+        response.setDob(st != null ? st.getDob() : null);
+        response.setClassName(c != null ? c.getClassName() : "");
+        response.setMajorName(c != null && c.getMajor() != null ? c.getMajor().getMajorName() : (st != null && st.getMajor() != null ? st.getMajor().getMajorName() : "Công nghệ Thông tin"));
+        response.setDepartmentName(c != null && c.getDepartment() != null ? c.getDepartment().getDeptName() : (st != null && st.getDepartment() != null ? st.getDepartment().getDeptName() : "Khoa Công nghệ Thông tin"));
+        response.setAcademicCohort(c != null && c.getAcademicCohort() != null && !c.getAcademicCohort().trim().isEmpty() ? c.getAcademicCohort() : (st != null && st.getAcademicCohort() != null ? st.getAcademicCohort() : "2023 - 2027"));
+
         // Populate signatures
         List<SignatureLog> sigLogs = signatureLogRepository.findByScoreFormId(form.getId());
         for (SignatureLog sl : sigLogs) {

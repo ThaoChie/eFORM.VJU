@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import vn.edu.drl.backend.dao.ClassRepository;
 import vn.edu.drl.backend.dao.DepartmentRepository;
+import vn.edu.drl.backend.dao.MajorRepository;
 import vn.edu.drl.backend.dao.UserRepository;
 import vn.edu.drl.backend.dto.request.UserRequest;
 import vn.edu.drl.backend.dto.response.UserResponse;
@@ -16,6 +17,7 @@ import vn.edu.drl.backend.enu.Role;
 import vn.edu.drl.backend.hibernateDao.UserHibernateDao;
 import vn.edu.drl.backend.model.ClassEntity;
 import vn.edu.drl.backend.model.Department;
+import vn.edu.drl.backend.model.Major;
 import vn.edu.drl.backend.model.User;
 import vn.edu.drl.backend.service.UserService;
 
@@ -29,6 +31,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository repository;
     private final UserHibernateDao hibernateDao;
     private final DepartmentRepository deptRepo;
+    private final MajorRepository majorRepo;
     private final ClassRepository classRepo;
     private final PasswordEncoder passwordEncoder;
     private final vn.edu.drl.backend.dao.SignatureLogRepository signatureLogRepository;
@@ -36,12 +39,14 @@ public class UserServiceImpl implements UserService {
     public UserServiceImpl(UserRepository repository, 
                            UserHibernateDao hibernateDao, 
                            DepartmentRepository deptRepo, 
+                           MajorRepository majorRepo,
                            ClassRepository classRepo, 
                            PasswordEncoder passwordEncoder,
                            vn.edu.drl.backend.dao.SignatureLogRepository signatureLogRepository) { 
         this.repository = repository; 
         this.hibernateDao = hibernateDao;
         this.deptRepo = deptRepo;
+        this.majorRepo = majorRepo;
         this.classRepo = classRepo;
         this.passwordEncoder = passwordEncoder;
         this.signatureLogRepository = signatureLogRepository;
@@ -76,12 +81,23 @@ public class UserServiceImpl implements UserService {
         u.setPasswordHash(passwordEncoder.encode("123456"));
         u.setPositionTitle(req.getPositionTitle());
         u.setAcademicCohort(req.getAcademicCohort());
-        if (req.getEffectiveDeptId() != null) {
+        u.setDob(req.getDob());
+        if (req.getMajorId() != null) {
+            majorRepo.findById(req.getMajorId()).ifPresent(m -> {
+                u.setMajor(m);
+                if (m.getDepartment() != null) {
+                    u.setDepartment(m.getDepartment());
+                }
+            });
+        } else if (req.getEffectiveDeptId() != null) {
             deptRepo.findById(req.getEffectiveDeptId()).ifPresent(u::setDepartment);
         }
         if (req.getClassId() != null) {
             classRepo.findById(req.getClassId()).ifPresent(c -> {
                 u.setClassEntity(c);
+                if (u.getMajor() == null && c.getMajor() != null) {
+                    u.setMajor(c.getMajor());
+                }
                 if (u.getDepartment() == null && c.getDepartment() != null) {
                     u.setDepartment(c.getDepartment());
                 }
@@ -124,14 +140,29 @@ public class UserServiceImpl implements UserService {
         }
         u.setPositionTitle(req.getPositionTitle());
         u.setAcademicCohort(req.getAcademicCohort());
-        if (req.getEffectiveDeptId() != null) {
+        if (req.getDob() != null) {
+            u.setDob(req.getDob());
+        }
+        if (req.getMajorId() != null) {
+            majorRepo.findById(req.getMajorId()).ifPresent(m -> {
+                u.setMajor(m);
+                if (m.getDepartment() != null) {
+                    u.setDepartment(m.getDepartment());
+                }
+            });
+        } else if (req.getEffectiveDeptId() != null) {
+            u.setMajor(null);
             deptRepo.findById(req.getEffectiveDeptId()).ifPresent(u::setDepartment);
         } else {
+            u.setMajor(null);
             u.setDepartment(null);
         }
         if (req.getClassId() != null) {
             classRepo.findById(req.getClassId()).ifPresent(c -> {
                 u.setClassEntity(c);
+                if (u.getMajor() == null && c.getMajor() != null) {
+                    u.setMajor(c.getMajor());
+                }
                 if (u.getDepartment() == null && c.getDepartment() != null) {
                     u.setDepartment(c.getDepartment());
                 }

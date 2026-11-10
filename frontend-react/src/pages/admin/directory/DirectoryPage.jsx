@@ -68,6 +68,7 @@ export default function DirectoryPage() {
     if (active === "users") {
       import("../../../lib/axios/client").then(({ client }) => {
         client.get("/departments").then(res => setDepartments(res || []));
+        client.get("/majors").then(res => setMajors(Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : [])));
         client.get("/offices").then(res => setOffices(res || []));
         client.get("/classes").then(res => setClasses(res || []));
       });
@@ -282,7 +283,9 @@ export default function DirectoryPage() {
       { key: "stt", title: "STT", render: (_, i) => i + 1 },
       { key: "userCode", title: "Mã người dùng", render: (r) => <code className="font-mono">{r.userCode}</code> },
       { key: "fullName", title: "Họ và tên" },
+      { key: "dob", title: "Ngày sinh", render: (r) => r.dob || "—" },
       { key: "email", title: "Email" },
+      { key: "major", title: "Ngành", render: (r) => r.majorName || "—" },
       { key: "department", title: "Khoa/Phòng", render: (r) => r.deptName || r.officeName || "Không có" },
       { key: "role", title: "Vai trò" },
       { key: "status", title: "Trạng thái", render: (r) => renderStatus(r.status === 1 ? "Đang hoạt động" : "Vô hiệu hóa") },
@@ -313,10 +316,15 @@ export default function DirectoryPage() {
     ];
     rows = items.map(item => {
       const cls = classes.find(c => c.id === (item.classId || item.classEntity?.id));
+      const majorId = item.majorId || (item.major ? item.major.id : (cls ? cls.majorId : null));
+      const majorName = item.majorName || (item.major ? item.major.majorName : (cls ? cls.majorName : ""));
       const deptId = item.departmentId || item.deptId || (item.department ? item.department.id : (cls ? cls.deptId : null));
       const cohort = item.academicCohort || (item.classEntity ? item.classEntity.academicCohort : (cls ? cls.academicCohort : ""));
       return {
         ...item,
+        dob: item.dob || "",
+        majorId: majorId,
+        majorName: majorName,
         departmentId: deptId,
         deptId: deptId,
         classId: item.classId || (item.classEntity ? item.classEntity.id : null),
@@ -640,7 +648,7 @@ export default function DirectoryPage() {
               <Plus className="size-4" /> Thêm mới
             </Button>
           ) : active === "users" ? (
-            <Button variant="primary" onClick={() => setForm({ mode: 'create', role: 'STUDENT', status: 1 })}>
+            <Button variant="primary" onClick={() => setForm({ mode: 'create', role: 'STUDENT', majorId: "", dob: "", status: 1 })}>
               <Plus className="size-4" /> Thêm mới
             </Button>
           ) : active === "departments" ? (
@@ -1177,91 +1185,132 @@ export default function DirectoryPage() {
         )
       })()}
     
-      {active === "users" && form && (
-        <Modal open={true} title={form.mode === 'edit' ? "Chỉnh sửa Người dùng" : "Thêm mới Người dùng"} onClose={() => setForm(false)} footer={
-          <>
-            <Button onClick={() => setForm(false)}>Hủy</Button>
-            <Button variant="primary" onClick={async () => {
-              if (form.mode === 'create' && !form.userCode?.trim()) return toast.error("Vui lòng nhập mã người dùng");
-              if (!form.fullName?.trim() || !form.email?.trim()) return toast.error("Vui lòng nhập tên người dùng và email");
-              try {
-                const { client } = await import("../../../lib/axios/client");
-                if (form.mode === 'create') {
-                  await client.post("/directory/users", form);
-                  toast.success("Tạo Người dùng thành công!");
-                } else {
-                  await client.put(`/directory/users/${form.id}`, form);
-                  toast.success("Cập nhật Người dùng thành công!");
+      {active === "users" && form && (() => {
+        const selectedMajor = majors.find(m => m.id === Number(form.majorId));
+        const effectiveDeptId = selectedMajor ? selectedMajor.deptId : (form.departmentId || form.deptId ? Number(form.departmentId || form.deptId) : null);
+        const userDept = departments.find(d => d.id === effectiveDeptId) || (selectedMajor ? { deptName: selectedMajor.deptName, deptCode: selectedMajor.deptCode } : null);
+        const displayedDeptName = userDept 
+          ? (userDept.deptCode ? `${userDept.deptCode} - ${userDept.deptName}` : userDept.deptName)
+          : (selectedMajor ? `${selectedMajor.deptCode || ""} - ${selectedMajor.deptName || ""}`.replace(/^ - /, "") : "");
+
+        return (
+          <Modal open={true} title={form.mode === 'edit' ? "Chỉnh sửa Người dùng" : "Thêm mới Người dùng"} onClose={() => setForm(false)} footer={
+            <>
+              <Button onClick={() => setForm(false)}>Hủy</Button>
+              <Button variant="primary" onClick={async () => {
+                if (form.mode === 'create' && !form.userCode?.trim()) return toast.error("Vui lòng nhập mã người dùng");
+                if (!form.fullName?.trim() || !form.email?.trim()) return toast.error("Vui lòng nhập tên người dùng và email");
+                try {
+                  const { client } = await import("../../../lib/axios/client");
+                  const payload = {
+                    ...form,
+                    majorId: form.majorId ? Number(form.majorId) : null,
+                    departmentId: effectiveDeptId,
+                    deptId: effectiveDeptId,
+                    dob: form.dob || null
+                  };
+                  if (form.mode === 'create') {
+                    await client.post("/directory/users", payload);
+                    toast.success("Tạo Người dùng thành công!");
+                  } else {
+                    await client.put(`/directory/users/${form.id}`, payload);
+                    toast.success("Cập nhật Người dùng thành công!");
+                  }
+                  setForm(false);
+                  fetchItems(active);
+                } catch(e) {
+                  toast.error(e.response?.data?.message || "Lỗi xử lý Người dùng");
                 }
-                setForm(false);
-                fetchItems(active);
-              } catch(e) {
-                toast.error(e.response?.data?.message || "Lỗi xử lý Người dùng");
-              }
-            }}>Lưu</Button>
-          </>
-        }>
-          <div className="space-y-4">
-            <Input label={form.mode === 'edit' ? "Mã người dùng" : "Mã người dùng *"} value={form.userCode || ""} onChange={e => setForm({...form, userCode: e.target.value})} disabled={form.mode === 'edit'} />
-            <Input label="Họ và tên *" value={form.fullName || ""} onChange={e => setForm({...form, fullName: e.target.value})} />
-            <Input label="Email *" value={form.email || ""} onChange={e => setForm({...form, email: e.target.value})} />
-            
-            <Select label="Vai trò *" value={form.role || "STUDENT"} onChange={e => setForm({...form, role: e.target.value})}>
-              <option value="ADMIN">Quản trị viên (Admin)</option>
-              <option value="DEAN">Trưởng khoa</option>
-              <option value="CLASS_LEADER">Lớp trưởng</option>
-              <option value="CLASS_DEPUTY">Lớp phó</option>
-              <option value="STUDENT">Sinh viên</option>
-            </Select>
-
-            {["STUDENT", "DEAN", "CLASS_LEADER", "CLASS_DEPUTY"].includes(form.role) && (
-              <Select label="Khoa" value={form.departmentId || form.deptId || ""} onChange={e => {
-                const val = e.target.value ? Number(e.target.value) : null;
-                setForm({...form, departmentId: val, deptId: val});
-              }}>
-                <option value="">Chọn Khoa...</option>
-                {departments.map(d => <option key={d.id} value={d.id}>{d.deptCode} - {d.deptName}</option>)}
+              }}>Lưu</Button>
+            </>
+          }>
+            <div className="space-y-4">
+              <Input label={form.mode === 'edit' ? "Mã người dùng" : "Mã người dùng *"} value={form.userCode || ""} onChange={e => setForm({...form, userCode: e.target.value})} disabled={form.mode === 'edit'} />
+              <Input label="Họ và tên *" value={form.fullName || ""} onChange={e => setForm({...form, fullName: e.target.value})} />
+              <Input label="Ngày sinh" type="date" value={form.dob || ""} onChange={e => setForm({...form, dob: e.target.value})} />
+              <Input label="Email *" value={form.email || ""} onChange={e => setForm({...form, email: e.target.value})} />
+              
+              <Select label="Vai trò *" value={form.role || "STUDENT"} onChange={e => setForm({...form, role: e.target.value})}>
+                <option value="ADMIN">Quản trị viên (Admin)</option>
+                <option value="DEAN">Trưởng khoa</option>
+                <option value="CLASS_LEADER">Lớp trưởng</option>
+                <option value="CLASS_DEPUTY">Lớp phó</option>
+                <option value="STUDENT">Sinh viên</option>
               </Select>
-            )}
 
-            {form.role === "ADMIN" && (
-              <Select label="Phòng ban" value={form.officeId || ""} onChange={e => {
-                const val = e.target.value ? Number(e.target.value) : null;
-                setForm({...form, officeId: val});
-              }}>
-                <option value="">Chọn Phòng ban...</option>
-                {offices.map(o => <option key={o.id} value={o.id}>{o.officeCode || o.code} - {o.officeName || o.name}</option>)}
+              {["STUDENT", "DEAN", "CLASS_LEADER", "CLASS_DEPUTY"].includes(form.role) && (
+                <>
+                  <Select 
+                    label="Ngành" 
+                    value={form.majorId || ""} 
+                    onChange={e => {
+                      const mId = e.target.value ? Number(e.target.value) : null;
+                      const m = majors.find(item => item.id === mId);
+                      setForm(prev => ({
+                        ...prev, 
+                        majorId: mId,
+                        departmentId: m?.deptId || prev.departmentId,
+                        deptId: m?.deptId || prev.deptId
+                      }));
+                    }}
+                  >
+                    <option value="">Chọn Ngành...</option>
+                    {majors.map(m => (
+                      <option key={m.id} value={m.id}>
+                        {m.majorCode} - {m.majorName}
+                      </option>
+                    ))}
+                  </Select>
+                  <Input 
+                    label="Khoa" 
+                    disabled 
+                    value={displayedDeptName} 
+                    placeholder="Tự động ánh xạ theo ngành"
+                  />
+                </>
+              )}
+
+              {form.role === "ADMIN" && (
+                <Select label="Phòng ban" value={form.officeId || ""} onChange={e => {
+                  const val = e.target.value ? Number(e.target.value) : null;
+                  setForm({...form, officeId: val});
+                }}>
+                  <option value="">Chọn Phòng ban...</option>
+                  {offices.map(o => <option key={o.id} value={o.id}>{o.officeCode || o.code} - {o.officeName || o.name}</option>)}
+                </Select>
+              )}
+
+              {["STUDENT", "CLASS_LEADER", "CLASS_DEPUTY"].includes(form.role) && (
+                <Select label="Lớp" value={form.classId || ""} onChange={e => {
+                  const classId = e.target.value ? Number(e.target.value) : null;
+                  const foundClass = classes.find(c => c.id === classId);
+                  const classMajor = foundClass?.majorId ? majors.find(m => m.id === foundClass.majorId) : null;
+                  setForm(prev => ({
+                    ...prev,
+                    classId,
+                    majorId: foundClass?.majorId || prev.majorId,
+                    departmentId: foundClass?.deptId || classMajor?.deptId || prev.departmentId,
+                    deptId: foundClass?.deptId || classMajor?.deptId || prev.deptId,
+                    academicCohort: foundClass?.academicCohort || prev.academicCohort
+                  }));
+                }}>
+                  <option value="">Chọn Lớp...</option>
+                  {classes.map(c => <option key={c.id} value={c.id}>{c.classCode || c.code} - {c.className || c.name}</option>)}
+                </Select>
+              )}
+
+              {["STUDENT", "CLASS_LEADER", "CLASS_DEPUTY"].includes(form.role) && (
+                <Input label="Niên khóa" placeholder="Ví dụ: K21" value={form.academicCohort || ""} onChange={e => setForm({...form, academicCohort: e.target.value})} />
+              )}
+
+              <Select label="Trạng thái" value={form.status !== undefined ? form.status : 1} onChange={e => setForm({...form, status: Number(e.target.value)})}>
+                <option value={1}>Đang hoạt động</option>
+                <option value={0}>Vô hiệu hóa</option>
               </Select>
-            )}
-
-            {["STUDENT", "CLASS_LEADER", "CLASS_DEPUTY"].includes(form.role) && (
-              <Select label="Lớp" value={form.classId || ""} onChange={e => {
-                const classId = e.target.value ? Number(e.target.value) : null;
-                const foundClass = classes.find(c => c.id === classId);
-                setForm(prev => ({
-                  ...prev,
-                  classId,
-                  departmentId: foundClass?.deptId || prev.departmentId,
-                  deptId: foundClass?.deptId || prev.deptId,
-                  academicCohort: foundClass?.academicCohort || prev.academicCohort
-                }));
-              }}>
-                <option value="">Chọn Lớp...</option>
-                {classes.map(c => <option key={c.id} value={c.id}>{c.classCode || c.code} - {c.className || c.name}</option>)}
-              </Select>
-            )}
-
-            {["STUDENT", "CLASS_LEADER", "CLASS_DEPUTY"].includes(form.role) && (
-              <Input label="Niên khóa" placeholder="Ví dụ: K21" value={form.academicCohort || ""} onChange={e => setForm({...form, academicCohort: e.target.value})} />
-            )}
-
-            <Select label="Trạng thái" value={form.status !== undefined ? form.status : 1} onChange={e => setForm({...form, status: Number(e.target.value)})}>
-              <option value={1}>Đang hoạt động</option>
-              <option value={0}>Vô hiệu hóa</option>
-            </Select>
-          </div>
-        </Modal>
-      )}
+            </div>
+          </Modal>
+        );
+      })()}
     </>
   )
 }

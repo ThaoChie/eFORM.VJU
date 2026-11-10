@@ -63,14 +63,32 @@ public class AuthServiceImpl implements AuthService {
             throw new RuntimeException("ACCOUNT_DISABLED: Tài khoản của bạn đã bị vô hiệu hóa.");
         }
         
+        vn.edu.drl.backend.model.ClassEntity c = user.getClassEntity();
+        String cohort = (c != null && c.getAcademicCohort() != null && !c.getAcademicCohort().trim().isEmpty()) 
+                ? c.getAcademicCohort() 
+                : user.getAcademicCohort();
+        String majorName = (c != null && c.getMajor() != null) 
+                ? c.getMajor().getMajorName() 
+                : (user.getMajor() != null ? user.getMajor().getMajorName() : null);
+        String deptName = (c != null && c.getDepartment() != null) 
+                ? c.getDepartment().getDeptName() 
+                : (user.getDepartment() != null ? user.getDepartment().getDeptName() : null);
+        String className = c != null ? c.getClassName() : null;
+        String classCode = c != null ? c.getClassCode() : null;
+
         return vn.edu.drl.backend.dto.response.AuthUserResponse.builder()
             .id(user.getId())
             .userID(user.getUserCode())
             .fullName(user.getFullName())
             .email(user.getEmail())
             .role(user.getRole().name())
-            .facultyName(user.getDepartment() != null ? user.getDepartment().getDeptName() : null)
-            .className(user.getClassEntity() != null ? user.getClassEntity().getClassName() : null)
+            .dob(user.getDob())
+            .facultyName(deptName)
+            .departmentName(deptName)
+            .className(className)
+            .classCode(classCode)
+            .majorName(majorName)
+            .academicCohort(cohort)
             .signatureSpecimenUrl(user.getSignatureSpecimenUrl())
             .signatureHash(user.getSignatureHash())
             .signatureRegisteredAt(user.getSignatureRegisteredAt())

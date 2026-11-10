@@ -10,8 +10,13 @@ public class AuthUserResponse {
     private String fullName;
     private String email;
     private String role;
+    private java.time.LocalDate dob;
     private String facultyName;
+    private String departmentName;
     private String className;
+    private String classCode;
+    private String majorName;
+    private String academicCohort;
     private String signatureSpecimenUrl;
     private String signatureHash;
     private java.time.Instant signatureRegisteredAt;

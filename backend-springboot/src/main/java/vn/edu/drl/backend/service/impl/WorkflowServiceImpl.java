@@ -111,13 +111,27 @@ public class WorkflowServiceImpl implements WorkflowService {
             }
         }
 
+        User st = form.getStudent();
+        vn.edu.drl.backend.model.ClassEntity c = (st != null) ? st.getClassEntity() : null;
+        String cohort = (c != null && c.getAcademicCohort() != null && !c.getAcademicCohort().trim().isEmpty())
+                ? c.getAcademicCohort()
+                : (st != null && st.getAcademicCohort() != null ? st.getAcademicCohort() : "2023 - 2027");
+        String majorName = (c != null && c.getMajor() != null)
+                ? c.getMajor().getMajorName()
+                : (st != null && st.getMajor() != null ? st.getMajor().getMajorName() : "Công nghệ Thông tin");
+        String deptName = (c != null && c.getDepartment() != null)
+                ? c.getDepartment().getDeptName()
+                : (st != null && st.getDepartment() != null ? st.getDepartment().getDeptName() : "Khoa Công nghệ Thông tin");
+
         WorkflowDetailResponse res = new WorkflowDetailResponse();
         res.setScoreFormId(form.getId());
-        res.setStudentName(form.getStudent() != null ? form.getStudent().getFullName() : "Sinh viên");
-        res.setStudentCode(form.getStudent() != null ? form.getStudent().getUserCode() : "");
-        res.setClassName(form.getStudent() != null && form.getStudent().getClassEntity() != null ? form.getStudent().getClassEntity().getClassName() : "");
-        res.setDepartmentName(form.getStudent() != null && form.getStudent().getDepartment() != null ? form.getStudent().getDepartment().getDeptName() : "Khoa Công nghệ Thông tin");
-        res.setAcademicCohort(form.getStudent() != null && form.getStudent().getAcademicCohort() != null ? form.getStudent().getAcademicCohort() : "2023 - 2027");
+        res.setStudentName(st != null ? st.getFullName() : "Sinh viên");
+        res.setStudentCode(st != null ? st.getUserCode() : "");
+        res.setDob(st != null ? st.getDob() : null);
+        res.setClassName(c != null ? c.getClassName() : "");
+        res.setMajorName(majorName);
+        res.setDepartmentName(deptName);
+        res.setAcademicCohort(cohort);
         res.setSemesterName(form.getSemester() != null ? form.getSemester().getSemesterName() : "Học kỳ 1, năm học 2026-2027");
         res.setRanking(form.getRanking());
         res.setStatus(form.getStatus());

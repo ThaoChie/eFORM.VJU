@@ -37,6 +37,14 @@ public class User {
     @Column(name = "position_title", length = 100)
     private String positionTitle;
 
+    @Column(name = "dob")
+    private java.time.LocalDate dob;
+
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "major_id")
+    private Major major;
+
     @com.fasterxml.jackson.annotation.JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "dept_id")
