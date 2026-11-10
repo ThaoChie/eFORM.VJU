@@ -1,8 +1,8 @@
 import toast from "react-hot-toast";
-import { AlertTriangle, CircleOff, CheckCircle, Download, Pencil, Plus, Search, Settings, Upload, ChevronLeft, ChevronRight } from "lucide-react"
+import { AlertTriangle, CircleOff, CheckCircle, Download, Pencil, Plus, Search, Settings, Upload, ChevronLeft, ChevronRight, Filter, ChevronDown, ChevronUp } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
-import { Button, Card, IconButton, Input, Modal, PageTitle, Select, Table } from "../../../components/ui/Primitives"
+import { Button, Card, IconButton, Input, Modal, PageTitle, Select, Table, ResetFilterButton } from "../../../components/ui/Primitives"
 import { useDirectoryStore } from "../../../stores/useDirectoryStore"
 import ReactSelect from "react-select";
 import { downloadBlob, downloadExcelTemplate } from "../../../lib/downloadHelper";
@@ -28,6 +28,7 @@ export default function DirectoryPage() {
   const [classes, setClasses] = useState([]);
   
   const [filters, setFilters] = useState({ query: "", status: "Tất cả" });
+  const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
   const [deans, setDeans] = useState([]);
   const [admins, setAdmins] = useState([]);
@@ -42,7 +43,12 @@ export default function DirectoryPage() {
   
   useEffect(() => {
     setPage(1);
-  }, [active, filters]);
+  }, [filters]);
+
+  useEffect(() => {
+    setFilters({ query: "", status: "Tất cả", major: "", dept: "", cohort: "", role: "", deptSearch: "" });
+    setShowFilters(false);
+  }, [active]);
 
   useEffect(() => {
     fetchItems(active);
@@ -385,128 +391,177 @@ export default function DirectoryPage() {
     }));
   }
 
+  const handleResetFilters = () => {
+    setFilters({ query: "", status: "Tất cả", major: "", dept: "", cohort: "", role: "", deptSearch: "" });
+  };
+
   const renderFilters = () => {
-    if (active === "departments" || active === "offices") {
+    if (active === "departments") {
       rows = rows.filter(r => {
         const itemStatus = (r.status === 1 || r.status === "Đang hoạt động") ? "Đang hoạt động" : "Vô hiệu hóa";
-        if (filters.status !== "Tất cả" && itemStatus !== filters.status) return false;
+        if (filters.status && filters.status !== "Tất cả" && itemStatus !== filters.status) return false;
         if (filters.query) {
-           const q = filters.query.toLowerCase();
-           return r.code?.toLowerCase().includes(q) || r.name?.toLowerCase().includes(q) || r.fullName?.toLowerCase().includes(q);
+          const q = filters.query.trim().toLowerCase();
+          return r.code?.toLowerCase().includes(q) || r.name?.toLowerCase().includes(q) || r.dean?.toLowerCase().includes(q);
         }
         return true;
       });
-      return (
-        <Card className="mb-4">
-          <div className="grid gap-4 md:grid-cols-3">
-            <Input label={active === "departments" ? "Mã - Tên Khoa" : "Mã - Tên Phòng ban"} placeholder="Nhập mã hoặc tên..." value={filters.query} onChange={(e) => setFilters({...filters, query: e.target.value})} />
-            
-            <Select label="Trạng thái" value={filters.status} onChange={(e) => setFilters({...filters, status: e.target.value})}>
-              <option>Tất cả</option>
-              <option>Đang hoạt động</option>
-              <option>Vô hiệu hóa</option>
-            </Select>
-            
-            <div className="flex items-end gap-3 md:justify-end">
-              <Button variant="ghost" onClick={() => setFilters({query: "", status: "Tất cả"})}>Xóa bộ lọc</Button>
-              <Button variant="primary"><Search className="size-4" /> Tìm kiếm</Button>
-            </div>
-          </div>
-        </Card>
-      );
-    }
-    if (active === "majors") {
+    } else if (active === "majors") {
       rows = rows.filter(r => {
         const itemStatus = (r.status === 1 || r.status === "Đang hoạt động") ? "Đang hoạt động" : "Vô hiệu hóa";
-        if (filters.status !== "Tất cả" && itemStatus !== filters.status) return false;
+        if (filters.status && filters.status !== "Tất cả" && itemStatus !== filters.status) return false;
         if (filters.dept && r.deptId !== Number(filters.dept)) return false;
         if (filters.query) {
-           const q = filters.query.toLowerCase();
-           return r.code?.toLowerCase().includes(q) || r.name?.toLowerCase().includes(q) || r.deptName?.toLowerCase().includes(q);
+          const q = filters.query.trim().toLowerCase();
+          return r.code?.toLowerCase().includes(q) || r.name?.toLowerCase().includes(q) || r.deptName?.toLowerCase().includes(q);
         }
         return true;
       });
-      return (
-        <Card className="mb-4">
-          <div className="grid gap-4 md:grid-cols-4">
-            <Input label="Mã - Tên Ngành" placeholder="Nhập mã hoặc tên ngành..." value={filters.query} onChange={(e) => setFilters({...filters, query: e.target.value})} />
-            <Select label="Khoa trực thuộc" value={filters.dept || ""} onChange={(e) => setFilters({...filters, dept: e.target.value})}>
-              <option value="">Tất cả Khoa (Mã - Tên)</option>
-              {departments.map(d => <option key={d.id} value={d.id}>{d.deptCode} - {d.deptName}</option>)}
-            </Select>
-            <Select label="Trạng thái" value={filters.status} onChange={(e) => setFilters({...filters, status: e.target.value})}>
-              <option>Tất cả</option>
-              <option>Đang hoạt động</option>
-              <option>Vô hiệu hóa</option>
-            </Select>
-            <div className="flex items-end gap-3 md:justify-end">
-              <Button variant="ghost" onClick={() => setFilters({query: "", status: "Tất cả", dept: ""})}>Xóa bộ lọc</Button>
-              <Button variant="primary"><Search className="size-4" /> Tìm kiếm</Button>
-            </div>
-          </div>
-        </Card>
-      );
-    }
-    if (active === "classes") {
+    } else if (active === "offices") {
       rows = rows.filter(r => {
-        if (filters.status !== "Tất cả" && (r.status === 1 ? "Đang hoạt động" : "Vô hiệu hóa") !== filters.status) return false;
+        const itemStatus = (r.status === 1 || r.status === "Đang hoạt động") ? "Đang hoạt động" : "Vô hiệu hóa";
+        if (filters.status && filters.status !== "Tất cả" && itemStatus !== filters.status) return false;
+        if (filters.query) {
+          const q = filters.query.trim().toLowerCase();
+          return r.code?.toLowerCase().includes(q) || r.name?.toLowerCase().includes(q) || r.headName?.toLowerCase().includes(q);
+        }
+        return true;
+      });
+    } else if (active === "classes") {
+      rows = rows.filter(r => {
+        const itemStatus = (r.status === 1 || r.status === "Đang hoạt động") ? "Đang hoạt động" : "Vô hiệu hóa";
+        if (filters.status && filters.status !== "Tất cả" && itemStatus !== filters.status) return false;
         if (filters.major && r.majorId !== Number(filters.major)) return false;
         if (filters.dept && r.deptId !== Number(filters.dept)) return false;
-        if (filters.cohort && r.academicCohort && !r.academicCohort.toLowerCase().includes(filters.cohort.toLowerCase())) return false;
+        if (filters.cohort && r.academicCohort && !r.academicCohort.toLowerCase().includes(filters.cohort.trim().toLowerCase())) return false;
         if (filters.query) {
-           const q = filters.query.toLowerCase();
-           return r.code?.toLowerCase().includes(q) || r.name?.toLowerCase().includes(q) || r.majorName?.toLowerCase().includes(q) || r.deptName?.toLowerCase().includes(q);
+          const q = filters.query.trim().toLowerCase();
+          return r.code?.toLowerCase().includes(q) || r.name?.toLowerCase().includes(q) || r.majorName?.toLowerCase().includes(q) || r.deptName?.toLowerCase().includes(q);
         }
         return true;
       });
-      return (
-        <Card className="mb-4">
-          <div className="grid gap-4 md:grid-cols-4">
-            <Select label="Ngành" value={filters.major || ""} onChange={(e) => setFilters({...filters, major: e.target.value})}>
-              <option value="">Tất cả Ngành</option>
-              {majors.map(m => <option key={m.id} value={m.id}>{m.majorCode} - {m.majorName}</option>)}
-            </Select>
-            <Select label="Khoa" value={filters.dept || ""} onChange={(e) => setFilters({...filters, dept: e.target.value})}>
-              <option value="">Tất cả Khoa (Mã - Tên)</option>
-              {departments.map(d => <option key={d.id} value={d.id}>{d.deptCode} - {d.deptName}</option>)}
-            </Select>
-            <Input label="Mã - Tên lớp" placeholder="Nhập mã hoặc tên lớp..." value={filters.query || ""} onChange={(e) => setFilters({...filters, query: e.target.value})} />
-            <Select label="Trạng thái" value={filters.status} onChange={(e) => setFilters({...filters, status: e.target.value})}>
+    } else if (active === "users") {
+      rows = rows.filter(r => {
+        const itemStatus = (r.status === 1 || r.status === "Đang hoạt động") ? "Đang hoạt động" : "Vô hiệu hóa";
+        if (filters.status && filters.status !== "Tất cả" && itemStatus !== filters.status) return false;
+        if (filters.role && r.role !== filters.role) return false;
+        if (filters.major && r.majorId !== Number(filters.major)) return false;
+        if (filters.query) {
+          const q = filters.query.trim().toLowerCase();
+          return r.userCode?.toLowerCase().includes(q) || r.fullName?.toLowerCase().includes(q) || r.email?.toLowerCase().includes(q);
+        }
+        if (filters.deptSearch) {
+          const dq = filters.deptSearch.trim().toLowerCase();
+          return r.deptCode?.toLowerCase().includes(dq) || r.deptName?.toLowerCase().includes(dq) || r.officeCode?.toLowerCase().includes(dq) || r.officeName?.toLowerCase().includes(dq);
+        }
+        return true;
+      });
+    }
+
+    let extraFilterCount = 0;
+    if (filters.status && filters.status !== "Tất cả") extraFilterCount++;
+    if (active === "majors") {
+      if (filters.dept) extraFilterCount++;
+    } else if (active === "classes") {
+      if (filters.major) extraFilterCount++;
+      if (filters.dept) extraFilterCount++;
+      if (filters.cohort) extraFilterCount++;
+    } else if (active === "users") {
+      if (filters.role) extraFilterCount++;
+      if (filters.major) extraFilterCount++;
+      if (filters.deptSearch) extraFilterCount++;
+    }
+
+    const renderCollapsibleFilters = () => {
+      if (active === "departments" || active === "offices") {
+        return (
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
+            <Select
+              label="Trạng thái"
+              value={filters.status || "Tất cả"}
+              onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+            >
               <option>Tất cả</option>
               <option>Đang hoạt động</option>
               <option>Vô hiệu hóa</option>
             </Select>
           </div>
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-            <div className="w-full md:w-64">
-              <Input label="Niên khóa" placeholder="Ví dụ: K21" value={filters.cohort || ""} onChange={(e) => setFilters({...filters, cohort: e.target.value})} />
-            </div>
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" onClick={() => setFilters({query: "", status: "Tất cả", major: "", dept: "", cohort: ""})}>Xóa bộ lọc</Button>
-              <Button variant="primary"><Search className="size-4" /> Tìm kiếm</Button>
-            </div>
+        );
+      }
+      if (active === "majors") {
+        return (
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
+            <Select
+              label="Khoa trực thuộc"
+              value={filters.dept || ""}
+              onChange={(e) => setFilters(prev => ({ ...prev, dept: e.target.value }))}
+            >
+              <option value="">Tất cả Khoa (Mã - Tên)</option>
+              {departments.map(d => (
+                <option key={d.id} value={d.id}>{d.deptCode} - {d.deptName}</option>
+              ))}
+            </Select>
+            <Select
+              label="Trạng thái"
+              value={filters.status || "Tất cả"}
+              onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+            >
+              <option>Tất cả</option>
+              <option>Đang hoạt động</option>
+              <option>Vô hiệu hóa</option>
+            </Select>
           </div>
-        </Card>
-      );
-    }
-    if (active === "users") {
-      rows = rows.filter(r => {
-        if (filters.status !== "Tất cả" && (r.status === 1 ? "Đang hoạt động" : "Vô hiệu hóa") !== filters.status) return false;
-        if (filters.role && r.role !== filters.role) return false;
-        if (filters.query) {
-           const q = filters.query.toLowerCase();
-           return r.userCode?.toLowerCase().includes(q) || r.fullName?.toLowerCase().includes(q) || r.email?.toLowerCase().includes(q);
-        }
-        if (filters.deptSearch) {
-           const dq = filters.deptSearch.toLowerCase();
-           return r.deptCode?.toLowerCase().includes(dq) || r.deptName?.toLowerCase().includes(dq);
-        }
-        return true;
-      });
-      return (
-        <Card className="mb-4">
-          <div className="grid gap-4 md:grid-cols-3">
-            <Select label="Vai trò" value={filters.role} onChange={(e) => setFilters({...filters, role: e.target.value})}>
+        );
+      }
+      if (active === "classes") {
+        return (
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
+            <Select
+              label="Ngành"
+              value={filters.major || ""}
+              onChange={(e) => setFilters(prev => ({ ...prev, major: e.target.value }))}
+            >
+              <option value="">Tất cả Ngành</option>
+              {majors.map(m => (
+                <option key={m.id} value={m.id}>{m.majorCode} - {m.majorName}</option>
+              ))}
+            </Select>
+            <Select
+              label="Khoa"
+              value={filters.dept || ""}
+              onChange={(e) => setFilters(prev => ({ ...prev, dept: e.target.value }))}
+            >
+              <option value="">Tất cả Khoa (Mã - Tên)</option>
+              {departments.map(d => (
+                <option key={d.id} value={d.id}>{d.deptCode} - {d.deptName}</option>
+              ))}
+            </Select>
+            <Input
+              label="Niên khóa"
+              placeholder="Ví dụ: K21"
+              value={filters.cohort || ""}
+              onChange={(e) => setFilters(prev => ({ ...prev, cohort: e.target.value }))}
+            />
+            <Select
+              label="Trạng thái"
+              value={filters.status || "Tất cả"}
+              onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+            >
+              <option>Tất cả</option>
+              <option>Đang hoạt động</option>
+              <option>Vô hiệu hóa</option>
+            </Select>
+          </div>
+        );
+      }
+      if (active === "users") {
+        return (
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
+            <Select
+              label="Vai trò"
+              value={filters.role || ""}
+              onChange={(e) => setFilters(prev => ({ ...prev, role: e.target.value }))}
+            >
               <option value="">Tất cả vai trò</option>
               <option value="ADMIN">Quản trị viên</option>
               <option value="STUDENT">Sinh viên</option>
@@ -514,25 +569,81 @@ export default function DirectoryPage() {
               <option value="CLASS_DEPUTY">Lớp phó</option>
               <option value="DEAN">Trưởng khoa</option>
             </Select>
-            <Input label="Mã - Tên - Email" placeholder="Nhập mã, tên hoặc email..." value={filters.query} onChange={(e) => setFilters({...filters, query: e.target.value})} />
-            <div className="hidden md:block"></div>
-            
-            <Select label="Trạng thái" value={filters.status} onChange={(e) => setFilters({...filters, status: e.target.value})}>
+            <Select
+              label="Ngành"
+              value={filters.major || ""}
+              onChange={(e) => setFilters(prev => ({ ...prev, major: e.target.value }))}
+            >
+              <option value="">Tất cả Ngành</option>
+              {majors.map(m => (
+                <option key={m.id} value={m.id}>{m.majorCode} - {m.majorName}</option>
+              ))}
+            </Select>
+            <Input
+              label="Khoa / Phòng ban"
+              placeholder="Tìm theo tên hoặc mã khoa..."
+              value={filters.deptSearch || ""}
+              onChange={(e) => setFilters(prev => ({ ...prev, deptSearch: e.target.value }))}
+            />
+            <Select
+              label="Trạng thái"
+              value={filters.status || "Tất cả"}
+              onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+            >
               <option>Tất cả</option>
               <option>Đang hoạt động</option>
               <option>Vô hiệu hóa</option>
             </Select>
-            <Input label="Khoa" placeholder="Tìm tên hoặc mã khoa..." value={filters.deptSearch || ""} onChange={(e) => setFilters({...filters, deptSearch: e.target.value})} />
-            
-            <div className="flex items-end gap-3 md:justify-end">
-              <Button variant="ghost" onClick={() => setFilters({query: "", status: "Tất cả", role: "", deptSearch: ""})}>Xóa bộ lọc</Button>
-              <Button variant="primary"><Search className="size-4" /> Tìm kiếm</Button>
-            </div>
           </div>
-        </Card>
-      );
-    }
-    return null;
+        );
+      }
+      return null;
+    };
+
+    return (
+      <Card className="mb-4">
+        {/* Hàng tìm kiếm chính */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="relative flex-1">
+            <Input
+              placeholder={active === "users" ? "Tìm kiếm theo tên, mã hoặc email..." : "Tìm kiếm theo tên hoặc mã..."}
+              value={filters.query || ""}
+              onChange={(e) => setFilters(prev => ({ ...prev, query: e.target.value }))}
+              className="w-full"
+            />
+          </div>
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
+            <Button variant="primary" type="button">
+              <Search className="size-4" />
+              Tìm kiếm
+            </Button>
+            <ResetFilterButton onClick={handleResetFilters} />
+            <Button
+              variant={showFilters ? "primary" : "secondary"}
+              onClick={() => setShowFilters(prev => !prev)}
+              type="button"
+              className="gap-2"
+            >
+              <Filter className="size-4" />
+              Bộ lọc
+              {extraFilterCount > 0 && (
+                <span className={`inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-xs font-semibold ${showFilters ? 'bg-white text-brand' : 'bg-brand/10 text-brand'}`}>
+                  {extraFilterCount}
+                </span>
+              )}
+              {showFilters ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+            </Button>
+          </div>
+        </div>
+
+        {/* Khối bộ lọc mở rộng xổ ra khi ấn nút Bộ lọc */}
+        {showFilters && (
+          <div className="mt-4 pt-4 border-t border-line animate-in fade-in slide-in-from-top-1 duration-200">
+            {renderCollapsibleFilters()}
+          </div>
+        )}
+      </Card>
+    );
   };
 
   const exportToExcel = (visibleColumns, data, fileName) => {
