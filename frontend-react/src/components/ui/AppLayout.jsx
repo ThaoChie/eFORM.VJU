@@ -150,7 +150,11 @@ export default function AppLayout() {
         </div>
 
         {/* Danh sách Menu Items */}
-        <nav className="flex-1 overflow-y-auto py-3">
+        <nav
+          className={`flex-1 py-3 ${
+            !isMobile && !sidebarOpen ? "overflow-visible" : "overflow-y-auto"
+          }`}
+        >
           {groups.map((group, groupIndex) => (
             <div key={group.title || groupIndex} className="mb-4">
               {group.title && (sidebarOpen || isMobile) && (
@@ -165,10 +169,10 @@ export default function AppLayout() {
                 // Khi sidebar đang thu gọn trên desktop: hiển thị cột icon mini có tooltip
                 if (!isMobile && !sidebarOpen) {
                   return (
-                    <div key={item.path} className="relative group flex justify-center my-1.5 px-2">
+                    <div key={item.path} className="flex justify-center my-1.5 px-2">
                       <NavLink
                         to={item.path}
-                        className={`flex size-11 items-center justify-center rounded-xl transition ${
+                        className={`relative group/navlink flex size-11 items-center justify-center rounded-xl transition ${
                           isItemActive
                             ? "bg-brand-soft text-brand font-medium shadow-xs"
                             : "text-muted hover:bg-canvas hover:text-ink"
@@ -178,21 +182,21 @@ export default function AppLayout() {
                         {item.badge && (
                           <span className="absolute top-1.5 right-2.5 size-2 rounded-full bg-brand ring-2 ring-white" />
                         )}
-                      </NavLink>
 
-                      {/* Tooltip hiển thị tên chức năng sang bên phải */}
-                      <span
-                        role="tooltip"
-                        className="pointer-events-none absolute left-full ml-2.5 top-1/2 -translate-y-1/2 hidden group-hover:inline-flex items-center whitespace-nowrap rounded-md bg-slate-900 px-2.5 py-1 text-[11px] font-medium text-white shadow-xl ring-1 ring-white/10 z-[100]"
-                      >
-                        {item.label}
-                        {item.badge && (
-                          <span className="ml-1.5 rounded-full bg-brand px-1.5 py-0.2 text-[10px] text-white">
-                            {item.badge}
-                          </span>
-                        )}
-                        <span className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-r-slate-900 border-transparent" />
-                      </span>
+                        {/* Tooltip hiển thị tên chức năng sang bên phải */}
+                        <span
+                          role="tooltip"
+                          className="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 hidden group-hover/navlink:inline-flex items-center whitespace-nowrap rounded-md bg-slate-900 px-2.5 py-1 text-[11px] font-medium text-white shadow-xl ring-1 ring-white/10 z-[100]"
+                        >
+                          {item.label}
+                          {item.badge && (
+                            <span className="ml-1.5 rounded-full bg-brand px-1.5 py-0.2 text-[10px] text-white">
+                              {item.badge}
+                            </span>
+                          )}
+                          <span className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-r-slate-900 border-l-transparent border-t-transparent border-b-transparent" />
+                        </span>
+                      </NavLink>
                     </div>
                   )
                 }
