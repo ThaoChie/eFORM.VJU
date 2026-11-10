@@ -76,15 +76,27 @@ public class AuthServiceImpl implements AuthService {
         String className = c != null ? c.getClassName() : null;
         String classCode = c != null ? c.getClassCode() : null;
 
+        String effectiveCode = user.getUserCode();
+        if (effectiveCode == null || effectiveCode.trim().isEmpty()) {
+            if (user.getRole() == vn.edu.drl.backend.enu.Role.DEAN) effectiveCode = "TK_CNTT";
+            else if (user.getRole() == vn.edu.drl.backend.enu.Role.ADMIN) effectiveCode = "ADMIN01";
+            else if (user.getRole() == vn.edu.drl.backend.enu.Role.CLASS_LEADER) effectiveCode = "LT2026001";
+            else effectiveCode = "SV2026001";
+        }
+
+        String effectiveFaculty = deptName != null ? deptName : (user.getRole() == vn.edu.drl.backend.enu.Role.DEAN ? "Khoa Công nghệ Thông tin" : null);
+        String effectiveDepartment = deptName != null ? deptName : (user.getRole() == vn.edu.drl.backend.enu.Role.ADMIN ? "Phòng Đào tạo & CTSV" : (user.getRole() == vn.edu.drl.backend.enu.Role.DEAN ? "Khoa Công nghệ Thông tin" : null));
+
         return vn.edu.drl.backend.dto.response.AuthUserResponse.builder()
             .id(user.getId())
-            .userID(user.getUserCode())
+            .userID(effectiveCode)
+            .userCode(effectiveCode)
             .fullName(user.getFullName())
             .email(user.getEmail())
             .role(user.getRole().name())
             .dob(user.getDob())
-            .facultyName(deptName)
-            .departmentName(deptName)
+            .facultyName(effectiveFaculty)
+            .departmentName(effectiveDepartment)
             .className(className)
             .classCode(classCode)
             .majorName(majorName)

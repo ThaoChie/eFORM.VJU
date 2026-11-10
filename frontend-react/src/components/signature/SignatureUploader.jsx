@@ -203,6 +203,67 @@ export default function SignatureUploader({ level = 1 }) {
       ? `SIG-${String(user.id).padStart(6, "0")}A`
       : "SIG-ACTIVE"
 
+  // Phân định vai trò người dùng để hiển thị thông tin định danh chính xác
+  const role = (user?.role || "").toLowerCase().replace("_", "-")
+  const isDean = role === "dean" || level === 3
+  const isAdmin = role === "admin"
+  const isStudent = !isDean && !isAdmin
+
+  // Mã định danh người dùng: ưu tiên userCode, userID, code hoặc fallback
+  const userCode =
+    user?.userCode ||
+    user?.userID ||
+    user?.code ||
+    (isDean ? "TK_CNTT" : isAdmin ? "ADMIN01" : "—")
+
+  const facultyName =
+    user?.facultyName ||
+    user?.departmentName ||
+    user?.deptName ||
+    "Khoa Công nghệ Thông tin"
+
+  const departmentName =
+    user?.departmentName ||
+    user?.facultyName ||
+    user?.deptName ||
+    "Phòng Đào tạo & CTSV"
+
+  const className = user?.className || user?.classCode || "—"
+
+  const ownerName =
+    user?.fullName ||
+    (isDean ? "Trưởng Khoa CNTT" : isAdmin ? "Quản trị viên" : "Sinh viên")
+
+  const systemSignLevel = isDean
+    ? "Trưởng khoa (Cấp 3)"
+    : isAdmin
+      ? "Quản trị viên hệ thống"
+      : role === "class-leader" || role === "class-deputy" || level === 2
+        ? "Ban cán sự lớp (Cấp 2)"
+        : "Sinh viên (Cấp 1)"
+
+  // Render chuỗi định danh:
+  // - Trưởng khoa: Mã người dùng và Khoa
+  // - Quản trị viên: Mã người dùng và tên phòng ban
+  // - Sinh viên / Ban cán sự: Mã SV và Lớp
+  const renderIdentityInfo = () => {
+    if (isDean) {
+      return `Mã người dùng: ${userCode} · Khoa: ${facultyName}`
+    }
+    if (isAdmin) {
+      return `Mã người dùng: ${userCode} · Phòng ban: ${departmentName}`
+    }
+    return `Mã SV: ${userCode} · Lớp: ${className}`
+  }
+
+  const roleTitleLabel = isDean
+    ? "Trưởng Khoa / GVCN"
+    : isAdmin
+      ? "Quản trị viên"
+      : level === 2 || role === "class-leader" || role === "class-deputy"
+        ? "Cán bộ lớp"
+        : "Sinh viên"
+
   return (
     <>
       <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
@@ -210,13 +271,13 @@ export default function SignatureUploader({ level = 1 }) {
           <div className="mb-5 flex items-center justify-between border-b border-slate-100 pb-4">
             <div>
               <h2 className="font-semibold text-slate-900 text-base flex items-center gap-2">
-                Chữ ký điện tử chính chủ ({level === 1 ? "Sinh viên" : level === 2 ? "Cán bộ lớp" : "Trưởng Khoa / GVCN"})
+                Chữ ký điện tử chính chủ ({roleTitleLabel})
                 {isLocked && <Lock className="size-3.5 text-slate-400" />}
               </h2>
               <p className="mt-1 text-xs text-slate-500">
                 {isLocked
                   ? "Chữ ký đã được mã hóa và khóa bảo mật vĩnh viễn theo định danh của bạn."
-                  : `Mỗi ${level === 1 ? "sinh viên" : level === 2 ? "cán bộ lớp" : "giáo viên / trưởng khoa"} cần tải lên ảnh chữ ký một lần duy nhất. Hệ thống tự động tách nền giấy và khóa chữ ký số.`}
+                  : `Mỗi ${isDean ? "trưởng khoa" : isAdmin ? "quản trị viên" : level === 2 ? "cán bộ lớp" : "sinh viên"} cần tải lên ảnh chữ ký một lần duy nhất. Hệ thống tự động tách nền giấy và khóa chữ ký số.`}
               </p>
             </div>
             {isLocked ? (
@@ -364,17 +425,17 @@ export default function SignatureUploader({ level = 1 }) {
               <div>
                 <span className="text-muted block text-[11px]">Chủ sở hữu chữ ký</span>
                 <p className="font-medium text-slate-900 text-sm mt-0.5">
-                  {user?.fullName || "Sinh viên"}
+                  {ownerName}
                 </p>
                 <p className="text-[11px] text-slate-400 font-mono mt-0.5">
-                  Mã SV: {user?.userID || "—"} · Lớp: {user?.className || "—"}
+                  {renderIdentityInfo()}
                 </p>
               </div>
 
               <div>
                 <span className="text-muted block text-[11px]">Cấp ký hệ thống</span>
                 <p className="font-medium text-slate-800">
-                  {level === 3 ? "Trưởng khoa (Cấp 3)" : "Sinh viên (Cấp 1)"}
+                  {systemSignLevel}
                 </p>
               </div>
 
@@ -417,7 +478,7 @@ export default function SignatureUploader({ level = 1 }) {
               <li>• Ký trên giấy trắng, dùng bút mực xanh hoặc đen</li>
               <li>• Chụp thẳng góc, không bị khuất bóng hoặc lóa sáng</li>
               <li>• Cắt ảnh gọn sát chữ ký trước khi tải lên</li>
-              <li>• Mỗi sinh viên chỉ tải một lần duy nhất</li>
+              <li>• {isDean ? "Mỗi trưởng khoa chỉ tải một lần duy nhất" : isAdmin ? "Mỗi quản trị viên chỉ tải một lần duy nhất" : "Mỗi sinh viên chỉ tải một lần duy nhất"}</li>
             </ul>
           </Card>
         </div>

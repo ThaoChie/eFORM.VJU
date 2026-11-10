@@ -146,11 +146,29 @@ public class DataSeeder implements CommandLineRunner {
             java.util.List<User> usersToUpdate = userRepository.findAll();
             for (User u : usersToUpdate) {
                 boolean changed = false;
+                if (u.getUserCode() == null || u.getUserCode().trim().isEmpty()) {
+                    if (u.getRole() == Role.DEAN) {
+                        u.setUserCode("TK_CNTT");
+                        changed = true;
+                    } else if (u.getRole() == Role.ADMIN) {
+                        u.setUserCode("ADMIN01");
+                        changed = true;
+                    } else if (u.getRole() == Role.CLASS_LEADER) {
+                        u.setUserCode("LT2026001");
+                        changed = true;
+                    } else if (u.getRole() == Role.CLASS_DEPUTY) {
+                        u.setUserCode("LP2026001");
+                        changed = true;
+                    } else if (u.getRole() == Role.STUDENT) {
+                        u.setUserCode("SV2026001");
+                        changed = true;
+                    }
+                }
                 if (u.getClassEntity() == null && (u.getRole() == Role.STUDENT || u.getRole() == Role.CLASS_LEADER || u.getRole() == Role.CLASS_DEPUTY)) {
                     u.setClassEntity(defaultClass);
                     changed = true;
                 }
-                if (u.getDepartment() == null && defaultDept != null && (u.getRole() == Role.STUDENT || u.getRole() == Role.CLASS_LEADER || u.getRole() == Role.CLASS_DEPUTY || u.getRole() == Role.DEAN)) {
+                if (u.getDepartment() == null && defaultDept != null) {
                     u.setDepartment(defaultDept);
                     changed = true;
                 }
