@@ -182,31 +182,31 @@ export default function FormVersionDetailPage() {
     switch (status) {
       case "ACTIVE":
         return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200">
-            <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            Hiệu lực
-          </span>
+          <div className="inline-flex items-center gap-1.5 text-xs">
+            <span className="size-1.5 rounded-full shrink-0 bg-emerald-500" />
+            <span className="font-medium text-emerald-700">Hiệu lực</span>
+          </div>
         )
       case "INACTIVE":
         return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700 border border-rose-200">
-            <span className="size-1.5 rounded-full bg-rose-500" />
-            Vô hiệu hóa
-          </span>
+          <div className="inline-flex items-center gap-1.5 text-xs">
+            <span className="size-1.5 rounded-full shrink-0 bg-rose-500" />
+            <span className="font-medium text-rose-700">Vô hiệu hóa</span>
+          </div>
         )
       case "EXPIRED":
         return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 border border-slate-300">
-            <span className="size-1.5 rounded-full bg-slate-400" />
-            Hết hiệu lực
-          </span>
+          <div className="inline-flex items-center gap-1.5 text-xs">
+            <span className="size-1.5 rounded-full shrink-0 bg-slate-400" />
+            <span className="text-slate-500">Hết hiệu lực</span>
+          </div>
         )
       default:
         return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 border border-amber-200">
-            <span className="size-1.5 rounded-full bg-amber-500" />
-            {status || "Bản nháp"}
-          </span>
+          <div className="inline-flex items-center gap-1.5 text-xs">
+            <span className="size-1.5 rounded-full shrink-0 bg-amber-500" />
+            <span className="font-medium text-amber-700">{status || "Bản nháp"}</span>
+          </div>
         )
     }
   }

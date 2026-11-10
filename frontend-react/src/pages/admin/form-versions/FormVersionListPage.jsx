@@ -147,32 +147,36 @@ export default function FormVersionListPage() {
   const totalPages = Math.ceil(filteredData.length / pageSize) || 1;
   const paginatedData = filteredData.slice((page - 1) * pageSize, page * pageSize);
 
-  // Status badge renderer - Thiết kế phẳng, đơn giản, gọn gàng và không ngắt dòng
+  // Status badge renderer - Dạng chấm tròn tối giản kèm chữ nhẹ nhàng
   const renderStatusTag = (status) => {
     switch (status) {
       case "ACTIVE":
         return (
-          <span className="inline-block whitespace-nowrap rounded-md bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 border border-emerald-200">
-            Hiệu lực
-          </span>
+          <div className="inline-flex items-center gap-1.5 text-xs">
+            <span className="size-1.5 rounded-full shrink-0 bg-emerald-500" />
+            <span className="font-medium text-emerald-700">Hiệu lực</span>
+          </div>
         );
       case "INACTIVE":
         return (
-          <span className="inline-block whitespace-nowrap rounded-md bg-rose-50 px-2.5 py-0.5 text-xs font-medium text-rose-700 border border-rose-200">
-            Vô hiệu hóa
-          </span>
+          <div className="inline-flex items-center gap-1.5 text-xs">
+            <span className="size-1.5 rounded-full shrink-0 bg-rose-500" />
+            <span className="font-medium text-rose-700">Vô hiệu hóa</span>
+          </div>
         );
       case "EXPIRED":
         return (
-          <span className="inline-block whitespace-nowrap rounded-md bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600 border border-slate-200">
-            Hết hiệu lực
-          </span>
+          <div className="inline-flex items-center gap-1.5 text-xs">
+            <span className="size-1.5 rounded-full shrink-0 bg-slate-400" />
+            <span className="text-slate-500">Hết hiệu lực</span>
+          </div>
         );
       default:
         return (
-          <span className="inline-block whitespace-nowrap rounded-md bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700 border border-amber-200">
-            {status || "Bản nháp"}
-          </span>
+          <div className="inline-flex items-center gap-1.5 text-xs">
+            <span className="size-1.5 rounded-full shrink-0 bg-amber-500" />
+            <span className="font-medium text-amber-700">{status || "Bản nháp"}</span>
+          </div>
         );
     }
   };

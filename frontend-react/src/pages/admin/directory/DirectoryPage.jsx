@@ -89,12 +89,17 @@ export default function DirectoryPage() {
     }
   }, [active, fetchItems]);
 
-  const renderStatus = (status) => (
-    <span className="inline-flex items-center gap-2 text-sm">
-      <span className={`size-2 rounded-full ${status === "Đang hoạt động" ? "bg-brand" : "border border-disabled bg-canvas"}`} />
-      {status}
-    </span>
-  );
+  const renderStatus = (status) => {
+    const isActive = status === "Đang hoạt động" || status === 1;
+    return (
+      <div className="inline-flex items-center gap-1.5 text-xs">
+        <span className={`size-1.5 rounded-full shrink-0 ${isActive ? "bg-emerald-500" : "bg-rose-500"}`} />
+        <span className={isActive ? "font-medium text-emerald-700" : "font-medium text-rose-700"}>
+          {isActive ? "Đang hoạt động" : "Vô hiệu hóa"}
+        </span>
+      </div>
+    );
+  };
 
   const actionButtons = (r) => {
     const isActive = r.status === "Đang hoạt động" || r.status === 1;

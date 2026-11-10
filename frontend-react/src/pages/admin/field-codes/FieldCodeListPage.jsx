@@ -136,15 +136,12 @@ export default function FieldCodeListPage() {
       key: "status",
       title: "Trạng thái hiệu lực",
       render: (r) => (
-        <span
-          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-            r.isActive
-              ? "bg-green-50 text-green-700 border border-green-200"
-              : "bg-red-50 text-red-700 border border-red-200"
-          }`}
-        >
-          {r.isActive ? "Đang hiệu lực" : "Vô hiệu hóa"}
-        </span>
+        <div className="inline-flex items-center gap-1.5 text-xs">
+          <span className={`size-1.5 rounded-full shrink-0 ${r.isActive ? "bg-emerald-500" : "bg-rose-500"}`} />
+          <span className={r.isActive ? "font-medium text-emerald-700" : "font-medium text-rose-700"}>
+            {r.isActive ? "Đang hiệu lực" : "Vô hiệu hóa"}
+          </span>
+        </div>
       ),
     },
     { key: "updatedAt", title: "Cập nhật lần cuối", render: (r) => r.updatedAt ? formatDate(r.updatedAt) : formatDate(r.createdAt || Date.now()) },
