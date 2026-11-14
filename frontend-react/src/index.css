@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap");
 @import "tailwindcss";
 
 @theme {
@@ -12,7 +12,7 @@
   --color-brand-soft: #fdecec;
   --color-brand-line: #f3b6b6;
   --color-night: #111827;
-  --font-sans: "Be Vietnam Pro", Inter, system-ui, sans-serif;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 * {
@@ -48,9 +48,42 @@ button:disabled {
   height: 8px;
 }
 
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
 ::-webkit-scrollbar-thumb {
-  background: #d1d5db;
-  border-radius: 8px;
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  height: 9px;
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 .watermark {
@@ -67,3 +100,16 @@ button:disabled {
 .pdf-times-roman * {
   font-family: "Times New Roman", Times, "Liberation Serif", serif !important;
 }
+
+/* Tooltip auto-alignment for trailing actions near the container right edge */
+.group\/btn:last-child .tooltip-auto-align {
+  left: auto !important;
+  right: 0 !important;
+  transform: none !important;
+}
+.group\/btn:last-child .tooltip-arrow-auto-align {
+  left: auto !important;
+  right: 12px !important;
+  transform: none !important;
+}
+

@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.*;
 import vn.edu.drl.backend.Wrapper.ApiResponse;
 import vn.edu.drl.backend.dto.request.FormTemplateRequest;
 import vn.edu.drl.backend.dto.response.FormVersionResponse;
-import vn.edu.drl.backend.service.FormVersionService;
+import vn.edu.drl.backend.service.interfaces.FormVersionService;
 
 import java.util.List;
 

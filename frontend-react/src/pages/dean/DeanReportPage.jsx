@@ -1,4 +1,4 @@
-import { FileDown, Eye, ChevronLeft, ChevronRight, Search, FileText } from "lucide-react"
+import { FileDown, Eye, Search, FileText } from "lucide-react"
 import { useState, useEffect } from "react"
 import { toast } from "react-hot-toast"
 import {
@@ -7,6 +7,7 @@ import {
   FilterBar,
   Input,
   PageTitle,
+  Pagination,
   Select,
   Table,
 } from "../../components/ui/Primitives"
@@ -22,9 +23,9 @@ export default function DeanReportPage({ school = false }) {
 
   // Pagination
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
   const [totalPages, setTotalPages] = useState(1)
   const [totalElements, setTotalElements] = useState(0)
-  const pageSize = 15
 
   // Dropdown options
   const [classes, setClasses] = useState([])
@@ -90,7 +91,7 @@ export default function DeanReportPage({ school = false }) {
 
   useEffect(() => {
     fetchReport()
-  }, [page, classId, deptId, semesterId])
+  }, [page, pageSize, classId, deptId, semesterId])
 
   const handleSearchSubmit = (e) => {
     e?.preventDefault?.()
@@ -175,66 +176,81 @@ export default function DeanReportPage({ school = false }) {
         }
       />
 
-      <FilterBar showSearchButton={false}>
-        <form onSubmit={handleSearchSubmit} className="flex-1 flex gap-2">
-          <Input
-            placeholder="Mã sinh viên hoặc Họ tên..."
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-          />
-          <Button type="submit" variant="secondary" className="text-xs">
-            <Search className="size-3.5 mr-1" />
-            Tìm
-          </Button>
-        </form>
+      {(() => {
+        let extraCount = 0;
+        if (classId) extraCount++;
+        if (school && deptId) extraCount++;
+        if (semesterId) extraCount++;
 
-        <Select
-          value={classId}
-          onChange={(e) => {
-            setClassId(e.target.value)
-            setPage(1)
-          }}
-        >
-          <option value="">Tất cả lớp</option>
-          {classes.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.className || c.classCode}
-            </option>
-          ))}
-        </Select>
-
-        {school && (
-          <Select
-            value={deptId}
-            onChange={(e) => {
-              setDeptId(e.target.value)
+        return (
+          <FilterBar
+            searchQuery={keyword}
+            onSearchChange={setKeyword}
+            searchPlaceholder="Tìm kiếm theo mã sinh viên hoặc họ tên..."
+            onSearch={handleSearchSubmit}
+            onReset={() => {
+              setKeyword("")
+              setClassId("")
+              if (school) setDeptId("")
+              setSemesterId("")
               setPage(1)
+              fetchReport({ page: 1, keyword: "", classId: "", deptId: "", semesterId: "" })
             }}
+            extraFilterCount={extraCount}
+            cols={school ? 3 : 2}
           >
-            <option value="">Tất cả khoa quản lý</option>
-            {departments.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.deptName || d.deptCode}
-              </option>
-            ))}
-          </Select>
-        )}
+            <Select
+              label="Lớp"
+              value={classId}
+              onChange={(e) => {
+                setClassId(e.target.value)
+                setPage(1)
+              }}
+            >
+              <option value="">Tất cả lớp</option>
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.className || c.classCode}
+                </option>
+              ))}
+            </Select>
 
-        <Select
-          value={semesterId}
-          onChange={(e) => {
-            setSemesterId(e.target.value)
-            setPage(1)
-          }}
-        >
-          <option value="">Tất cả học kỳ</option>
-          {semesters.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.semesterName || s.semesterCode}
-            </option>
-          ))}
-        </Select>
-      </FilterBar>
+            {school && (
+              <Select
+                label="Khoa quản lý"
+                value={deptId}
+                onChange={(e) => {
+                  setDeptId(e.target.value)
+                  setPage(1)
+                }}
+              >
+                <option value="">Tất cả khoa quản lý</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.deptName || d.deptCode}
+                  </option>
+                ))}
+              </Select>
+            )}
+
+            <Select
+              label="Học kỳ"
+              value={semesterId}
+              onChange={(e) => {
+                setSemesterId(e.target.value)
+                setPage(1)
+              }}
+            >
+              <option value="">Tất cả học kỳ</option>
+              {semesters.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.semesterName || s.semesterCode}
+                </option>
+              ))}
+            </Select>
+          </FilterBar>
+        );
+      })()}
 
       <div className="mt-4">
         <Table
@@ -259,9 +275,9 @@ export default function DeanReportPage({ school = false }) {
               key: "code",
               title: "Mã sinh viên",
               render: (r) => (
-                <code className="text-xs bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded">
+                <span className="font-mono text-xs text-slate-700">
                   {r.studentCode || "—"}
-                </code>
+                </span>
               ),
             },
             {
@@ -316,35 +332,15 @@ export default function DeanReportPage({ school = false }) {
         />
       </div>
 
-      {/* Phân trang */}
-      <div className="mt-4 flex items-center justify-between text-xs text-slate-500">
-        <span>
-          Hiển thị <strong>{data.length}</strong> / <strong>{totalElements}</strong> phiếu
-        </span>
-        {totalPages > 1 && (
-          <div className="flex items-center gap-1.5">
-            <Button
-              variant="secondary"
-              className="text-xs px-2.5 py-1"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              <ChevronLeft className="size-3.5" />
-            </Button>
-            <span className="px-2">
-              Trang {page} / {totalPages}
-            </span>
-            <Button
-              variant="secondary"
-              className="text-xs px-2.5 py-1"
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            >
-              <ChevronRight className="size-3.5" />
-            </Button>
-          </div>
-        )}
-      </div>
+      {/* Phân trang chuẩn hệ thống */}
+      <Pagination
+        currentPage={page}
+        pageSize={pageSize}
+        totalItems={totalElements}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+        className="mt-4 rounded-xl border border-line"
+      />
 
       {/* Modal xem PDF */}
       {activePdfUrl && (

@@ -16,7 +16,7 @@ import vn.edu.drl.backend.dto.response.DeanApproveBatchResponse;
 import vn.edu.drl.backend.dto.response.WorkflowDetailResponse;
 import vn.edu.drl.backend.dto.response.WorkflowQueueItemResponse;
 import vn.edu.drl.backend.security.SecurityUtils;
-import vn.edu.drl.backend.service.WorkflowService;
+import vn.edu.drl.backend.service.interfaces.WorkflowService;
 import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
@@ -45,12 +45,19 @@ public class WorkflowController {
     }
 
     @PostMapping("/{id}/class/approve")
-    @PreAuthorize("hasAnyRole('CLASS_LEADER', 'CLASS_DEPUTY')")
+    @PreAuthorize("hasAnyRole('CLASS_LEADER', 'CLASS_DEPUTY', 'ADMIN')")
     public ApiResponse<Void> classApprove(@PathVariable Long id, @Valid @RequestBody ClassApproveRequest request, HttpServletRequest httpRequest) {
         Long userId = SecurityUtils.getCurrentUserId();
         String ipAddress = httpRequest.getRemoteAddr();
         workflowService.classApprove(userId, id, request, ipAddress);
         return ApiResponse.success(null);
+    }
+
+    @GetMapping("/dean/batches")
+    @PreAuthorize("hasAnyRole('DEAN', 'ADMIN')")
+    public ApiResponse<java.util.List<vn.edu.drl.backend.dto.response.DeanBatchResponse>> getDeanBatches() {
+        Long userId = SecurityUtils.getCurrentUserId();
+        return ApiResponse.success(workflowService.getDeanBatches(userId));
     }
 
     @PostMapping("/{id}/reject")

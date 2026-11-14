@@ -3,6 +3,7 @@ server:
 spring:
   main:
     lazy-initialization: false
+    allow-bean-definition-overriding: true
   datasource:
     url: ${SPRING_DATASOURCE_URL}
     username: ${SPRING_DATASOURCE_USERNAME}
@@ -17,6 +18,12 @@ spring:
     open-in-view: true
     hibernate:
       ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
   flyway:
     enabled: true
     clean-disabled: true

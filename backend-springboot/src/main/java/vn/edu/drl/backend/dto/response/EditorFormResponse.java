@@ -14,6 +14,13 @@ public class EditorFormResponse {
     private String formName;
     private String versionNo;
     private ScoreFormStatus status;
+    private String studentName;
+    private String studentCode;
+    private java.time.LocalDate dob;
+    private String className;
+    private String majorName;
+    private String departmentName;
+    private String academicCohort;
     private BigDecimal studentTotal;
     private BigDecimal classTotal;
     private String templateLayoutJson;

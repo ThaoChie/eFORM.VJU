@@ -1,8 +1,8 @@
 package vn.edu.drl.backend.service.impl;
 
-import vn.edu.drl.backend.service.*;
+import vn.edu.drl.backend.service.interfaces.*;
 
-import vn.edu.drl.backend.service.ReportService;
+import vn.edu.drl.backend.service.interfaces.ReportService;
 
 import lombok.RequiredArgsConstructor;
 import java.math.BigDecimal;
@@ -53,6 +53,11 @@ public class ReportServiceImpl implements ReportService {
         CriteriaQuery<ScoreForm> cq = cb.createQuery(ScoreForm.class);
         Root<ScoreForm> root = cq.from(ScoreForm.class);
         
+        // Eager fetch student and nested class/department to eliminate N+1 queries
+        Fetch<ScoreForm, User> studentFetch = root.fetch("student", JoinType.LEFT);
+        studentFetch.fetch("classEntity", JoinType.LEFT);
+        studentFetch.fetch("department", JoinType.LEFT);
+
         List<Predicate> predicates = buildPredicates(cb, root, currentUser, studentCode, classId, deptId, academicCohort, semesterId);
         if (!predicates.isEmpty()) {
             cq.where(predicates.toArray(new Predicate[0]));
@@ -116,6 +121,11 @@ public class ReportServiceImpl implements ReportService {
         CriteriaQuery<ScoreForm> cq = cb.createQuery(ScoreForm.class);
         Root<ScoreForm> root = cq.from(ScoreForm.class);
         
+        // Eager fetch student and nested class/department to eliminate N+1 queries
+        Fetch<ScoreForm, User> studentFetch = root.fetch("student", JoinType.LEFT);
+        studentFetch.fetch("classEntity", JoinType.LEFT);
+        studentFetch.fetch("department", JoinType.LEFT);
+
         List<Predicate> predicates = buildPredicates(cb, root, currentUser, studentCode, classId, deptId, academicCohort, semesterId);
         if (!predicates.isEmpty()) {
             cq.where(predicates.toArray(new Predicate[0]));

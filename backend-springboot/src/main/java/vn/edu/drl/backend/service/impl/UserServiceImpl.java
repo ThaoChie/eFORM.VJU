@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import vn.edu.drl.backend.dao.ClassRepository;
 import vn.edu.drl.backend.dao.DepartmentRepository;
+import vn.edu.drl.backend.dao.MajorRepository;
 import vn.edu.drl.backend.dao.UserRepository;
 import vn.edu.drl.backend.dto.request.UserRequest;
 import vn.edu.drl.backend.dto.response.UserResponse;
@@ -16,11 +17,14 @@ import vn.edu.drl.backend.enu.Role;
 import vn.edu.drl.backend.hibernateDao.UserHibernateDao;
 import vn.edu.drl.backend.model.ClassEntity;
 import vn.edu.drl.backend.model.Department;
+import vn.edu.drl.backend.model.Major;
 import vn.edu.drl.backend.model.User;
-import vn.edu.drl.backend.service.UserService;
+import vn.edu.drl.backend.service.interfaces.UserService;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @Service
@@ -29,6 +33,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository repository;
     private final UserHibernateDao hibernateDao;
     private final DepartmentRepository deptRepo;
+    private final MajorRepository majorRepo;
     private final ClassRepository classRepo;
     private final PasswordEncoder passwordEncoder;
     private final vn.edu.drl.backend.dao.SignatureLogRepository signatureLogRepository;
@@ -36,12 +41,14 @@ public class UserServiceImpl implements UserService {
     public UserServiceImpl(UserRepository repository, 
                            UserHibernateDao hibernateDao, 
                            DepartmentRepository deptRepo, 
+                           MajorRepository majorRepo,
                            ClassRepository classRepo, 
                            PasswordEncoder passwordEncoder,
                            vn.edu.drl.backend.dao.SignatureLogRepository signatureLogRepository) { 
         this.repository = repository; 
         this.hibernateDao = hibernateDao;
         this.deptRepo = deptRepo;
+        this.majorRepo = majorRepo;
         this.classRepo = classRepo;
         this.passwordEncoder = passwordEncoder;
         this.signatureLogRepository = signatureLogRepository;
@@ -73,15 +80,29 @@ public class UserServiceImpl implements UserService {
         } catch (Exception e) {
             u.setRole(Role.STUDENT);
         }
+        if ((u.getRole() == Role.STUDENT || u.getRole() == Role.CLASS_LEADER || u.getRole() == Role.CLASS_DEPUTY) && req.getClassId() == null) {
+            throw new vn.edu.drl.backend.exception.BusinessException("Trường Lớp là bắt buộc.");
+        }
         u.setPasswordHash(passwordEncoder.encode("123456"));
         u.setPositionTitle(req.getPositionTitle());
         u.setAcademicCohort(req.getAcademicCohort());
-        if (req.getEffectiveDeptId() != null) {
+        u.setDob(req.getDob());
+        if (req.getMajorId() != null) {
+            majorRepo.findById(req.getMajorId()).ifPresent(m -> {
+                u.setMajor(m);
+                if (m.getDepartment() != null) {
+                    u.setDepartment(m.getDepartment());
+                }
+            });
+        } else if (req.getEffectiveDeptId() != null) {
             deptRepo.findById(req.getEffectiveDeptId()).ifPresent(u::setDepartment);
         }
         if (req.getClassId() != null) {
             classRepo.findById(req.getClassId()).ifPresent(c -> {
                 u.setClassEntity(c);
+                if (u.getMajor() == null && c.getMajor() != null) {
+                    u.setMajor(c.getMajor());
+                }
                 if (u.getDepartment() == null && c.getDepartment() != null) {
                     u.setDepartment(c.getDepartment());
                 }
@@ -122,16 +143,34 @@ public class UserServiceImpl implements UserService {
                 u.setRole(Role.valueOf(req.getRole()));
             } catch (Exception ignored) {}
         }
+        if ((u.getRole() == Role.STUDENT || u.getRole() == Role.CLASS_LEADER || u.getRole() == Role.CLASS_DEPUTY) && req.getClassId() == null && u.getClassEntity() == null) {
+            throw new vn.edu.drl.backend.exception.BusinessException("Trường Lớp là bắt buộc.");
+        }
         u.setPositionTitle(req.getPositionTitle());
         u.setAcademicCohort(req.getAcademicCohort());
-        if (req.getEffectiveDeptId() != null) {
+        if (req.getDob() != null) {
+            u.setDob(req.getDob());
+        }
+        if (req.getMajorId() != null) {
+            majorRepo.findById(req.getMajorId()).ifPresent(m -> {
+                u.setMajor(m);
+                if (m.getDepartment() != null) {
+                    u.setDepartment(m.getDepartment());
+                }
+            });
+        } else if (req.getEffectiveDeptId() != null) {
+            u.setMajor(null);
             deptRepo.findById(req.getEffectiveDeptId()).ifPresent(u::setDepartment);
         } else {
+            u.setMajor(null);
             u.setDepartment(null);
         }
         if (req.getClassId() != null) {
             classRepo.findById(req.getClassId()).ifPresent(c -> {
                 u.setClassEntity(c);
+                if (u.getMajor() == null && c.getMajor() != null) {
+                    u.setMajor(c.getMajor());
+                }
                 if (u.getDepartment() == null && c.getDepartment() != null) {
                     u.setDepartment(c.getDepartment());
                 }
@@ -164,21 +203,23 @@ public class UserServiceImpl implements UserService {
         try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet("Users");
             Row header = sheet.createRow(0);
-            String[] columns = {"Mã người dùng", "Họ và tên", "Email", "Vai trò", "Mã khoa", "Mã phòng ban", "Mã lớp", "Niên khóa", "Trạng thái"};
+            String[] columns = {"Mã người dùng *", "Họ và tên *", "Ngày sinh (YYYY-MM-DD)", "Email *", "Vai trò *", "Mã ngành", "Mã khoa", "Mã phòng ban", "Mã lớp", "Niên khóa (ví dụ: 2023-2027)", "Trạng thái (1/0)"};
             for (int i = 0; i < columns.length; i++) {
                 header.createCell(i).setCellValue(columns[i]);
             }
 
             Row sample = sheet.createRow(1);
             sample.createCell(0).setCellValue("SV2026001");
-            sample.createCell(1).setCellValue("Nguyễn Văn A");
-            sample.createCell(2).setCellValue("nguyenvana@vju.ac.vn");
-            sample.createCell(3).setCellValue("STUDENT");
-            sample.createCell(4).setCellValue("CNTT");
-            sample.createCell(5).setCellValue("");
-            sample.createCell(6).setCellValue("K21_CNTT01");
-            sample.createCell(7).setCellValue("K21");
-            sample.createCell(8).setCellValue("1");
+            sample.createCell(1).setCellValue("Nguyễn Văn An");
+            sample.createCell(2).setCellValue("2005-10-15");
+            sample.createCell(3).setCellValue("nguyenvana@vju.ac.vn");
+            sample.createCell(4).setCellValue("STUDENT");
+            sample.createCell(5).setCellValue("BCSE");
+            sample.createCell(6).setCellValue("CNTT");
+            sample.createCell(7).setCellValue("");
+            sample.createCell(8).setCellValue("IT01");
+            sample.createCell(9).setCellValue("2023-2027");
+            sample.createCell(10).setCellValue("1");
 
             workbook.write(out);
             return out.toByteArray();
@@ -201,21 +242,94 @@ public class UserServiceImpl implements UserService {
 
         try (InputStream is = file.getInputStream(); Workbook workbook = WorkbookFactory.create(is)) {
             Sheet sheet = workbook.getSheetAt(0);
+            if (sheet.getPhysicalNumberOfRows() <= 1) {
+                result.put("validRows", 0);
+                result.put("invalidRows", 0);
+                result.put("errors", List.of("File Excel không có dữ liệu để nhập."));
+                return result;
+            }
+
+            // Map header column indices dynamically
+            Row headerRow = sheet.getRow(0);
+            Map<String, Integer> colMap = new HashMap<>();
+            if (headerRow != null) {
+                for (int c = 0; c < headerRow.getLastCellNum(); c++) {
+                    String h = getCellString(formatter, headerRow.getCell(c)).toLowerCase().trim();
+                    if (h.contains("mã người dùng") || h.contains("mã sv") || (h.startsWith("mã") && !h.contains("khoa") && !h.contains("ngành") && !h.contains("lớp") && !h.contains("phòng"))) {
+                        colMap.put("userCode", c);
+                    } else if (h.contains("họ") || h.contains("họ và tên")) {
+                        colMap.put("fullName", c);
+                    } else if (h.contains("ngày sinh") || h.contains("sinh") || h.contains("dob")) {
+                        colMap.put("dob", c);
+                    } else if (h.contains("email")) {
+                        colMap.put("email", c);
+                    } else if (h.contains("vai trò") || h.contains("role")) {
+                        colMap.put("role", c);
+                    } else if (h.contains("ngành") || h.contains("major")) {
+                        colMap.put("major", c);
+                    } else if (h.contains("khoa") || h.contains("dept")) {
+                        colMap.put("dept", c);
+                    } else if (h.contains("phòng") || h.contains("office")) {
+                        colMap.put("office", c);
+                    } else if (h.contains("lớp") || h.contains("class")) {
+                        colMap.put("class", c);
+                    } else if (h.contains("khóa") || h.contains("cohort")) {
+                        colMap.put("cohort", c);
+                    } else if (h.contains("trạng thái") || h.contains("status")) {
+                        colMap.put("status", c);
+                    }
+                }
+            }
+
+            boolean hasHeaderMap = colMap.containsKey("email") || colMap.containsKey("fullName");
             
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
                 if (isRowEmpty(row, formatter)) continue;
                 
                 try {
-                    String userCode = getCellString(formatter, row.getCell(0));
-                    String fullName = getCellString(formatter, row.getCell(1));
-                    String email = getCellString(formatter, row.getCell(2));
-                    String roleStr = getCellString(formatter, row.getCell(3));
-                    String deptCode = getCellString(formatter, row.getCell(4));
-                    String officeCode = getCellString(formatter, row.getCell(5));
-                    String classCode = getCellString(formatter, row.getCell(6));
-                    String cohort = getCellString(formatter, row.getCell(7));
-                    String statusStr = getCellString(formatter, row.getCell(8));
+                    String userCode, fullName, email, roleStr, deptCode, officeCode, classCode, cohort, statusStr, majorCode;
+                    LocalDate dob = null;
+
+                    if (hasHeaderMap) {
+                        userCode = colMap.containsKey("userCode") ? getCellString(formatter, row.getCell(colMap.get("userCode"))) : "";
+                        fullName = colMap.containsKey("fullName") ? getCellString(formatter, row.getCell(colMap.get("fullName"))) : "";
+                        email = colMap.containsKey("email") ? getCellString(formatter, row.getCell(colMap.get("email"))) : "";
+                        roleStr = colMap.containsKey("role") ? getCellString(formatter, row.getCell(colMap.get("role"))) : "";
+                        majorCode = colMap.containsKey("major") ? getCellString(formatter, row.getCell(colMap.get("major"))) : "";
+                        deptCode = colMap.containsKey("dept") ? getCellString(formatter, row.getCell(colMap.get("dept"))) : "";
+                        officeCode = colMap.containsKey("office") ? getCellString(formatter, row.getCell(colMap.get("office"))) : "";
+                        classCode = colMap.containsKey("class") ? getCellString(formatter, row.getCell(colMap.get("class"))) : "";
+                        cohort = colMap.containsKey("cohort") ? getCellString(formatter, row.getCell(colMap.get("cohort"))) : "";
+                        statusStr = colMap.containsKey("status") ? getCellString(formatter, row.getCell(colMap.get("status"))) : "";
+
+                        if (colMap.containsKey("dob")) {
+                            dob = parseDobCell(row.getCell(colMap.get("dob")), formatter);
+                        }
+                    } else if (row.getLastCellNum() >= 11) {
+                        userCode = getCellString(formatter, row.getCell(0));
+                        fullName = getCellString(formatter, row.getCell(1));
+                        dob = parseDobCell(row.getCell(2), formatter);
+                        email = getCellString(formatter, row.getCell(3));
+                        roleStr = getCellString(formatter, row.getCell(4));
+                        majorCode = getCellString(formatter, row.getCell(5));
+                        deptCode = getCellString(formatter, row.getCell(6));
+                        officeCode = getCellString(formatter, row.getCell(7));
+                        classCode = getCellString(formatter, row.getCell(8));
+                        cohort = getCellString(formatter, row.getCell(9));
+                        statusStr = getCellString(formatter, row.getCell(10));
+                    } else {
+                        userCode = getCellString(formatter, row.getCell(0));
+                        fullName = getCellString(formatter, row.getCell(1));
+                        email = getCellString(formatter, row.getCell(2));
+                        roleStr = getCellString(formatter, row.getCell(3));
+                        majorCode = "";
+                        deptCode = getCellString(formatter, row.getCell(4));
+                        officeCode = getCellString(formatter, row.getCell(5));
+                        classCode = getCellString(formatter, row.getCell(6));
+                        cohort = getCellString(formatter, row.getCell(7));
+                        statusStr = getCellString(formatter, row.getCell(8));
+                    }
                     
                     if (fullName.isEmpty()) {
                         errors.add("Dòng " + (i + 1) + ": Họ và tên không được để trống");
@@ -258,14 +372,26 @@ public class UserServiceImpl implements UserService {
                     u.setUserCode(userCode.isEmpty() ? null : userCode);
                     u.setFullName(fullName);
                     u.setEmail(email);
+                    u.setDob(dob);
+
                     try {
-                        u.setRole(Role.valueOf(roleStr));
+                        u.setRole(Role.valueOf(roleStr.trim().toUpperCase()));
                     } catch (Exception e) {
                         u.setRole(Role.STUDENT);
                     }
                     u.setPasswordHash(passwordEncoder.encode("123456"));
                     
-                    if (!deptCode.isEmpty()) {
+                    if (!majorCode.isEmpty()) {
+                        var majorOpt = majorRepo.findByMajorCode(majorCode);
+                        if (majorOpt.isPresent()) {
+                            u.setMajor(majorOpt.get());
+                            if (majorOpt.get().getDepartment() != null) {
+                                u.setDepartment(majorOpt.get().getDepartment());
+                            }
+                        }
+                    }
+
+                    if (!deptCode.isEmpty() && u.getDepartment() == null) {
                         Department d = deptRepo.findByDeptCode(deptCode).orElse(null);
                         if (d != null) u.setDepartment(d);
                     }
@@ -274,10 +400,13 @@ public class UserServiceImpl implements UserService {
                         ClassEntity c = classRepo.findByClassCode(classCode).orElse(null);
                         if (c != null) {
                             u.setClassEntity(c);
+                            if (u.getMajor() == null && c.getMajor() != null) {
+                                u.setMajor(c.getMajor());
+                            }
                             if (u.getDepartment() == null && c.getDepartment() != null) {
                                 u.setDepartment(c.getDepartment());
                             }
-                            if ((cohort.isEmpty()) && c.getAcademicCohort() != null) {
+                            if (cohort.isEmpty() && c.getAcademicCohort() != null) {
                                 cohort = c.getAcademicCohort();
                             }
                         }
@@ -306,11 +435,29 @@ public class UserServiceImpl implements UserService {
         if (!preview && !usersToSave.isEmpty()) {
             repository.saveAll(usersToSave);
         }
-        
+
         result.put("validRows", validRows);
         result.put("invalidRows", invalidRows);
         result.put("errors", errors);
         return result;
+    }
+
+    private LocalDate parseDobCell(Cell cell, DataFormatter formatter) {
+        if (cell == null) return null;
+        try {
+            if (cell.getCellType() == CellType.NUMERIC && DateUtil.isCellDateFormatted(cell)) {
+                return cell.getLocalDateTimeCellValue().toLocalDate();
+            }
+            String s = getCellString(formatter, cell).trim();
+            if (s.isEmpty()) return null;
+            String[] patterns = {"yyyy-MM-dd", "dd/MM/yyyy", "dd-MM-yyyy", "d/M/yyyy", "yyyy/MM/dd"};
+            for (String p : patterns) {
+                try {
+                    return LocalDate.parse(s, java.time.format.DateTimeFormatter.ofPattern(p));
+                } catch (Exception ignored) {}
+            }
+        } catch (Exception ignored) {}
+        return null;
     }
     
     public byte[] exportToExcel(Long deptId, Long classId, String cohort, String role) {
@@ -378,6 +525,7 @@ public class UserServiceImpl implements UserService {
         }
 
         signatureUrl = vn.edu.drl.backend.service.engine.ImageConversionUtils.ensureStandardWebImage(signatureUrl);
+        signatureUrl = vn.edu.drl.backend.service.engine.ImageConversionUtils.removeBackground(signatureUrl);
 
         // 1. Compute cryptographic SHA-256 fingerprint of signature data
         String hashHex = "";
@@ -413,5 +561,17 @@ public class UserServiceImpl implements UserService {
         } catch (Exception ignored) {}
 
         return hashHex;
+    }
+
+    @Override
+    @Transactional
+    public Map<String, Object> updateSignature(Long userId, String signatureUrl) {
+        String hashHex = updateSignatureSpecimen(userId, signatureUrl);
+        User user = repository.findById(userId).orElseThrow(() -> new RuntimeException("USER_NOT_FOUND"));
+        Map<String, Object> res = new HashMap<>();
+        res.put("signature", user.getSignatureSpecimenUrl());
+        res.put("signatureHash", hashHex);
+        res.put("isSignatureLocked", true);
+        return res;
     }
 }

@@ -11,7 +11,7 @@ import vn.edu.drl.backend.dto.response.EvaluationPeriodFormOptionsResponse;
 import vn.edu.drl.backend.dto.response.EvaluationPeriodResponse;
 import vn.edu.drl.backend.enu.EvaluationPeriodStatus;
 import vn.edu.drl.backend.security.SecurityUtils;
-import vn.edu.drl.backend.service.EvaluationPeriodService;
+import vn.edu.drl.backend.service.interfaces.EvaluationPeriodService;
 
 import java.util.List;
 

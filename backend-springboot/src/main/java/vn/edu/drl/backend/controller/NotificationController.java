@@ -5,7 +5,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.drl.backend.Wrapper.ApiResponse;
 import vn.edu.drl.backend.security.SecurityUtils;
-import vn.edu.drl.backend.service.NotificationService;
+import vn.edu.drl.backend.service.interfaces.NotificationService;
 
 import java.util.Map;
 

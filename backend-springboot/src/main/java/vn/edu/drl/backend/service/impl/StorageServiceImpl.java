@@ -1,8 +1,8 @@
 package vn.edu.drl.backend.service.impl;
 
-import vn.edu.drl.backend.service.*;
+import vn.edu.drl.backend.service.interfaces.*;
 
-import vn.edu.drl.backend.service.StorageService;
+import vn.edu.drl.backend.service.interfaces.StorageService;
 
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
@@ -16,6 +16,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.UUID;
 
 @Service
+@org.springframework.context.annotation.Primary
 @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "storage.provider", havingValue = "minio", matchIfMissing = true)
 public class StorageServiceImpl implements StorageService {
 

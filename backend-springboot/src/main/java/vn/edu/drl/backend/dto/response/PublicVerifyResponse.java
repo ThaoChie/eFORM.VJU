@@ -9,4 +9,7 @@ public class PublicVerifyResponse {
     private Instant approvedAt;
     private String hash;
     private String studentCodeMasked;
+    private String digitalSignatureType;
+    private String certificateIssuer;
+    private Boolean isPadesCertified;
 }

@@ -32,6 +32,7 @@ import { useAuthStore } from "../../stores/useAuthStore"
 import { authService } from "../../services/auth-service"
 import { useSubmissionStore } from "../../stores/useSubmissionStore"
 import { submissionService } from "../../services/submission-service"
+import { getProofUrl } from "../../lib/axios/client"
 import SignConfirmModal from "../../components/signature/SignConfirmModal"
 import PdfViewer, { isValidSignatureImage } from "../../components/ui/PdfViewer"
 import { Button, Card, Input, Modal } from "../../components/ui/Primitives"
@@ -356,10 +357,22 @@ export default function ComposePage() {
         let fileUrl = ""
         try {
           const res = await submissionService.uploadProof(semester?.id, file)
-          fileUrl = typeof res === "string" ? res : res?.url || file.name
+          const rawUrl = typeof res === "string" ? res : res?.url
+          if (rawUrl) {
+            fileUrl = getProofUrl(rawUrl)
+          }
         } catch {
-          // Fallback object URL if MinIO is not connected
-          fileUrl = URL.createObjectURL(file)
+          // Fallback to Data URL if storage is not connected
+        }
+
+        // Đảm bảo fileUrl luôn xem được vĩnh viễn trên mọi máy (chuyển thành Base64 Data URL nếu server chưa có MinIO)
+        if (!fileUrl || !fileUrl.includes("/")) {
+          fileUrl = await new Promise((resolve) => {
+            const reader = new FileReader()
+            reader.onload = () => resolve(reader.result)
+            reader.onerror = () => resolve(URL.createObjectURL(file))
+            reader.readAsDataURL(file)
+          })
         }
 
         const newProofItem = {
@@ -434,11 +447,14 @@ export default function ComposePage() {
     )
   }
 
-  // Student details info
+  // Student details info (Ánh xạ chuẩn theo Lớp học và Người dùng)
   const studentFullName = user?.fullName || "Sinh viên"
   const studentCode = user?.userID || user?.userCode || "—"
-  const studentClass = user?.className || "—"
-  const studentFaculty = user?.facultyName || user?.departmentName || "Khoa"
+  const studentClass = user?.className || user?.classCode || "—"
+  const studentMajor = user?.majorName || user?.major || "—"
+  const studentCohort = user?.academicCohort || user?.cohort || "—"
+  const studentDob = user?.dob || ""
+  const studentFaculty = user?.facultyName || user?.departmentName || "—"
   const semesterTitle = semester?.semesterName || "Học kỳ đánh giá rèn luyện"
 
   // Status badge config
@@ -699,7 +715,7 @@ export default function ComposePage() {
                                           title="Bấm để xem ảnh lớn"
                                         >
                                           <img
-                                            src={item.url}
+                                            src={getProofUrl(item.url)}
                                             alt={item.name}
                                             className="size-full object-cover"
                                           />
@@ -825,12 +841,22 @@ export default function ComposePage() {
                           type="number"
                           min="0"
                           max={crit.maxScore}
-                          step="0.5"
+                          step="1"
+                          onKeyDown={(e) => {
+                            if (["e", "E", "+", "-", ".", ","].includes(e.key)) {
+                              e.preventDefault()
+                            }
+                          }}
                           disabled={isReadOnly}
                           value={currentScore}
                           onChange={(e) => {
                             const val = e.target.value
-                            setScore(crit.fieldCode, val === "" ? "" : Number(val))
+                            if (val === "") {
+                              setScore(crit.fieldCode, "")
+                            } else {
+                              const parsed = parseInt(val, 10)
+                              setScore(crit.fieldCode, isNaN(parsed) ? "" : parsed)
+                            }
                           }}
                           placeholder="0"
                           error={
@@ -886,7 +912,7 @@ export default function ComposePage() {
   return (
     <>
       {/* 1. THANH CÔNG CỤ PHÍA TRÊN (CỐ ĐỊNH KHI CUỘN) */}
-      <div className="sticky top-14 z-20 -mx-4 mb-4 flex flex-wrap items-center justify-between gap-3 border-y border-line bg-white px-4 py-3 shadow-xs md:-mx-6 md:px-6">
+      <div className="sticky top-14 z-10 -mx-4 mb-4 flex flex-wrap items-center justify-between gap-3 border-y border-line bg-white px-4 py-3 shadow-xs md:-mx-6 md:px-6">
         <Button onClick={handleBackClick} variant="secondary">
           <ArrowLeft className="size-4" />
           Quay lại
@@ -983,9 +1009,10 @@ export default function ComposePage() {
               userID: studentCode,
               userCode: studentCode,
               className: studentClass,
-              majorName: "Công nghệ Thông tin",
+              majorName: studentMajor,
               facultyName: studentFaculty,
-              academicCohort: "2023 - 2027",
+              academicCohort: studentCohort,
+              dob: studentDob,
               signatureSpecimenUrl: currentSignatureImg || studentSignature || user?.signatureSpecimenUrl,
             }}
             semesterName={semesterTitle}
@@ -1108,7 +1135,7 @@ export default function ComposePage() {
           <div className="flex items-center justify-between w-full">
             {previewProof?.url && (
               <a
-                href={previewProof.url}
+                href={getProofUrl(previewProof.url)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 text-xs text-brand font-semibold hover:underline"
@@ -1136,7 +1163,7 @@ export default function ComposePage() {
               <p className="text-xs text-slate-500 mt-1">Bảng tính Microsoft Excel (.xlsx)</p>
               {previewProof?.url && (
                 <a
-                  href={previewProof.url}
+                  href={getProofUrl(previewProof.url)}
                   target="_blank"
                   rel="noopener noreferrer"
                   download={previewProof.name}
@@ -1148,15 +1175,16 @@ export default function ComposePage() {
               )}
             </div>
           ) : previewProof?.type === "application/pdf" ||
+          previewProof?.name?.toLowerCase().endsWith(".pdf") ||
           (typeof previewProof?.url === "string" && previewProof.url.toLowerCase().endsWith(".pdf")) ? (
             <iframe
-              src={previewProof.url}
+              src={getProofUrl(previewProof.url)}
               title={previewProof.name}
               className="size-full min-h-[480px] rounded border border-slate-200"
             />
           ) : (
             <img
-              src={previewProof?.url}
+              src={getProofUrl(previewProof?.url)}
               alt={previewProof?.name}
               className="max-h-[500px] max-w-full rounded object-contain shadow-xs"
             />

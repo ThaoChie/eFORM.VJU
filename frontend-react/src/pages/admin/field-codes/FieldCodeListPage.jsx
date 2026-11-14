@@ -9,6 +9,7 @@ import {
   IconButton,
   Input,
   PageTitle,
+  Pagination,
   Select,
   Table,
   Modal
@@ -37,7 +38,9 @@ export default function FieldCodeListPage() {
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
   const [totalPages, setTotalPages] = useState(1)
+  const [totalElements, setTotalElements] = useState(0)
   const [colConfig, setColConfig] = useState(false)
   const [hiddenCols, setHiddenCols] = useState({})
   const [importExcel, setImportExcel] = useState(false)
@@ -57,9 +60,10 @@ export default function FieldCodeListPage() {
   const fetchFields = async () => {
     setLoading(true);
     try {
-      const res = await client.get("/fields", { params: { page: page - 1, size: 10 } });
+      const res = await client.get("/fields", { params: { page: page - 1, size: pageSize } });
       setData(res.content || []);
       setTotalPages(res.totalPages || 1);
+      setTotalElements(res.totalElements || (res.content ? res.content.length : 0));
     } catch (e) {
       toast.error("Lỗi tải danh sách trường thông tin");
     } finally {
@@ -69,7 +73,7 @@ export default function FieldCodeListPage() {
 
   useEffect(() => {
     fetchFields();
-  }, [page]);
+  }, [page, pageSize]);
 
   const toggleStatus = async (id) => {
     if (togglingId) return;
@@ -132,15 +136,12 @@ export default function FieldCodeListPage() {
       key: "status",
       title: "Trạng thái hiệu lực",
       render: (r) => (
-        <span
-          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-            r.isActive
-              ? "bg-green-50 text-green-700 border border-green-200"
-              : "bg-red-50 text-red-700 border border-red-200"
-          }`}
-        >
-          {r.isActive ? "Đang hiệu lực" : "Vô hiệu hóa"}
-        </span>
+        <div className="inline-flex items-center gap-1.5 text-xs">
+          <span className={`size-1.5 rounded-full shrink-0 ${r.isActive ? "bg-emerald-500" : "bg-rose-500"}`} />
+          <span className={r.isActive ? "font-medium text-emerald-700" : "font-medium text-rose-700"}>
+            {r.isActive ? "Đang hiệu lực" : "Vô hiệu hóa"}
+          </span>
+        </div>
       ),
     },
     { key: "updatedAt", title: "Cập nhật lần cuối", render: (r) => r.updatedAt ? formatDate(r.updatedAt) : formatDate(r.createdAt || Date.now()) },
@@ -204,47 +205,48 @@ export default function FieldCodeListPage() {
           </div>
         }
       />
-      <Card className="mb-4">
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="md:col-span-2">
-            <Input
-              label="Mã - Tên trường"
-              placeholder="Nhập mã hoặc tên trường"
-              value={filters.keyword}
-              onChange={e => setFilters({...filters, keyword: e.target.value})}
-            />
-          </div>
-          <Select label="Nhóm trường" value={filters.category} onChange={e => setFilters({...filters, category: e.target.value})}>
-            <option value="">Tất cả nhóm</option>
-            <option value="COMMON">COMMON</option>
-            <option value="HEADER">HEADER</option>
-            <option value="FOOTER">FOOTER</option>
-          </Select>
-          <Select label="Kiểu dữ liệu" value={filters.dataType} onChange={e => setFilters({...filters, dataType: e.target.value})}>
-            <option value="">Tất cả kiểu</option>
-            <option value="STRING">STRING</option>
-            <option value="NUMBER">NUMBER</option>
-            <option value="DATE">DATE</option>
-            <option value="BOOLEAN">BOOLEAN</option>
-            <option value="FILE">FILE</option>
-            <option value="SIGNATURE">SIGNATURE</option>
-          </Select>
-          <Select label="Trạng thái hiệu lực" value={filters.status} onChange={e => setFilters({...filters, status: e.target.value})}>
-            <option value="">Tất cả trạng thái</option>
-            <option value="ACTIVE">Đang hiệu lực</option>
-            <option value="INACTIVE">Vô hiệu hóa</option>
-          </Select>
-          
-          <div className="flex items-end gap-3 md:justify-end">
-            <Button variant="ghost" onClick={() => setFilters({ keyword: "", category: "", dataType: "", status: "" })}>
-              Xóa bộ lọc
-            </Button>
-            <Button variant="primary" onClick={() => { /* Filters are processed locally already */ }}>
-              <Search className="size-4" /> Tìm kiếm
-            </Button>
-          </div>
-        </div>
-      </Card>
+      {(() => {
+        let extraCount = 0;
+        if (filters.category) extraCount++;
+        if (filters.dataType) extraCount++;
+        if (filters.status) extraCount++;
+
+        return (
+          <FilterBar
+            searchQuery={filters.keyword}
+            onSearchChange={(val) => setFilters(prev => ({ ...prev, keyword: val }))}
+            searchPlaceholder="Tìm kiếm theo mã hoặc tên trường..."
+            onSearch={() => setPage(1)}
+            onReset={() => {
+              setFilters({ keyword: "", category: "", dataType: "", status: "" });
+              setPage(1);
+            }}
+            extraFilterCount={extraCount}
+            cols={3}
+          >
+            <Select label="Nhóm trường" value={filters.category} onChange={e => setFilters({...filters, category: e.target.value})}>
+              <option value="">Tất cả nhóm</option>
+              <option value="COMMON">COMMON</option>
+              <option value="HEADER">HEADER</option>
+              <option value="FOOTER">FOOTER</option>
+            </Select>
+            <Select label="Kiểu dữ liệu" value={filters.dataType} onChange={e => setFilters({...filters, dataType: e.target.value})}>
+              <option value="">Tất cả kiểu</option>
+              <option value="STRING">STRING</option>
+              <option value="NUMBER">NUMBER</option>
+              <option value="DATE">DATE</option>
+              <option value="BOOLEAN">BOOLEAN</option>
+              <option value="FILE">FILE</option>
+              <option value="SIGNATURE">SIGNATURE</option>
+            </Select>
+            <Select label="Trạng thái hiệu lực" value={filters.status} onChange={e => setFilters({...filters, status: e.target.value})}>
+              <option value="">Tất cả trạng thái</option>
+              <option value="ACTIVE">Đang hiệu lực</option>
+              <option value="INACTIVE">Vô hiệu hóa</option>
+            </Select>
+          </FilterBar>
+        );
+      })()}
       <div className="mt-4">
         <Table
           rows={filteredData}
@@ -252,28 +254,15 @@ export default function FieldCodeListPage() {
           loading={loading}
         />
         
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-line px-4 py-3 bg-white mt-4 rounded-lg border shadow-sm">
-            <span className="text-sm text-muted">Tổng số {filteredData.length} trường dữ liệu</span>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                disabled={page === 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                <ChevronLeft className="size-4" />
-              </Button>
-              <span className="text-sm font-medium px-2">Trang {page} / {totalPages}</span>
-              <Button
-                variant="ghost"
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              >
-                <ChevronRight className="size-4" />
-              </Button>
-            </div>
-          </div>
-        )}
+        {/* Phân trang chuẩn hệ thống */}
+        <Pagination
+          currentPage={page}
+          pageSize={pageSize}
+          totalItems={totalElements || filteredData.length}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+          className="mt-4 rounded-xl border border-line"
+        />
       </div>
       <Modal open={colConfig} title="Cấu hình cột hiển thị" onClose={() => setColConfig(false)} footer={<Button variant="primary" onClick={() => setColConfig(false)}>Xong</Button>}>
         <div className="space-y-3">

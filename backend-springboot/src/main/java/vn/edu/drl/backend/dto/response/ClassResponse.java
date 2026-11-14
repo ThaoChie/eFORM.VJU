@@ -9,6 +9,9 @@ public class ClassResponse {
     private String className;
     private String academicCohort;
     private Integer status;
+    private Long majorId;
+    private String majorCode;
+    private String majorName;
     private Long deptId;
     private String deptCode;
     private String deptName;

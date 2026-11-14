@@ -3,6 +3,9 @@ package vn.edu.drl.backend.controller;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -11,13 +14,15 @@ import vn.edu.drl.backend.dto.request.SaveDraftRequest;
 import vn.edu.drl.backend.dto.request.SubmitFormRequest;
 import vn.edu.drl.backend.dto.response.EditorFormResponse;
 import vn.edu.drl.backend.security.SecurityUtils;
-import vn.edu.drl.backend.service.EditorService;
+import vn.edu.drl.backend.service.interfaces.EditorService;
+import vn.edu.drl.backend.service.interfaces.StorageService;
 
 @RestController
 @RequestMapping("/api/v1/editor")
 @RequiredArgsConstructor
 public class EditorController {
     private final EditorService editorService;
+    private final StorageService storageService;
 
     @GetMapping("/my-form")
     @PreAuthorize("hasAnyRole('STUDENT', 'CLASS_LEADER', 'CLASS_DEPUTY')")
@@ -53,7 +58,29 @@ public class EditorController {
     public ApiResponse<String> uploadProof(@RequestParam Long semesterId, @RequestParam("file") MultipartFile file) throws Exception {
         Long userId = SecurityUtils.getCurrentUserId();
         String objectKey = editorService.uploadProof(userId, semesterId, file);
-        return ApiResponse.success(objectKey);
+        return ApiResponse.success("/api/v1/editor/proofs/" + objectKey);
+    }
+
+    @GetMapping("/proofs/{filename}")
+    public ResponseEntity<byte[]> getProofFile(@PathVariable String filename) {
+        try {
+            byte[] bytes = storageService.getFileBytes("proofs", filename);
+            String contentType = "application/octet-stream";
+            String lower = filename.toLowerCase();
+            if (lower.endsWith(".pdf") || (bytes != null && bytes.length > 4 && bytes[0] == 0x25 && bytes[1] == 0x50 && bytes[2] == 0x44 && bytes[3] == 0x46)) {
+                contentType = "application/pdf";
+            } else if (lower.endsWith(".png") || (bytes != null && bytes.length > 4 && (bytes[0] & 0xFF) == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47)) {
+                contentType = "image/png";
+            } else if (lower.endsWith(".jpg") || lower.endsWith(".jpeg") || (bytes != null && bytes.length > 3 && (bytes[0] & 0xFF) == 0xFF && (bytes[1] & 0xFF) == 0xD8)) {
+                contentType = "image/jpeg";
+            }
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+                    .contentType(MediaType.parseMediaType(contentType))
+                    .body(bytes);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @PostMapping("/submit-and-sign")

@@ -1,6 +1,6 @@
 package vn.edu.drl.backend.service.impl;
 
-import vn.edu.drl.backend.service.OfficeService;
+import vn.edu.drl.backend.service.interfaces.OfficeService;
 import org.springframework.stereotype.Service;
 import vn.edu.drl.backend.dao.OfficeRepository;
 import vn.edu.drl.backend.dao.UserRepository;

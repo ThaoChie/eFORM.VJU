@@ -10,7 +10,9 @@ public class WorkflowDetailResponse {
     private Long scoreFormId;
     private String studentName;
     private String studentCode;
+    private java.time.LocalDate dob;
     private String className;
+    private String majorName;
     private String departmentName;
     private String academicCohort;
     private String semesterName;

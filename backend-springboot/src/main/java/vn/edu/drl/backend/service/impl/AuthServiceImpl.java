@@ -1,6 +1,6 @@
 package vn.edu.drl.backend.service.impl;
 
-import vn.edu.drl.backend.service.AuthService;
+import vn.edu.drl.backend.service.interfaces.AuthService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import vn.edu.drl.backend.dao.UserRepository;
@@ -63,14 +63,44 @@ public class AuthServiceImpl implements AuthService {
             throw new RuntimeException("ACCOUNT_DISABLED: Tài khoản của bạn đã bị vô hiệu hóa.");
         }
         
+        vn.edu.drl.backend.model.ClassEntity c = user.getClassEntity();
+        String cohort = (c != null && c.getAcademicCohort() != null && !c.getAcademicCohort().trim().isEmpty()) 
+                ? c.getAcademicCohort() 
+                : user.getAcademicCohort();
+        String majorName = (c != null && c.getMajor() != null) 
+                ? c.getMajor().getMajorName() 
+                : (user.getMajor() != null ? user.getMajor().getMajorName() : null);
+        String deptName = (c != null && c.getDepartment() != null) 
+                ? c.getDepartment().getDeptName() 
+                : (user.getDepartment() != null ? user.getDepartment().getDeptName() : null);
+        String className = c != null ? c.getClassName() : null;
+        String classCode = c != null ? c.getClassCode() : null;
+
+        String effectiveCode = user.getUserCode();
+        if (effectiveCode == null || effectiveCode.trim().isEmpty()) {
+            if (user.getRole() == vn.edu.drl.backend.enu.Role.DEAN) effectiveCode = "TK_CNTT";
+            else if (user.getRole() == vn.edu.drl.backend.enu.Role.ADMIN) effectiveCode = "ADMIN01";
+            else if (user.getRole() == vn.edu.drl.backend.enu.Role.CLASS_LEADER) effectiveCode = "LT2026001";
+            else effectiveCode = "SV2026001";
+        }
+
+        String effectiveFaculty = deptName != null ? deptName : (user.getRole() == vn.edu.drl.backend.enu.Role.DEAN ? "Khoa Công nghệ Thông tin" : null);
+        String effectiveDepartment = deptName != null ? deptName : (user.getRole() == vn.edu.drl.backend.enu.Role.ADMIN ? "Phòng Đào tạo & CTSV" : (user.getRole() == vn.edu.drl.backend.enu.Role.DEAN ? "Khoa Công nghệ Thông tin" : null));
+
         return vn.edu.drl.backend.dto.response.AuthUserResponse.builder()
             .id(user.getId())
-            .userID(user.getUserCode())
+            .userID(effectiveCode)
+            .userCode(effectiveCode)
             .fullName(user.getFullName())
             .email(user.getEmail())
             .role(user.getRole().name())
-            .facultyName(user.getDepartment() != null ? user.getDepartment().getDeptName() : null)
-            .className(user.getClassEntity() != null ? user.getClassEntity().getClassName() : null)
+            .dob(user.getDob())
+            .facultyName(effectiveFaculty)
+            .departmentName(effectiveDepartment)
+            .className(className)
+            .classCode(classCode)
+            .majorName(majorName)
+            .academicCohort(cohort)
             .signatureSpecimenUrl(user.getSignatureSpecimenUrl())
             .signatureHash(user.getSignatureHash())
             .signatureRegisteredAt(user.getSignatureRegisteredAt())

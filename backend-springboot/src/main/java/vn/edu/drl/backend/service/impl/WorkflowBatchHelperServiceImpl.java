@@ -1,8 +1,8 @@
 package vn.edu.drl.backend.service.impl;
 
-import vn.edu.drl.backend.service.*;
+import vn.edu.drl.backend.service.interfaces.*;
 
-import vn.edu.drl.backend.service.WorkflowBatchHelperService;
+import vn.edu.drl.backend.service.interfaces.WorkflowBatchHelperService;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -34,6 +34,7 @@ public class WorkflowBatchHelperServiceImpl implements WorkflowBatchHelperServic
     private final PdfLockEngine lockEngine;
     private final PdfHashEngine hashEngine;
     private final StorageService storageService;
+    private final PadesSignatureEngine padesSignatureEngine;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void processSingleForm(Long userId, Long formId, String signatureBase64, String ipAddress) {
@@ -118,10 +119,19 @@ public class WorkflowBatchHelperServiceImpl implements WorkflowBatchHelperServic
             // Ignore signature decode error for robustness or log it
         }
 
-        // 3. Lock PDF
-        pdfBytes = lockEngine.lockPdf(pdfBytes);
+        // 3. Đóng dấu số PAdES chuẩn quốc tế (Lớp 2: Mật mã PKCS#7 / Adobe Acrobat Mộc Xanh)
+        try {
+            pdfBytes = padesSignatureEngine.signPdf(
+                pdfBytes,
+                "Chứng nhận kết quả Điểm Rèn Luyện: " + form.getStudent().getFullName() + " (" + finalTotal + " điểm)",
+                "Trường Đại học Việt Nhật (VJU) - ĐHQGHN",
+                "Trường Đại học Việt Nhật - " + (deanUser != null ? deanUser.getFullName() : "Trưởng Khoa")
+            );
+        } catch (Exception e) {
+            System.err.println("PAdES signing notice: " + e.getMessage());
+        }
 
-        // 4. Hash PDF
+        // 4. Hash PDF toàn vẹn (Lớp tra cứu Portal & Quét mã QR)
         String hash = hashEngine.hashPdf(pdfBytes);
 
         // 5. Upload to MinIO

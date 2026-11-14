@@ -1,9 +1,13 @@
+import React, { useState } from "react"
 import {
   ArrowLeft,
   Check,
   CheckCircle,
+  ChevronDown,
+  ChevronUp,
   CircleOff,
   Eye,
+  Filter,
   LoaderCircle,
   Pencil,
   Plus,
@@ -50,18 +54,31 @@ export function IconButton({
   ...props
 }) {
   const tooltipText = label || title
-  const isBottom = tooltipPlacement === "bottom"
 
   const alignStyles = {
-    center: "left-1/2 -translate-x-1/2",
+    center: "left-1/2 -translate-x-1/2 tooltip-auto-align",
     right: "right-0 translate-x-0",
     left: "left-0 translate-x-0",
   }
 
   const arrowAlignStyles = {
-    center: "left-1/2 -translate-x-1/2",
+    center: "left-1/2 -translate-x-1/2 tooltip-arrow-auto-align",
     right: "right-3 translate-x-0",
     left: "left-3 translate-x-0",
+  }
+
+  let positionClass = `bottom-full mb-1.5 ${alignStyles[tooltipAlign] || alignStyles.center}`
+  let arrowClass = `top-full -mt-0.5 border-t-slate-300 border-b-transparent border-l-transparent border-r-transparent ${arrowAlignStyles[tooltipAlign] || arrowAlignStyles.center}`
+
+  if (tooltipPlacement === "bottom") {
+    positionClass = `top-full mt-1.5 ${alignStyles[tooltipAlign] || alignStyles.center}`
+    arrowClass = `bottom-full -mb-0.5 border-b-slate-300 border-t-transparent border-l-transparent border-r-transparent ${arrowAlignStyles[tooltipAlign] || arrowAlignStyles.center}`
+  } else if (tooltipPlacement === "right") {
+    positionClass = "left-full ml-2 top-1/2 -translate-y-1/2"
+    arrowClass = "right-full top-1/2 -translate-y-1/2 border-r-slate-300 border-l-transparent border-t-transparent border-b-transparent"
+  } else if (tooltipPlacement === "left") {
+    positionClass = "right-full mr-2 top-1/2 -translate-y-1/2"
+    arrowClass = "left-full top-1/2 -translate-y-1/2 border-l-slate-300 border-r-transparent border-t-transparent border-b-transparent"
   }
 
   const isMlAuto = className.includes("ml-auto")
@@ -74,7 +91,6 @@ export function IconButton({
       <button
         type="button"
         aria-label={tooltipText}
-        title={tooltipText}
         disabled={disabled}
         className={`inline-flex size-9 items-center justify-center rounded-lg text-muted hover:bg-canvas hover:text-ink transition disabled:opacity-45 ${className}`}
         {...props}
@@ -84,21 +100,11 @@ export function IconButton({
       {tooltipText && (
         <span
           role="tooltip"
-          className={`pointer-events-none absolute ${
-            isBottom ? "top-full mt-1.5" : "bottom-full mb-1.5"
-          } ${
-            alignStyles[tooltipAlign] || alignStyles.center
-          } hidden group-hover/btn:inline-flex items-center justify-center whitespace-nowrap rounded-md bg-slate-900 px-2.5 py-1 text-[11px] font-medium text-white shadow-xl ring-1 ring-white/10 z-[100]`}
+          className={`pointer-events-none absolute ${positionClass} hidden group-hover/btn:inline-flex items-center justify-center whitespace-nowrap rounded-md bg-slate-100 border border-slate-300/90 px-2.5 py-1 text-[11px] font-medium text-slate-700 shadow-md z-[100]`}
         >
           {tooltipText}
           <span
-            className={`absolute ${
-              isBottom
-                ? "bottom-full -mb-0.5 border-b-slate-900 border-t-transparent"
-                : "top-full -mt-0.5 border-t-slate-900 border-b-transparent"
-            } ${
-              arrowAlignStyles[tooltipAlign] || arrowAlignStyles.center
-            } border-4 border-l-transparent border-r-transparent`}
+            className={`absolute border-4 ${arrowClass}`}
           />
         </span>
       )}
@@ -137,10 +143,11 @@ export function ActionEditButton({ label = "Chỉnh sửa", onClick, className =
   )
 }
 
-export function ActionDeactivateButton({ label = "Vô hiệu hóa", onClick, className = "", ...props }) {
+export function ActionDeactivateButton({ label = "Vô hiệu hóa", onClick, className = "", tooltipAlign = "right", ...props }) {
   return (
     <IconButton
       label={label}
+      tooltipAlign={tooltipAlign}
       onClick={onClick}
       className={`hover:text-rose-600 hover:bg-rose-50 ${className}`}
       {...props}
@@ -150,10 +157,11 @@ export function ActionDeactivateButton({ label = "Vô hiệu hóa", onClick, cla
   )
 }
 
-export function ActionActivateButton({ label = "Kích hoạt", onClick, className = "", ...props }) {
+export function ActionActivateButton({ label = "Kích hoạt", onClick, className = "", tooltipAlign = "right", ...props }) {
   return (
     <IconButton
       label={label}
+      tooltipAlign={tooltipAlign}
       onClick={onClick}
       className={`hover:text-emerald-600 hover:bg-emerald-50 ${className}`}
       {...props}
@@ -163,10 +171,11 @@ export function ActionActivateButton({ label = "Kích hoạt", onClick, classNam
   )
 }
 
-export function ActionDeleteButton({ label = "Xóa", onClick, className = "", ...props }) {
+export function ActionDeleteButton({ label = "Xóa", onClick, className = "", tooltipAlign = "right", ...props }) {
   return (
     <IconButton
       label={label}
+      tooltipAlign={tooltipAlign}
       onClick={onClick}
       className={`hover:text-rose-600 hover:bg-rose-50 ${className}`}
       {...props}
@@ -249,7 +258,7 @@ export function Input({ label, required, error, className = "", ...props }) {
         </span>
       )}
       <input
-        className={`h-10 w-full rounded-lg border bg-white px-3 outline-none transition focus:border-brand focus:ring-2 focus:ring-brand-soft ${
+        className={`h-10 w-full rounded-lg border bg-white px-3 outline-none transition focus:border-brand focus:ring-2 focus:ring-brand-soft disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed ${
           error ? "border-brand" : "border-line"
         }`}
         {...props}
@@ -328,40 +337,125 @@ export function PageTitle({ title, description, action }) {
 }
 
 export function FilterBar({
-  children,
+  searchQuery,
+  onSearchChange,
+  searchPlaceholder = "Tìm kiếm theo tên hoặc mã...",
   onSearch,
-  cols = 4,
-  buttonVariant = "primary",
+  onReset,
+  children,
+  extraFilterCount = 0,
+  isOpen,
+  onToggle,
+  defaultOpen = false,
   showSearchButton = true,
+  showResetButton = true,
+  showFilterButton = true,
   searchButtonText = "Tìm kiếm",
+  resetButtonText = "Xóa bộ lọc",
+  filterButtonText = "Bộ lọc",
+  cols = 4,
+  className = "",
 }) {
+  const [localOpen, setLocalOpen] = useState(defaultOpen);
+  const showFilters = isOpen !== undefined ? isOpen : localOpen;
+  const toggleFilters = onToggle || (() => setLocalOpen((prev) => !prev));
+
+  const hasChildren = Boolean(children);
+
   const gridClass = {
-    1: "md:grid-cols-1",
-    2: "md:grid-cols-2",
-    3: "md:grid-cols-3",
-    4: "md:grid-cols-4",
-    5: "md:grid-cols-5",
-  }[cols] || "md:grid-cols-4";
+    1: "grid-cols-1",
+    2: "grid-cols-1 sm:grid-cols-2",
+    3: "grid-cols-1 sm:grid-cols-2 md:grid-cols-3",
+    4: "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4",
+    5: "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5",
+  }[cols] || "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4";
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      onSearch?.();
+    }
+  };
 
   return (
-    <Card className="mb-4">
-      <div className={`grid items-end gap-3 ${gridClass}`}>
-        {children}
-        {showSearchButton && (
-          <div className="flex flex-col justify-end">
+    <Card className={`mb-4 ${className}`}>
+      {/* Hàng tìm kiếm chính */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        <div className="relative flex-1">
+          <Input
+            placeholder={searchPlaceholder}
+            value={searchQuery ?? ""}
+            onChange={(e) => onSearchChange?.(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className="w-full"
+          />
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
+          {showSearchButton && (
             <Button
-              variant={buttonVariant}
+              variant="primary"
+              type="button"
               onClick={onSearch}
-              className="w-full h-10"
+              className="gap-1.5"
             >
-              <Search className="size-4 mr-1.5" />
+              <Search className="size-4" />
               {searchButtonText}
             </Button>
-          </div>
-        )}
+          )}
+
+          {showResetButton && onReset && (
+            <Button
+              variant="secondary"
+              type="button"
+              onClick={onReset}
+              className="gap-1.5"
+            >
+              <RotateCcw className="size-4" />
+              {resetButtonText}
+            </Button>
+          )}
+
+          {hasChildren && showFilterButton && (
+            <Button
+              variant={showFilters ? "primary" : "secondary"}
+              type="button"
+              onClick={toggleFilters}
+              className="gap-1.5"
+            >
+              <Filter className="size-4" />
+              {filterButtonText}
+              {extraFilterCount > 0 && (
+                <span
+                  className={`inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-xs font-semibold ${
+                    showFilters
+                      ? "bg-white text-brand"
+                      : "bg-brand/10 text-brand"
+                  }`}
+                >
+                  {extraFilterCount}
+                </span>
+              )}
+              {showFilters ? (
+                <ChevronUp className="size-4" />
+              ) : (
+                <ChevronDown className="size-4" />
+              )}
+            </Button>
+          )}
+        </div>
       </div>
+
+      {/* Khối bộ lọc mở rộng xổ ra khi ấn nút Bộ lọc */}
+      {hasChildren && showFilters && (
+        <div className="mt-4 pt-4 border-t border-line animate-in fade-in slide-in-from-top-1 duration-200">
+          <div className={`grid gap-3 ${gridClass}`}>
+            {children}
+          </div>
+        </div>
+      )}
     </Card>
-  )
+  );
 }
 
 export function Modal({
@@ -375,7 +469,7 @@ export function Modal({
   if (!open) return null
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-night/45 p-4"
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-night/45 p-4"
       onMouseDown={onClose}
     >
       <div
@@ -401,20 +495,139 @@ export function Modal({
   )
 }
 
-export function Table({ columns, rows = [], onRow, loading = false }) {
+export function Table({
+  columns = [],
+  rows = [],
+  onRow,
+  loading = false,
+  emptyMessage = "Không có dữ liệu",
+  stickyFirstColumns = true,
+}) {
+  const isSttFirst =
+    columns[0]?.key?.toLowerCase() === "stt" ||
+    columns[0]?.title?.trim()?.toUpperCase() === "STT";
+
+  // Calculate sticky and width for each column
+  const STT_WIDTH = 64;
+  const CODE_WIDTH = 150;
+  const NAME_WIDTH = 220;
+
+  const colConfigs = columns.map((col, idx) => {
+    let isStickyLeft = false;
+    let stickyLeft = 0;
+    let isLastStickyLeft = false;
+
+    let isStickyRight = false;
+    let stickyRight = 0;
+
+    const key = (col.key || "").toLowerCase();
+    const title = (col.title || "").toLowerCase();
+
+    // Check sticky right for Action / Thao tác
+    const isAction = key === "action" || key === "actions" || title.includes("thao tác") || col.sticky === "right";
+    if (isAction && columns.length > 3) {
+      isStickyRight = true;
+      stickyRight = 0;
+    }
+
+    if (col.sticky === "left" || col.sticky === true) {
+      isStickyLeft = true;
+    } else if (stickyFirstColumns && isSttFirst && idx < 3 && columns.length > 3 && !isAction) {
+      isStickyLeft = true;
+    }
+
+    if (isStickyLeft) {
+      if (idx === 0) {
+        stickyLeft = 0;
+      } else if (idx === 1) {
+        stickyLeft = STT_WIDTH;
+      } else if (idx === 2) {
+        stickyLeft = STT_WIDTH + CODE_WIDTH;
+        isLastStickyLeft = true;
+      }
+    }
+
+    // Determine generous width
+    let widthClass = "min-w-[170px]";
+
+    if (col.width) {
+      widthClass = col.width;
+    } else if (idx === 0 && (isSttFirst || key === "stt")) {
+      widthClass = "w-16 min-w-[64px] max-w-[64px] text-center";
+    } else if (idx === 1 && isStickyLeft) {
+      widthClass = "w-40 min-w-[150px]";
+    } else if (idx === 2 && isStickyLeft) {
+      widthClass = "w-56 min-w-[220px]";
+    } else if (isAction) {
+      widthClass = "w-36 min-w-[130px] text-center";
+    } else if (title.includes("ngày sinh") || key.includes("dob") || key.includes("date")) {
+      widthClass = "min-w-[130px]";
+    } else if (title.includes("email") || key.includes("email")) {
+      widthClass = "min-w-[220px]";
+    } else if (title.includes("ngành") || key.includes("major")) {
+      widthClass = "min-w-[220px]";
+    } else if (
+      title.includes("khoa") ||
+      title.includes("phòng") ||
+      key.includes("dept") ||
+      key.includes("department") ||
+      key.includes("office")
+    ) {
+      widthClass = "min-w-[220px]";
+    } else if (title.includes("niên khóa") || key.includes("cohort")) {
+      widthClass = "min-w-[150px]";
+    } else if (title.includes("vai trò") || key.includes("role")) {
+      widthClass = "min-w-[140px]";
+    } else if (title.includes("trạng thái") || key.includes("status")) {
+      widthClass = "min-w-[160px]";
+    } else if (title.includes("sĩ số") || title.includes("số lớp") || key.includes("count")) {
+      widthClass = "min-w-[100px] text-center";
+    } else if (title.includes("trưởng") || title.includes("phó") || key.includes("leader") || key.includes("deputy")) {
+      widthClass = "min-w-[200px]";
+    }
+
+    return {
+      isStickyLeft,
+      stickyLeft,
+      isLastStickyLeft,
+      isStickyRight,
+      stickyRight,
+      widthClass,
+    };
+  });
+
   return (
-    <div className="overflow-x-auto rounded-lg border border-line bg-white">
-      <table className="w-full min-w-[760px] border-collapse text-left">
-        <thead className="bg-canvas text-[13px] font-semibold">
+    <div className="overflow-x-auto rounded-lg border border-line bg-white custom-scrollbar">
+      <table className="w-max min-w-full border-separate border-spacing-0 text-left">
+        <thead className="bg-canvas text-xs font-semibold uppercase tracking-wider text-muted">
           <tr>
-            {columns.map((column) => (
-              <th
-                key={column.key}
-                className="h-12 whitespace-nowrap border-b border-line px-4"
-              >
-                {column.title}
-              </th>
-            ))}
+            {columns.map((column, idx) => {
+              const cfg = colConfigs[idx] || {};
+              const style = cfg.isStickyLeft
+                ? { left: `${cfg.stickyLeft}px` }
+                : cfg.isStickyRight
+                ? { right: `${cfg.stickyRight}px` }
+                : undefined;
+              return (
+                <th
+                  key={column.key ?? idx}
+                  style={style}
+                  className={`h-12 whitespace-nowrap border-b border-line px-4 select-none ${cfg.widthClass} ${
+                    cfg.isStickyLeft
+                      ? `sticky z-20 bg-canvas ${
+                          cfg.isLastStickyLeft
+                            ? "border-r border-line shadow-[4px_0_8px_-2px_rgba(0,0,0,0.07)]"
+                            : ""
+                        }`
+                      : cfg.isStickyRight
+                      ? "sticky right-0 z-20 bg-canvas border-l border-line shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.07)]"
+                      : "bg-canvas"
+                  }`}
+                >
+                  {column.title}
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody>
@@ -422,7 +635,7 @@ export function Table({ columns, rows = [], onRow, loading = false }) {
             <tr>
               <td
                 colSpan={columns.length}
-                className="h-32 text-center text-sm text-muted py-8"
+                className="h-32 text-center text-sm text-muted py-8 bg-white"
               >
                 <div className="inline-flex items-center gap-2">
                   <LoaderCircle className="size-5 animate-spin text-brand" />
@@ -434,9 +647,9 @@ export function Table({ columns, rows = [], onRow, loading = false }) {
             <tr>
               <td
                 colSpan={columns.length}
-                className="h-32 text-center text-sm text-slate-500 py-8"
+                className="h-32 text-center text-sm text-slate-500 py-8 bg-white"
               >
-                Không có dữ liệu
+                {emptyMessage}
               </td>
             </tr>
           ) : (
@@ -444,20 +657,47 @@ export function Table({ columns, rows = [], onRow, loading = false }) {
               <tr
                 key={row.id ?? index}
                 onClick={() => onRow?.(row)}
-                className={`${
+                className={`group group/row ${
                   onRow ? "cursor-pointer" : ""
-                } h-12 border-b border-line last:border-0 hover:bg-canvas`}
+                } h-12 transition-colors hover:bg-canvas relative hover:z-50`}
               >
-                {columns.map((column) => (
-                  <td key={column.key} className="px-4 py-3">
-                    {column.render ? column.render(row, index) : row[column.key]}
-                  </td>
-                ))}
+                {columns.map((column, idx) => {
+                  const cfg = colConfigs[idx] || {};
+                  const style = cfg.isStickyLeft
+                    ? { left: `${cfg.stickyLeft}px` }
+                    : cfg.isStickyRight
+                    ? { right: `${cfg.stickyRight}px` }
+                    : undefined;
+                  return (
+                    <td
+                      key={column.key ?? idx}
+                      style={style}
+                      className={`px-4 py-3.5 border-b border-line text-sm ${cfg.widthClass} ${
+                        cfg.isStickyLeft
+                          ? `sticky z-10 bg-white group-hover:bg-canvas transition-colors ${
+                              cfg.isLastStickyLeft
+                                ? "border-r border-line shadow-[4px_0_8px_-2px_rgba(0,0,0,0.07)]"
+                                : ""
+                            }`
+                          : cfg.isStickyRight
+                          ? "sticky right-0 z-10 bg-white group-hover:bg-canvas group-hover/row:z-50 hover:z-50 transition-colors border-l border-line shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.07)]"
+                          : "bg-white group-hover:bg-canvas group-hover/row:z-40 hover:z-50 transition-colors"
+                      }`}
+                    >
+                      {column.render
+                        ? column.render(row, index)
+                        : (row[column.key] ?? "—")}
+                    </td>
+                  );
+                })}
               </tr>
             ))
           )}
         </tbody>
       </table>
     </div>
-  )
+  );
 }
+
+
+export { default as Pagination } from "./Pagination"

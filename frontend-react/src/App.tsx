@@ -31,6 +31,7 @@ import EvaluationPeriodListPage from "./pages/admin/evaluation-periods/Evaluatio
 import FormVersionListPage from "./pages/admin/form-versions/FormVersionListPage"
 import FieldCodeListPage from "./pages/admin/field-codes/FieldCodeListPage"
 import FormVersionCreatePage from "./pages/admin/form-versions/FormVersionCreatePage"
+import FormVersionDetailPage from "./pages/admin/form-versions/FormVersionDetailPage"
 import FormVersionEditPage from "./pages/admin/form-versions/FormVersionEditPage"
 import FormDesignerPage from "./pages/admin/form-versions/FormDesignerPage"
 import FieldCodeCreatePage from "./pages/admin/field-codes/FieldCodeCreatePage"
@@ -155,7 +156,7 @@ export default function App() {
           />
           <Route
             path="/admin/form-versions/:id"
-            element={<FormVersionCreatePage />}
+            element={<FormVersionDetailPage />}
           />
           <Route
             path="/admin/form-versions/:id/edit"

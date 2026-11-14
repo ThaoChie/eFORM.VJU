@@ -1,8 +1,8 @@
 package vn.edu.drl.backend.service.impl;
 
-import vn.edu.drl.backend.service.*;
+import vn.edu.drl.backend.service.interfaces.*;
 
-import vn.edu.drl.backend.service.WorkflowService;
+import vn.edu.drl.backend.service.interfaces.WorkflowService;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -42,6 +42,7 @@ public class WorkflowServiceImpl implements WorkflowService {
     private final PdfHashEngine hashEngine;
     private final StorageService storageService;
     private final WorkflowBatchHelperService batchHelperService;
+    private final ClassRepository classRepository;
 
     @Transactional(readOnly = true)
     public Page<WorkflowQueueItemResponse> getPendingQueue(Long userId, Pageable pageable) {
@@ -110,13 +111,27 @@ public class WorkflowServiceImpl implements WorkflowService {
             }
         }
 
+        User st = form.getStudent();
+        vn.edu.drl.backend.model.ClassEntity c = (st != null) ? st.getClassEntity() : null;
+        String cohort = (c != null && c.getAcademicCohort() != null && !c.getAcademicCohort().trim().isEmpty())
+                ? c.getAcademicCohort()
+                : (st != null && st.getAcademicCohort() != null ? st.getAcademicCohort() : "2023 - 2027");
+        String majorName = (c != null && c.getMajor() != null)
+                ? c.getMajor().getMajorName()
+                : (st != null && st.getMajor() != null ? st.getMajor().getMajorName() : "Công nghệ Thông tin");
+        String deptName = (c != null && c.getDepartment() != null)
+                ? c.getDepartment().getDeptName()
+                : (st != null && st.getDepartment() != null ? st.getDepartment().getDeptName() : "Khoa Công nghệ Thông tin");
+
         WorkflowDetailResponse res = new WorkflowDetailResponse();
         res.setScoreFormId(form.getId());
-        res.setStudentName(form.getStudent() != null ? form.getStudent().getFullName() : "Sinh viên");
-        res.setStudentCode(form.getStudent() != null ? form.getStudent().getUserCode() : "");
-        res.setClassName(form.getStudent() != null && form.getStudent().getClassEntity() != null ? form.getStudent().getClassEntity().getClassName() : "");
-        res.setDepartmentName(form.getStudent() != null && form.getStudent().getDepartment() != null ? form.getStudent().getDepartment().getDeptName() : "Khoa Công nghệ Thông tin");
-        res.setAcademicCohort(form.getStudent() != null && form.getStudent().getAcademicCohort() != null ? form.getStudent().getAcademicCohort() : "2023 - 2027");
+        res.setStudentName(st != null ? st.getFullName() : "Sinh viên");
+        res.setStudentCode(st != null ? st.getUserCode() : "");
+        res.setDob(st != null ? st.getDob() : null);
+        res.setClassName(c != null ? c.getClassName() : "");
+        res.setMajorName(majorName);
+        res.setDepartmentName(deptName);
+        res.setAcademicCohort(cohort);
         res.setSemesterName(form.getSemester() != null ? form.getSemester().getSemesterName() : "Học kỳ 1, năm học 2026-2027");
         res.setRanking(form.getRanking());
         res.setStatus(form.getStatus());
@@ -235,7 +250,7 @@ public class WorkflowServiceImpl implements WorkflowService {
     @Transactional
     public void classApprove(Long userId, Long formId, ClassApproveRequest request, String ipAddress) {
         User user = userRepository.findById(userId).orElseThrow();
-        if (user.getRole() != Role.CLASS_LEADER && user.getRole() != Role.CLASS_DEPUTY) {
+        if (user.getRole() != Role.CLASS_LEADER && user.getRole() != Role.CLASS_DEPUTY && user.getRole() != Role.ADMIN) {
             throw new RuntimeException("403 Forbidden");
         }
         ScoreForm form = scoreFormRepository.findById(formId).orElseThrow();
@@ -394,5 +409,81 @@ public class WorkflowServiceImpl implements WorkflowService {
         response.setFailed(failed);
         response.setResults(results);
         return response;
+    }
+
+    @Transactional(readOnly = true)
+    public List<vn.edu.drl.backend.dto.response.DeanBatchResponse> getDeanBatches(Long userId) {
+        User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
+        Long deptId = user.getDepartment() != null ? user.getDepartment().getId() : null;
+
+        List<ClassEntity> classes;
+        if (user.getRole() == Role.ADMIN || deptId == null) {
+            classes = classRepository.findAll();
+        } else {
+            classes = classRepository.findByDepartmentId(deptId);
+            if (classes.isEmpty()) {
+                classes = classRepository.findAll();
+            }
+        }
+
+        List<vn.edu.drl.backend.dto.response.DeanBatchResponse> batches = new ArrayList<>();
+        List<Role> studentRoles = List.of(Role.STUDENT, Role.CLASS_LEADER, Role.CLASS_DEPUTY);
+
+        // Tối ưu hoá truy vấn GROUP BY trước vòng lặp (giảm từ 5*N queries xuống còn 3 queries tổng hợp)
+        Map<Long, Long> classSizeMap = new HashMap<>();
+        for (Object[] r : userRepository.countStudentsByClassGrouped(studentRoles)) {
+            Long cId = ((Number) r[0]).longValue();
+            Long count = ((Number) r[1]).longValue();
+            classSizeMap.put(cId, count);
+        }
+
+        Map<Long, Map<ScoreFormStatus, Long>> classFormStatusMap = new HashMap<>();
+        for (Object[] r : scoreFormRepository.countFormsByClassAndStatusGrouped()) {
+            Long cId = ((Number) r[0]).longValue();
+            ScoreFormStatus status = (ScoreFormStatus) r[1];
+            Long count = ((Number) r[2]).longValue();
+            classFormStatusMap.computeIfAbsent(cId, k -> new HashMap<>()).put(status, count);
+        }
+
+        Map<Long, String> classLeaderMap = new HashMap<>();
+        for (User u : userRepository.findByRole(Role.CLASS_LEADER)) {
+            if (u.getClassEntity() != null) {
+                classLeaderMap.put(u.getClassEntity().getId(), u.getFullName());
+            }
+        }
+
+        for (ClassEntity c : classes) {
+            long size = classSizeMap.getOrDefault(c.getId(), 0L);
+            Map<ScoreFormStatus, Long> statusCounts = classFormStatusMap.getOrDefault(c.getId(), Collections.emptyMap());
+            long pending = statusCounts.getOrDefault(ScoreFormStatus.CLASS_APPROVED, 0L);
+            long done = statusCounts.getOrDefault(ScoreFormStatus.DEAN_APPROVED, 0L);
+            long submitted = statusCounts.getOrDefault(ScoreFormStatus.SUBMITTED, 0L);
+
+            String reviewer = classLeaderMap.getOrDefault(c.getId(), "Cán bộ lớp");
+
+            String status;
+            if (pending > 0) {
+                status = "Chờ khoa duyệt";
+            } else if (done > 0) {
+                status = "Hoàn tất";
+            } else if (submitted > 0) {
+                status = "Chờ lớp thẩm định";
+            } else {
+                status = "Chưa có phiếu";
+            }
+
+            batches.add(vn.edu.drl.backend.dto.response.DeanBatchResponse.builder()
+                    .id(c.getId())
+                    .classCode(c.getClassCode())
+                    .className(c.getClassName())
+                    .size(size)
+                    .pending(pending)
+                    .done(done)
+                    .submitted(submitted)
+                    .reviewer(reviewer)
+                    .status(status)
+                    .build());
+        }
+        return batches;
     }
 }

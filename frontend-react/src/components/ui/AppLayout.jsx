@@ -94,14 +94,14 @@ export default function AppLayout() {
       {isMobile && sidebarOpen && (
         <button
           aria-label="Đóng menu"
-          className="fixed inset-0 z-30 bg-night/30 backdrop-blur-xs transition-opacity"
+          className="fixed inset-0 z-40 bg-night/30 backdrop-blur-xs transition-opacity"
           onClick={closeSidebar}
         />
       )}
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex flex-col border-r border-line bg-white transition-[width,transform] duration-300 ease-in-out ${
+        className={`fixed inset-y-0 left-0 z-50 flex flex-col border-r border-line bg-white transition-[width,transform] duration-300 ease-in-out ${
           isMobile
             ? `w-[248px] ${sidebarOpen ? "translate-x-0 shadow-xl" : "-translate-x-full"}`
             : sidebarOpen
@@ -119,7 +119,7 @@ export default function AppLayout() {
             /* Mini-sidebar mode: chỉ 1 nút mở rộng duy nhất ở đỉnh cột icon */
             <IconButton
               label="Mở rộng thanh bên"
-              tooltipAlign="right"
+              tooltipPlacement="right"
               className="text-brand hover:bg-brand-soft rounded-xl p-2.5 transition"
               onClick={openSidebar}
             >
@@ -138,6 +138,7 @@ export default function AppLayout() {
               </div>
               <IconButton
                 label="Thu gọn thanh bên"
+                tooltipPlacement="bottom"
                 tooltipAlign="right"
                 className="text-muted hover:text-brand hover:bg-brand-soft rounded-lg transition"
                 onClick={closeSidebar}
@@ -149,7 +150,11 @@ export default function AppLayout() {
         </div>
 
         {/* Danh sách Menu Items */}
-        <nav className="flex-1 overflow-y-auto py-3">
+        <nav
+          className={`flex-1 py-3 ${
+            !isMobile && !sidebarOpen ? "overflow-visible" : "overflow-y-auto"
+          }`}
+        >
           {groups.map((group, groupIndex) => (
             <div key={group.title || groupIndex} className="mb-4">
               {group.title && (sidebarOpen || isMobile) && (
@@ -164,10 +169,10 @@ export default function AppLayout() {
                 // Khi sidebar đang thu gọn trên desktop: hiển thị cột icon mini có tooltip
                 if (!isMobile && !sidebarOpen) {
                   return (
-                    <div key={item.path} className="relative group flex justify-center my-1.5 px-2">
+                    <div key={item.path} className="flex justify-center my-1.5 px-2">
                       <NavLink
                         to={item.path}
-                        className={`flex size-11 items-center justify-center rounded-xl transition ${
+                        className={`relative group/navlink flex size-11 items-center justify-center rounded-xl transition ${
                           isItemActive
                             ? "bg-brand-soft text-brand font-medium shadow-xs"
                             : "text-muted hover:bg-canvas hover:text-ink"
@@ -177,21 +182,21 @@ export default function AppLayout() {
                         {item.badge && (
                           <span className="absolute top-1.5 right-2.5 size-2 rounded-full bg-brand ring-2 ring-white" />
                         )}
-                      </NavLink>
 
-                      {/* Tooltip hiển thị tên chức năng sang bên phải */}
-                      <span
-                        role="tooltip"
-                        className="pointer-events-none absolute left-full ml-2.5 top-1/2 -translate-y-1/2 hidden group-hover:inline-flex items-center whitespace-nowrap rounded-md bg-slate-900 px-2.5 py-1 text-[11px] font-medium text-white shadow-xl ring-1 ring-white/10 z-[100]"
-                      >
-                        {item.label}
-                        {item.badge && (
-                          <span className="ml-1.5 rounded-full bg-brand px-1.5 py-0.2 text-[10px] text-white">
-                            {item.badge}
-                          </span>
-                        )}
-                        <span className="absolute right-full top-1/2 -mt-1 border-4 border-slate-900 border-l-transparent border-t-transparent border-b-transparent" />
-                      </span>
+                        {/* Tooltip hiển thị tên chức năng sang bên phải */}
+                        <span
+                          role="tooltip"
+                          className="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 hidden group-hover/navlink:inline-flex items-center whitespace-nowrap rounded-md bg-slate-100 border border-slate-300/90 px-2.5 py-1 text-[11px] font-medium text-slate-700 shadow-md z-[100]"
+                        >
+                          {item.label}
+                          {item.badge && (
+                            <span className="ml-1.5 rounded-full bg-brand px-1.5 py-0.2 text-[10px] text-white">
+                              {item.badge}
+                            </span>
+                          )}
+                          <span className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-r-slate-300 border-l-transparent border-t-transparent border-b-transparent" />
+                        </span>
+                      </NavLink>
                     </div>
                   )
                 }
@@ -234,7 +239,7 @@ export default function AppLayout() {
             <div className="flex justify-center">
               <IconButton
                 label="Đăng xuất"
-                tooltipAlign="right"
+                tooltipPlacement="right"
                 className="text-muted hover:text-brand hover:bg-brand-soft rounded-xl size-11 transition"
                 onClick={signOut}
               >
@@ -263,7 +268,7 @@ export default function AppLayout() {
             : "md:pl-[68px]"
         }`}
       >
-        <header className="sticky top-0 z-20 flex h-14 items-center border-b border-line bg-white px-4 md:px-6">
+        <header className="sticky top-0 z-30 flex h-14 items-center border-b border-line bg-white px-4 md:px-6">
           {/* Nút Hamburger chỉ hiển thị trên Mobile */}
           <button
             type="button"

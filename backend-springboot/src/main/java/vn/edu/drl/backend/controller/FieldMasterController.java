@@ -11,8 +11,9 @@ import vn.edu.drl.backend.Wrapper.PageWrapper;
 import vn.edu.drl.backend.dto.request.FieldMasterRequest;
 import vn.edu.drl.backend.dto.response.FieldMasterHistoryResponse;
 import vn.edu.drl.backend.dto.response.FieldMasterResponse;
-import vn.edu.drl.backend.service.FieldMasterService;
+import vn.edu.drl.backend.service.interfaces.FieldMasterService;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -21,13 +22,10 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/fields")
+@RequiredArgsConstructor
 public class FieldMasterController {
 
     private final FieldMasterService fieldMasterService;
-
-    public FieldMasterController(FieldMasterService fieldMasterService) {
-        this.fieldMasterService = fieldMasterService;
-    }
 
     @GetMapping
     @PreAuthorize("hasAuthority('ADMIN')")

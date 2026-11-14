@@ -85,6 +85,17 @@ export const TEMPLATE_CONFIGS = {
       ["NN", "Khoa Ngôn ngữ & Văn hóa Nhật Bản", "1"]
     ]
   },
+  majors: {
+    fileName: "mau_nhap_nganh",
+    sheetName: "Nganh",
+    backendPath: "/majors/template-excel",
+    headers: ["Mã Ngành (*)", "Tên Ngành (*)", "Mã Khoa (*)", "Trạng thái (1=Hoạt động, 0=Vô hiệu hóa)"],
+    sampleRows: [
+      ["BCSE", "Khoa học và Kỹ thuật Máy tính", "CNTT", "1"],
+      ["BBA", "Quản trị Kinh doanh", "KT", "1"],
+      ["BJLS", "Nhật Bản học", "NN", "1"]
+    ]
+  },
   offices: {
     fileName: "mau_nhap_phong_ban",
     sheetName: "Phong_ban",
@@ -100,22 +111,22 @@ export const TEMPLATE_CONFIGS = {
     fileName: "mau_nhap_lop",
     sheetName: "Lop",
     backendPath: "/classes/template-excel",
-    headers: ["Mã lớp (*)", "Tên lớp (*)", "Mã Khoa (*)", "Niên khóa", "Mã Lớp trưởng (cách nhau dấu phẩy)", "Mã Lớp phó (cách nhau dấu phẩy)", "Trạng thái (1=Hoạt động, 0=Vô hiệu hóa)"],
+    headers: ["Mã lớp (*)", "Tên lớp (*)", "Mã Ngành (*)", "Niên khóa (ví dụ: 2023-2027)", "Mã Lớp trưởng (cách nhau dấu phẩy)", "Mã Lớp phó (cách nhau dấu phẩy)", "Trạng thái (1=Hoạt động, 0=Vô hiệu hóa)"],
     sampleRows: [
-      ["K21_CNTT01", "Lớp K21 Công nghệ thông tin 01", "CNTT", "K21", "SV21001, SV21002", "SV21003", "1"],
-      ["K22_KT01", "Lớp K22 Kinh tế 01", "KT", "K22", "SV22001", "", "1"]
+      ["IT01", "Lớp Công nghệ thông tin 01", "BCSE", "2023-2027", "SV2026001", "SV2026002", "1"],
+      ["KT01", "Lớp Kinh tế 01", "BBA", "2023-2027", "SV2026003", "", "1"]
     ]
   },
   users: {
     fileName: "mau_nhap_nguoi_dung",
     sheetName: "Nguoi_dung",
     backendPath: "/directory/users/template-excel",
-    headers: ["Mã người dùng (*)", "Họ và tên (*)", "Email (*)", "Vai trò (*)", "Mã khoa", "Mã phòng ban", "Mã lớp", "Niên khóa", "Trạng thái (1=Hoạt động, 0=Vô hiệu hóa)"],
+    headers: ["Mã người dùng (*)", "Họ và tên (*)", "Ngày sinh (YYYY-MM-DD)", "Email (*)", "Vai trò (*)", "Mã ngành", "Mã khoa", "Mã phòng ban", "Mã lớp", "Niên khóa (ví dụ: 2023-2027)", "Trạng thái (1=Hoạt động, 0=Vô hiệu hóa)"],
     sampleRows: [
-      ["SV2026001", "Nguyễn Văn A", "nguyenvana@vju.ac.vn", "STUDENT", "CNTT", "", "K21_CNTT01", "K21", "1"],
-      ["GV2026001", "Trần Thị B", "tranthib@vju.ac.vn", "DEAN", "CNTT", "", "", "", "1"],
-      ["CB2026001", "Lê Văn C", "levanc@vju.ac.vn", "ADMIN", "", "PDT", "", "", "1"],
-      ["SV2026002", "Hoàng Văn D", "hoangvand@vju.ac.vn", "CLASS_LEADER", "CNTT", "", "K21_CNTT01", "K21", "1"]
+      ["SV2026001", "Nguyễn Văn An", "2005-10-15", "nguyenvana@vju.ac.vn", "STUDENT", "BCSE", "CNTT", "", "IT01", "2023-2027", "1"],
+      ["GV2026001", "Trần Thị Bình", "", "tranthib@vju.ac.vn", "DEAN", "", "CNTT", "", "", "", "1"],
+      ["CB2026001", "Lê Văn Cường", "", "levanc@vju.ac.vn", "ADMIN", "", "", "PDT", "", "", "1"],
+      ["SV2026002", "Hoàng Văn Dũng", "2005-03-20", "hoangvand@vju.ac.vn", "CLASS_LEADER", "BCSE", "CNTT", "", "IT01", "2023-2027", "1"]
     ]
   },
   "field-codes": {

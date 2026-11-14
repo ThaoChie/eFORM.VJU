@@ -10,7 +10,8 @@ import {
   Calendar,
   AlertTriangle,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  History
 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { useEffect, useState } from "react"
@@ -18,9 +19,11 @@ import { toast } from "react-hot-toast"
 import {
   Button,
   Card,
+  FilterBar,
   IconButton,
   Input,
   PageTitle,
+  Pagination,
   Select,
   Table,
   Modal,
@@ -46,7 +49,7 @@ export default function FormVersionListPage() {
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
-  const pageSize = 10
+  const [pageSize, setPageSize] = useState(10)
 
   // Filter options
   const [semesters, setSemesters] = useState([])
@@ -144,32 +147,36 @@ export default function FormVersionListPage() {
   const totalPages = Math.ceil(filteredData.length / pageSize) || 1;
   const paginatedData = filteredData.slice((page - 1) * pageSize, page * pageSize);
 
-  // Status badge renderer - Thiết kế phẳng, đơn giản, gọn gàng và không ngắt dòng
+  // Status badge renderer - Dạng chấm tròn tối giản kèm chữ nhẹ nhàng
   const renderStatusTag = (status) => {
     switch (status) {
       case "ACTIVE":
         return (
-          <span className="inline-block whitespace-nowrap rounded-md bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 border border-emerald-200">
-            Hiệu lực
-          </span>
+          <div className="inline-flex items-center gap-1.5 text-xs">
+            <span className="size-1.5 rounded-full shrink-0 bg-emerald-500" />
+            <span className="font-medium text-emerald-700">Hiệu lực</span>
+          </div>
         );
       case "INACTIVE":
         return (
-          <span className="inline-block whitespace-nowrap rounded-md bg-rose-50 px-2.5 py-0.5 text-xs font-medium text-rose-700 border border-rose-200">
-            Vô hiệu hóa
-          </span>
+          <div className="inline-flex items-center gap-1.5 text-xs">
+            <span className="size-1.5 rounded-full shrink-0 bg-rose-500" />
+            <span className="font-medium text-rose-700">Vô hiệu hóa</span>
+          </div>
         );
       case "EXPIRED":
         return (
-          <span className="inline-block whitespace-nowrap rounded-md bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600 border border-slate-200">
-            Hết hiệu lực
-          </span>
+          <div className="inline-flex items-center gap-1.5 text-xs">
+            <span className="size-1.5 rounded-full shrink-0 bg-slate-400" />
+            <span className="text-slate-500">Hết hiệu lực</span>
+          </div>
         );
       default:
         return (
-          <span className="inline-block whitespace-nowrap rounded-md bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700 border border-amber-200">
-            {status || "Bản nháp"}
-          </span>
+          <div className="inline-flex items-center gap-1.5 text-xs">
+            <span className="size-1.5 rounded-full shrink-0 bg-amber-500" />
+            <span className="font-medium text-amber-700">{status || "Bản nháp"}</span>
+          </div>
         );
     }
   };
@@ -265,9 +272,14 @@ export default function FormVersionListPage() {
       key: "versionNo",
       title: "Mã phiên bản",
       render: (r) => (
-        <span className="font-mono text-sm font-semibold text-brand">
+        <button
+          type="button"
+          onClick={() => handleOpenVersions(r)}
+          className="font-mono text-sm font-semibold text-brand hover:underline cursor-pointer"
+          title="Nhấn để xem danh sách phiên bản"
+        >
           {r.versionNo || "v1.0"}
-        </span>
+        </button>
       ),
     },
     {
@@ -321,9 +333,17 @@ export default function FormVersionListPage() {
             {/* 1. Xem chi tiết */}
             <IconButton
               label="Xem chi tiết"
-              onClick={() => handleOpenVersions(r)}
+              onClick={() => navigate(`/admin/form-versions/${r.id}`)}
             >
               <Eye className="size-4 text-slate-600 hover:text-brand" />
+            </IconButton>
+
+            {/* 2. Lịch sử phiên bản */}
+            <IconButton
+              label="Lịch sử phiên bản"
+              onClick={() => handleOpenVersions(r)}
+            >
+              <History className="size-4 text-slate-600 hover:text-brand" />
             </IconButton>
 
             {/* 2. Yêu cầu sửa: Ẩn nếu trạng thái là Vô hiệu hóa */}
@@ -340,6 +360,7 @@ export default function FormVersionListPage() {
             {isActive && (
               <IconButton
                 label="Yêu cầu vô hiệu hóa"
+                tooltipAlign="right"
                 onClick={() => handleOpenDeactivate(r)}
                 className="text-red-600 hover:bg-red-50 hover:text-red-700"
               >
@@ -351,6 +372,7 @@ export default function FormVersionListPage() {
             {isDeactivated && (
               <IconButton
                 label="Yêu cầu kích hoạt"
+                tooltipAlign="right"
                 onClick={() => handleOpenActivate(r)}
                 className="text-green-600 hover:bg-green-50 hover:text-green-700"
               >
@@ -382,84 +404,80 @@ export default function FormVersionListPage() {
         }
       />
 
-      {/* Filter Bar (Tìm kiếm theo các tiêu chí chuẩn E.2.1) */}
-      <Card className="mb-4">
-        <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
-          <Input
-            label="Biểu mẫu"
-            placeholder="Mã hoặc tên biểu mẫu"
-            value={filters.formQuery}
-            onChange={(e) => setFilters({ ...filters, formQuery: e.target.value })}
-          />
+      {/* Filter Bar */}
+      {(() => {
+        let extraCount = 0;
+        if (filters.status) extraCount++;
+        if (filters.scope) extraCount++;
+        if (filters.semesterId) extraCount++;
+        if (filters.nameQuery) extraCount++;
 
-          <Input
-            label="Tên phiên bản"
-            placeholder="Nhập tên phiên bản"
-            value={filters.nameQuery}
-            onChange={(e) => setFilters({ ...filters, nameQuery: e.target.value })}
-          />
-
-          <Select
-            label="Trạng thái"
-            value={filters.status}
-            onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-          >
-            <option value="">Tất cả trạng thái</option>
-            <option value="ACTIVE">Hiệu lực</option>
-            <option value="EXPIRED">Hết hiệu lực</option>
-            <option value="INACTIVE">Vô hiệu hóa</option>
-          </Select>
-
-          <Select
-            label="Đơn vị quản lý"
-            value={filters.scope}
-            onChange={(e) => setFilters({ ...filters, scope: e.target.value })}
-          >
-            <option value="">Tất cả đơn vị</option>
-            <option value="Toàn hệ thống">Toàn hệ thống</option>
-            {departments.map((d) => (
-              <option key={d.id} value={d.deptName}>
-                {d.deptName}
-              </option>
-            ))}
-          </Select>
-
-          <Select
-            label="Học kỳ áp dụng"
-            value={filters.semesterId}
-            onChange={(e) => setFilters({ ...filters, semesterId: e.target.value })}
-          >
-            <option value="">Tất cả học kỳ</option>
-            {semesters.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.semesterName}
-              </option>
-            ))}
-          </Select>
-        </div>
-
-        <div className="mt-4 flex items-center justify-end gap-2 border-t border-line pt-3">
-          <Button
-            variant="ghost"
-            onClick={() =>
+        return (
+          <FilterBar
+            searchQuery={filters.formQuery}
+            onSearchChange={(val) => setFilters(prev => ({ ...prev, formQuery: val }))}
+            searchPlaceholder="Tìm kiếm theo mã hoặc tên biểu mẫu..."
+            onSearch={() => setPage(1)}
+            onReset={() => {
               setFilters({
                 formQuery: "",
                 nameQuery: "",
                 status: "",
                 scope: "",
                 semesterId: "",
-              })
-            }
+              });
+              setPage(1);
+            }}
+            extraFilterCount={extraCount}
+            cols={4}
           >
-            <RotateCcw className="size-4" />
-            Xóa bộ lọc
-          </Button>
-          <Button variant="primary" onClick={() => setPage(1)}>
-            <Search className="size-4" />
-            Tìm kiếm
-          </Button>
-        </div>
-      </Card>
+            <Input
+              label="Tên phiên bản"
+              placeholder="Nhập tên phiên bản"
+              value={filters.nameQuery}
+              onChange={(e) => setFilters({ ...filters, nameQuery: e.target.value })}
+            />
+
+            <Select
+              label="Trạng thái"
+              value={filters.status}
+              onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+            >
+              <option value="">Tất cả trạng thái</option>
+              <option value="ACTIVE">Hiệu lực</option>
+              <option value="EXPIRED">Hết hiệu lực</option>
+              <option value="INACTIVE">Vô hiệu hóa</option>
+            </Select>
+
+            <Select
+              label="Đơn vị quản lý"
+              value={filters.scope}
+              onChange={(e) => setFilters({ ...filters, scope: e.target.value })}
+            >
+              <option value="">Tất cả đơn vị</option>
+              <option value="Toàn hệ thống">Toàn hệ thống</option>
+              {departments.map((d) => (
+                <option key={d.id} value={d.deptName}>
+                  {d.deptName}
+                </option>
+              ))}
+            </Select>
+
+            <Select
+              label="Học kỳ áp dụng"
+              value={filters.semesterId}
+              onChange={(e) => setFilters({ ...filters, semesterId: e.target.value })}
+            >
+              <option value="">Tất cả học kỳ</option>
+              {semesters.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.semesterName}
+                </option>
+              ))}
+            </Select>
+          </FilterBar>
+        );
+      })()}
 
       {/* Data Table */}
       <div className="mt-4">
@@ -469,29 +487,15 @@ export default function FormVersionListPage() {
           loading={loading}
         />
 
-        {/* Phân trang */}
-        <div className="mt-4 flex items-center justify-between rounded-lg border border-line bg-white px-4 py-3 shadow-sm">
-          <span className="text-sm text-muted">
-            Tổng số {filteredData.length} phiên bản
-          </span>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              disabled={page === 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              <ChevronLeft className="size-4" />
-            </Button>
-            <span className="text-sm font-medium px-2">Trang {page} / {totalPages}</span>
-            <Button
-              variant="ghost"
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            >
-              <ChevronRight className="size-4" />
-            </Button>
-          </div>
-        </div>
+        {/* Phân trang chuẩn hệ thống */}
+        <Pagination
+          currentPage={page}
+          pageSize={pageSize}
+          totalItems={filteredData.length}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+          className="mt-4 rounded-xl border border-line"
+        />
       </div>
 
       {/* Modal: Xem chi tiết danh sách các version của biểu mẫu */}

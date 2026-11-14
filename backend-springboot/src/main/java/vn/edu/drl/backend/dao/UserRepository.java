@@ -22,4 +22,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
     long countByClassEntityIdAndRoleIn(Long classId, java.util.Collection<Role> roles);
     List<User> findByRole(Role role);
     List<User> findByRoleIn(java.util.Collection<Role> roles);
+
+    @org.springframework.data.jpa.repository.Query("SELECT u.department.id, COUNT(u) FROM User u WHERE u.role IN :roles AND u.department.id IS NOT NULL GROUP BY u.department.id")
+    List<Object[]> countStudentsByDepartmentGrouped(@org.springframework.data.repository.query.Param("roles") java.util.Collection<Role> roles);
+
+    @org.springframework.data.jpa.repository.Query("SELECT u.classEntity.id, COUNT(u) FROM User u WHERE u.role IN :roles AND u.classEntity.id IS NOT NULL GROUP BY u.classEntity.id")
+    List<Object[]> countStudentsByClassGrouped(@org.springframework.data.repository.query.Param("roles") java.util.Collection<Role> roles);
 }

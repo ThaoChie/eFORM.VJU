@@ -13,6 +13,8 @@ public class UserRequest {
     @NotBlank
     private String role;
     private String positionTitle;
+    private Long majorId;
+    private java.time.LocalDate dob;
     private Long deptId;
     private Long departmentId;
     private Long classId;

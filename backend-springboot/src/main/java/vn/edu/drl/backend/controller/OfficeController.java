@@ -1,22 +1,20 @@
 package vn.edu.drl.backend.controller;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import vn.edu.drl.backend.Wrapper.ApiResponse;
 import vn.edu.drl.backend.dto.request.OfficeRequest;
-import vn.edu.drl.backend.service.OfficeService;
+import vn.edu.drl.backend.service.interfaces.OfficeService;
 
 @RestController
 @RequestMapping("/api/v1/offices")
+@RequiredArgsConstructor
 public class OfficeController {
 
     private final OfficeService service;
-
-    public OfficeController(OfficeService service) {
-        this.service = service;
-    }
 
     @GetMapping
     public ApiResponse<?> getAll() {

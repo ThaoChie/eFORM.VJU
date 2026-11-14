@@ -11,7 +11,7 @@ import vn.edu.drl.backend.dto.response.dashboard.ClassLeaderDashboardResponse;
 import vn.edu.drl.backend.dto.response.dashboard.DeanDashboardResponse;
 import vn.edu.drl.backend.dto.response.dashboard.StudentDashboardResponse;
 import vn.edu.drl.backend.security.SecurityUtils;
-import vn.edu.drl.backend.service.DashboardService;
+import vn.edu.drl.backend.service.interfaces.DashboardService;
 
 @RestController
 @RequestMapping("/api/v1/dashboard")

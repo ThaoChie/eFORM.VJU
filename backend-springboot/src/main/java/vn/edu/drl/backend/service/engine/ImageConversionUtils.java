@@ -106,8 +106,8 @@ public class ImageConversionUtils {
                 }
             }
             double bgBrightness = cornerPixels > 0 ? (double)totalBrightness / cornerPixels : 220.0;
-            double paperThreshold = Math.max(185.0, bgBrightness - 10.0);
-            double inkThreshold = Math.max(90.0, paperThreshold - 80.0);
+            double paperThreshold = Math.max(80.0, bgBrightness - 15.0);
+            double inkThreshold = Math.max(25.0, paperThreshold - 60.0);
 
             int minX = width, minY = height, maxX = 0, maxY = 0;
 
