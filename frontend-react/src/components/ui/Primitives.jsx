@@ -26,18 +26,18 @@ export function Button({
   ...props
 }) {
   const styles = {
-    primary: "border-brand bg-brand text-white hover:bg-brand-dark",
-    secondary: "border-line bg-white text-ink hover:bg-canvas",
-    danger: "border-brand bg-white text-brand hover:bg-brand-soft",
+    primary: "border-brand bg-brand text-white hover:bg-brand-dark active:bg-brand-dark",
+    secondary: "border-line bg-white text-ink hover:bg-canvas active:bg-canvas",
+    danger: "border-brand bg-white text-brand hover:bg-brand-soft active:bg-brand-soft",
     ghost:
       "border-transparent bg-transparent text-muted hover:bg-canvas hover:text-ink",
   }
   return (
     <button
-      className={`inline-flex h-10 items-center justify-center gap-2 rounded-lg border px-4 text-sm font-medium transition disabled:opacity-45 ${styles[variant]} ${className}`}
+      className={`inline-flex min-h-[44px] sm:min-h-10 h-11 sm:h-10 items-center justify-center gap-2 rounded-lg border px-4 text-sm font-medium transition disabled:opacity-45 select-none active:scale-[0.98] ${styles[variant]} ${className}`}
       {...props}
     >
-      {loading && <LoaderCircle className="size-4 animate-spin" />}
+      {loading && <LoaderCircle className="size-4 animate-spin shrink-0" />}
       {children}
     </button>
   )
@@ -92,7 +92,7 @@ export function IconButton({
         type="button"
         aria-label={tooltipText}
         disabled={disabled}
-        className={`inline-flex size-9 items-center justify-center rounded-lg text-muted hover:bg-canvas hover:text-ink transition disabled:opacity-45 ${className}`}
+        className={`inline-flex min-h-[44px] min-w-[44px] sm:min-h-9 sm:min-w-9 size-11 sm:size-9 items-center justify-center rounded-lg text-muted hover:bg-canvas hover:text-ink transition disabled:opacity-45 select-none active:scale-95 ${className}`}
         {...props}
       >
         {children}
@@ -258,7 +258,7 @@ export function Input({ label, required, error, className = "", ...props }) {
         </span>
       )}
       <input
-        className={`h-10 w-full rounded-lg border bg-white px-3 outline-none transition focus:border-brand focus:ring-2 focus:ring-brand-soft disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed ${
+        className={`h-11 sm:h-10 text-base sm:text-sm w-full rounded-lg border bg-white px-3 outline-none transition focus:border-brand focus:ring-2 focus:ring-brand-soft disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed ${
           error ? "border-brand" : "border-line"
         }`}
         {...props}
@@ -273,7 +273,7 @@ export function Select({ label, children, className = "", ...props }) {
     <label className={`block space-y-1.5 ${className}`}>
       {label && <span className="text-xs font-medium text-muted">{label}</span>}
       <select
-        className="h-10 w-full rounded-lg border border-line bg-white px-3 outline-none focus:border-brand focus:ring-2 focus:ring-brand-soft"
+        className="h-11 sm:h-10 text-base sm:text-sm w-full rounded-lg border border-line bg-white px-3 outline-none focus:border-brand focus:ring-2 focus:ring-brand-soft"
         {...props}
       >
         {children}
@@ -289,7 +289,7 @@ export function Textarea({ label, value = "", maxLength, error, className = "", 
       <textarea
         value={value}
         maxLength={maxLength}
-        className={`min-h-24 w-full resize-y rounded-lg border bg-white p-2.5 text-xs outline-none transition focus:border-brand focus:ring-2 focus:ring-brand-soft leading-relaxed ${
+        className={`min-h-24 w-full resize-y rounded-lg border bg-white p-3 text-base sm:text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand-soft leading-relaxed ${
           error ? "border-brand" : "border-line"
         } ${className}`}
         {...props}
@@ -313,7 +313,7 @@ export function Textarea({ label, value = "", maxLength, error, className = "", 
 export function Card({ children, className = "" }) {
   return (
     <section
-      className={`rounded-lg border border-line bg-white p-5 ${className}`}
+      className={`rounded-xl sm:rounded-lg border border-line bg-white p-3.5 sm:p-5 ${className}`}
     >
       {children}
     </section>
@@ -322,16 +322,20 @@ export function Card({ children, className = "" }) {
 
 export function PageTitle({ title, description, action }) {
   return (
-    <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
-      <div>
-        <h1 className="text-[22px] font-semibold leading-8 text-ink">
+    <div className="mb-4 sm:mb-5 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+      <div className="min-w-0">
+        <h1 className="text-xl sm:text-[22px] font-semibold leading-7 sm:leading-8 text-ink truncate sm:whitespace-normal">
           {title}
         </h1>
         {description && (
-          <p className="mt-1 text-sm text-muted">{description}</p>
+          <p className="mt-1 text-xs sm:text-sm text-muted">{description}</p>
         )}
       </div>
-      {action}
+      {action && (
+        <div className="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto">
+          {action}
+        </div>
+      )}
     </div>
   )
 }
@@ -469,24 +473,24 @@ export function Modal({
   if (!open) return null
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-night/45 p-4"
+      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-night/45 p-0 sm:p-4 backdrop-blur-xs transition-opacity"
       onMouseDown={onClose}
     >
       <div
-        className={`max-h-[90vh] w-full overflow-auto rounded-xl border border-line bg-white shadow-xl ${
+        className={`max-h-[92vh] sm:max-h-[90vh] w-full overflow-hidden rounded-t-2xl sm:rounded-xl border border-line bg-white shadow-xl flex flex-col ${
           wide ? "max-w-4xl" : "max-w-lg"
         }`}
         onMouseDown={(event) => event.stopPropagation()}
       >
-        <div className="flex h-16 items-center justify-between border-b border-line px-6">
-          <h2 className="text-base font-semibold">{title}</h2>
+        <div className="flex h-14 sm:h-16 items-center justify-between border-b border-line px-4 sm:px-6 shrink-0 bg-white">
+          <h2 className="text-base font-semibold truncate pr-2">{title}</h2>
           <IconButton label="Đóng" onClick={onClose}>
             <X className="size-5" />
           </IconButton>
         </div>
-        <div className="p-6">{children}</div>
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1 text-sm">{children}</div>
         {footer && (
-          <div className="flex justify-end gap-3 border-t border-line px-6 py-4">
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 border-t border-line px-4 sm:px-6 py-3 sm:py-4 shrink-0 bg-slate-50/50">
             {footer}
           </div>
         )}
@@ -612,15 +616,15 @@ export function Table({
                 <th
                   key={column.key ?? idx}
                   style={style}
-                  className={`h-12 whitespace-nowrap border-b border-line px-4 select-none ${cfg.widthClass} ${
+                  className={`h-12 whitespace-nowrap border-b border-line px-3 sm:px-4 select-none ${cfg.widthClass} ${
                     cfg.isStickyLeft
-                      ? `sticky z-20 bg-canvas ${
+                      ? `md:sticky z-20 bg-canvas ${
                           cfg.isLastStickyLeft
-                            ? "border-r border-line shadow-[4px_0_8px_-2px_rgba(0,0,0,0.07)]"
+                            ? "md:border-r md:border-line md:shadow-[4px_0_8px_-2px_rgba(0,0,0,0.07)]"
                             : ""
                         }`
                       : cfg.isStickyRight
-                      ? "sticky right-0 z-20 bg-canvas border-l border-line shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.07)]"
+                      ? "md:sticky md:right-0 z-20 bg-canvas md:border-l md:border-line md:shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.07)]"
                       : "bg-canvas"
                   }`}
                 >
@@ -672,15 +676,15 @@ export function Table({
                     <td
                       key={column.key ?? idx}
                       style={style}
-                      className={`px-4 py-3.5 border-b border-line text-sm ${cfg.widthClass} ${
+                      className={`px-3 sm:px-4 py-3 sm:py-3.5 border-b border-line text-xs sm:text-sm ${cfg.widthClass} ${
                         cfg.isStickyLeft
-                          ? `sticky z-10 bg-white group-hover:bg-canvas transition-colors ${
+                          ? `md:sticky z-10 bg-white group-hover:bg-canvas transition-colors ${
                               cfg.isLastStickyLeft
-                                ? "border-r border-line shadow-[4px_0_8px_-2px_rgba(0,0,0,0.07)]"
+                                ? "md:border-r md:border-line md:shadow-[4px_0_8px_-2px_rgba(0,0,0,0.07)]"
                                 : ""
                             }`
                           : cfg.isStickyRight
-                          ? "sticky right-0 z-10 bg-white group-hover:bg-canvas group-hover/row:z-50 hover:z-50 transition-colors border-l border-line shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.07)]"
+                          ? "md:sticky md:right-0 z-10 bg-white group-hover:bg-canvas group-hover/row:z-50 hover:z-50 transition-colors md:border-l md:border-line md:shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.07)]"
                           : "bg-white group-hover:bg-canvas group-hover/row:z-40 hover:z-50 transition-colors"
                       }`}
                     >

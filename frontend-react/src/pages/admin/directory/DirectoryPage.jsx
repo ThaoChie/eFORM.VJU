@@ -744,19 +744,19 @@ export default function DirectoryPage() {
   return (
     <>
       <PageTitle title="Danh bạ đơn vị" description="Hệ thống được phát triển bởi nhóm sinh viên Trường Đại học Việt Nhật" />
-      <div className="mb-4 flex overflow-x-auto border-b border-line">
+      <div className="mb-4 flex overflow-x-auto border-b border-line custom-scrollbar">
         {tabs.map(([key, label]) => (
           <button
             key={key}
             onClick={() => nav(`/admin/directory/${key}`)}
-            className={`whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${active === key ? 'border-brand text-brand' : 'border-transparent text-muted hover:border-line hover:text-foreground'}`}
+            className={`whitespace-nowrap border-b-2 px-4 py-3 min-h-[44px] text-sm font-medium transition-colors ${active === key ? 'border-brand text-brand font-semibold' : 'border-transparent text-muted hover:border-line hover:text-foreground'}`}
           >
             {label}
           </button>
         ))}
       </div>
 
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">Quản lý danh mục</h1>
         {renderToolbar()}
       </div>

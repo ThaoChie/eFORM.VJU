@@ -268,18 +268,18 @@ export default function AppLayout() {
             : "md:pl-[68px]"
         }`}
       >
-        <header className="sticky top-0 z-30 flex h-14 items-center border-b border-line bg-white px-4 md:px-6">
-          {/* Nút Hamburger chỉ hiển thị trên Mobile */}
+        <header className="sticky top-0 z-30 flex h-14 sm:h-16 items-center border-b border-line bg-white px-3 sm:px-4 md:px-6">
+          {/* Nút Hamburger chỉ hiển thị trên Mobile (Clickable area tối thiểu 44x44px) */}
           <button
             type="button"
             aria-label="Mở thanh bên"
-            className="mr-3 md:hidden rounded-lg p-1.5 text-muted hover:bg-canvas hover:text-ink"
+            className="mr-2 sm:mr-3 md:hidden min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded-lg text-muted hover:bg-canvas hover:text-ink active:scale-95 transition"
             onClick={openSidebar}
           >
-            <Menu className="size-5" />
+            <Menu className="size-6" />
           </button>
 
-          <span className="truncate font-semibold text-ink text-base">
+          <span className="truncate font-semibold text-ink text-sm sm:text-base">
             {activeItem?.label ?? ""}
           </span>
 
@@ -289,7 +289,7 @@ export default function AppLayout() {
             </span>
             <NotificationBell />
             <div className="flex items-center gap-2">
-              <span className="flex size-8 items-center justify-center rounded-full bg-night text-xs font-semibold text-white">
+              <span className="flex size-9 sm:size-8 items-center justify-center rounded-full bg-night text-xs font-semibold text-white shrink-0">
                 {(user.fullName || user.name || "U").split(" ").at(-1)[0]}
               </span>
               <span className="hidden max-w-36 truncate text-sm font-medium sm:block">
@@ -303,7 +303,7 @@ export default function AppLayout() {
           className={
             location.pathname.includes("/design")
               ? "h-[calc(100vh-3.5rem)] w-full max-w-none m-0 p-0 overflow-hidden"
-              : "mx-auto max-w-[1280px] p-4 md:p-6"
+              : "mx-auto max-w-[1280px] p-3 sm:p-4 md:p-6"
           }
         >
           <Outlet />

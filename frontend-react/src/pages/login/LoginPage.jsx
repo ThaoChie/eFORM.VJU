@@ -67,8 +67,9 @@ export default function LoginPage() {
             />
             <button
               type="button"
+              aria-label={show ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
               onClick={() => setShow(!show)}
-              className="absolute bottom-2 right-2 p-1 text-muted"
+              className="absolute bottom-0 right-0 size-11 flex items-center justify-center text-muted hover:text-ink active:scale-95 transition"
             >
               {show ? (
                 <EyeOff className="size-5" />
@@ -77,7 +78,7 @@ export default function LoginPage() {
               )}
             </button>
           </div>
-          <Button variant="primary" loading={loading} className="w-full" type="submit">
+          <Button variant="primary" loading={loading} className="w-full h-11 min-h-[44px]" type="submit">
             <LockKeyhole className="size-4" />
             {M.login}
           </Button>
@@ -93,7 +94,7 @@ export default function LoginPage() {
             disabled={loading}
             type="button"
             onClick={() => quickLogin("admin@drl.edu.vn", "123456")}
-            className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium hover:border-brand hover:text-brand"
+            className="min-h-[44px] min-w-[44px] rounded-full border border-line bg-white px-3.5 py-2 text-xs font-medium hover:border-brand hover:text-brand active:scale-95 transition inline-flex items-center justify-center"
           >
             Admin
           </button>
@@ -101,7 +102,7 @@ export default function LoginPage() {
             disabled={loading}
             type="button"
             onClick={() => quickLogin("dean@drl.edu.vn", "123456")}
-            className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium hover:border-brand hover:text-brand"
+            className="min-h-[44px] min-w-[44px] rounded-full border border-line bg-white px-3.5 py-2 text-xs font-medium hover:border-brand hover:text-brand active:scale-95 transition inline-flex items-center justify-center"
           >
             Trưởng khoa
           </button>
@@ -109,7 +110,7 @@ export default function LoginPage() {
             disabled={loading}
             type="button"
             onClick={() => quickLogin("leader@drl.edu.vn", "123456")}
-            className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium hover:border-brand hover:text-brand"
+            className="min-h-[44px] min-w-[44px] rounded-full border border-line bg-white px-3.5 py-2 text-xs font-medium hover:border-brand hover:text-brand active:scale-95 transition inline-flex items-center justify-center"
           >
             Lớp trưởng
           </button>
@@ -117,7 +118,7 @@ export default function LoginPage() {
             disabled={loading}
             type="button"
             onClick={() => quickLogin("student@drl.edu.vn", "123456")}
-            className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium hover:border-brand hover:text-brand"
+            className="min-h-[44px] min-w-[44px] rounded-full border border-line bg-white px-3.5 py-2 text-xs font-medium hover:border-brand hover:text-brand active:scale-95 transition inline-flex items-center justify-center"
           >
             Sinh viên
           </button>

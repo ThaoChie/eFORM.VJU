@@ -878,8 +878,8 @@ export default function ComposePage() {
         })}
       </div>
 
-      {/* 6. THANH TỔNG HỢP CỐ ĐỊNH PHÍA DƯỚI FORM */}
-      <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between border-t border-slate-200 bg-white/95 backdrop-blur-xs p-4 shadow-lg">
+      {/* 6. THANH TỔNG HỢP CỐ ĐỊNH PHÍA DƯỚI FORM (RESPONSIVE FLEX-COL TO SM:FLEX-ROW) */}
+      <div className="sticky bottom-0 z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-t border-slate-200 bg-white/95 backdrop-blur-xs p-3.5 sm:p-4 shadow-lg">
         <div>
           <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">
             Tổng điểm tự chấm
@@ -892,11 +892,11 @@ export default function ComposePage() {
           </div>
         </div>
 
-        <div className="text-right">
+        <div className="w-full sm:w-auto text-left sm:text-right border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100">
           <span className="text-[11px] font-medium text-slate-400 block mb-1">
             Xếp loại gợi ý (tham khảo)
           </span>
-          <div className="flex flex-col items-end">
+          <div className="flex flex-col items-start sm:items-end">
             <span className={`inline-block rounded-full border px-3 py-1 text-xs font-bold ${suggestedRank.color}`}>
               {suggestedRank.rank}
             </span>
@@ -911,14 +911,14 @@ export default function ComposePage() {
 
   return (
     <>
-      {/* 1. THANH CÔNG CỤ PHÍA TRÊN (CỐ ĐỊNH KHI CUỘN) */}
-      <div className="sticky top-14 z-10 -mx-4 mb-4 flex flex-wrap items-center justify-between gap-3 border-y border-line bg-white px-4 py-3 shadow-xs md:-mx-6 md:px-6">
-        <Button onClick={handleBackClick} variant="secondary">
+      {/* 1. THANH CÔNG CỤ PHÍA TRÊN (RESPONSIVE CỐ ĐỊNH KHI CUỘN) */}
+      <div className="sticky top-14 sm:top-16 z-10 -mx-3 sm:-mx-4 md:-mx-6 mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-3 border-y border-line bg-white px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 shadow-xs">
+        <Button onClick={handleBackClick} variant="secondary" className="w-full sm:w-auto">
           <ArrowLeft className="size-4" />
           Quay lại
         </Button>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto justify-between sm:justify-end">
           {/* Mốc thời gian lưu gần nhất */}
           {lastSavedText && (
             <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
@@ -939,6 +939,7 @@ export default function ComposePage() {
               onClick={handleSaveDraft}
               loading={saving}
               variant="secondary"
+              className="flex-1 sm:flex-none"
               title="Lưu lại điểm tự chấm và minh chứng (trạng thái DRAFT)"
             >
               <Save className="size-4" />
@@ -952,6 +953,7 @@ export default function ComposePage() {
               variant="primary"
               onClick={handleSubmitClick}
               loading={submitting}
+              className="flex-1 sm:flex-none"
               title="Kiểm tra form, ký số và gửi duyệt lên Ban cán sự lớp"
             >
               <Send className="size-4" />

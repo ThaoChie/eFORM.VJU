@@ -182,21 +182,23 @@ export default function BatchDetailPage() {
 
   return (
     <>
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <Button variant="secondary" onClick={() => navigate("/dean/batches")}>
-          <ArrowLeft className="size-4 mr-1" />
-          Quay lại danh sách lô
-        </Button>
-        <div className="ml-2">
-          <h1 className="text-lg font-semibold text-slate-800">{displayTitle}</h1>
-          <p className="text-xs text-muted">
-            {forms.length > 0
-              ? `${forms.length} phiếu sẵn sàng phê duyệt cấp Khoa`
-              : "Hiện không có phiếu nào chờ duyệt"}
-          </p>
+      <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" onClick={() => navigate("/dean/batches")}>
+            <ArrowLeft className="size-4 mr-1" />
+            Quay lại
+          </Button>
+          <div className="min-w-0">
+            <h1 className="text-base sm:text-lg font-semibold text-slate-800 truncate">{displayTitle}</h1>
+            <p className="text-xs text-muted truncate">
+              {forms.length > 0
+                ? `${forms.length} phiếu sẵn sàng phê duyệt cấp Khoa`
+                : "Hiện không có phiếu nào chờ duyệt"}
+            </p>
+          </div>
         </div>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
           {currentForm && (
             <Button
               variant="secondary"
@@ -205,7 +207,7 @@ export default function BatchDetailPage() {
                 setRejectModalOpen(true)
               }}
               disabled={submitting}
-              className="text-rose-600 border-rose-200 hover:bg-rose-50"
+              className="flex-1 sm:flex-none text-rose-600 border-rose-200 hover:bg-rose-50"
             >
               <RotateCcw className="size-3.5 mr-1" />
               Trả lại phiếu này
@@ -214,7 +216,7 @@ export default function BatchDetailPage() {
 
           <Button
             variant="primary"
-            className="bg-brand text-white"
+            className="flex-1 sm:flex-none bg-brand text-white"
             onClick={handleOpenSignModal}
             disabled={selected.length === 0 || submitting}
             loading={submitting}
