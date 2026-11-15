@@ -42,7 +42,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-white p-5">
       <div className="w-full max-w-[420px]">
         <div className="mb-8 text-center">
-          <img src="/logoVJU.png" alt="VJU Logo" className="mx-auto h-20 object-contain" />
+          <img src="/logoVJU.png" alt="VJU Logo" className="mx-auto size-20 object-contain" />
           <h1 className="mt-4 text-[22px] font-semibold">{M.login}</h1>
           <p className="mt-1 text-sm text-muted">{M.appName}</p>
         </div>

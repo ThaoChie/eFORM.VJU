@@ -129,7 +129,7 @@ export default function AppLayout() {
             /* Expanded mode: Logo + Tiêu đề + Nút thu gọn */
             <>
               <div className="flex items-center gap-2.5 min-w-0">
-                <img src="/logoVJU.png" alt="VJU Logo" className="h-[42px] object-contain shrink-0" />
+                <img src="/logoVJU.png" alt="VJU Logo" className="size-[42px] object-contain shrink-0" />
                 <span className="min-w-0 font-semibold text-xs leading-4 text-brand truncate">
                   E-Form Chấm Điểm
                   <br />
