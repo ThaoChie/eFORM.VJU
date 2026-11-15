@@ -229,20 +229,29 @@ public class WorkflowServiceImpl implements WorkflowService {
             res.setDeanSignature(null);
         }
 
-        List<ScoreFormDetail> details = scoreFormDetailRepository.findByScoreFormId(form.getId());
-        res.setDetails(details.stream().map(d -> {
-            WorkflowDetailResponse.WorkflowDetailItem item = new WorkflowDetailResponse.WorkflowDetailItem();
-            item.setCriteriaId(d.getCriteria() != null ? d.getCriteria().getId() : null);
-            item.setCriteriaCode(d.getCriteria() != null ? d.getCriteria().getCriteriaCode() : null);
-            item.setTitle(d.getCriteria() != null ? d.getCriteria().getTitle() : "");
-            item.setMaxScore(d.getCriteria() != null ? d.getCriteria().getMaxScore() : BigDecimal.ZERO);
-            item.setRequiresProof(d.getCriteria() != null ? d.getCriteria().getRequiresProof() : false);
-            item.setStudentScore(d.getStudentScore());
-            item.setClassScore(d.getClassScore());
-            item.setProofUrl(d.getProofUrl());
-            item.setStudentNote(d.getNote());
-            return item;
-        }).collect(Collectors.toList()));
+        List<ScoreFormDetail> details = scoreFormDetailRepository.findByScoreFormIdWithCriteria(form.getId());
+        res.setDetails(details.stream()
+            .sorted((d1, d2) -> {
+                int o1 = (d1.getCriteria() != null && d1.getCriteria().getOrderIndex() != null) ? d1.getCriteria().getOrderIndex() : 9999;
+                int o2 = (d2.getCriteria() != null && d2.getCriteria().getOrderIndex() != null) ? d2.getCriteria().getOrderIndex() : 9999;
+                if (o1 != o2) return Integer.compare(o1, o2);
+                String c1 = (d1.getCriteria() != null && d1.getCriteria().getCriteriaCode() != null) ? d1.getCriteria().getCriteriaCode() : "";
+                String c2 = (d2.getCriteria() != null && d2.getCriteria().getCriteriaCode() != null) ? d2.getCriteria().getCriteriaCode() : "";
+                return c1.compareTo(c2);
+            })
+            .map(d -> {
+                WorkflowDetailResponse.WorkflowDetailItem item = new WorkflowDetailResponse.WorkflowDetailItem();
+                item.setCriteriaId(d.getCriteria() != null ? d.getCriteria().getId() : null);
+                item.setCriteriaCode(d.getCriteria() != null ? d.getCriteria().getCriteriaCode() : null);
+                item.setTitle(d.getCriteria() != null ? d.getCriteria().getTitle() : "");
+                item.setMaxScore(d.getCriteria() != null ? d.getCriteria().getMaxScore() : BigDecimal.ZERO);
+                item.setRequiresProof(d.getCriteria() != null ? d.getCriteria().getRequiresProof() : false);
+                item.setStudentScore(d.getStudentScore());
+                item.setClassScore(d.getClassScore());
+                item.setProofUrl(d.getProofUrl());
+                item.setStudentNote(d.getNote());
+                return item;
+            }).collect(Collectors.toList()));
 
         return res;
     }

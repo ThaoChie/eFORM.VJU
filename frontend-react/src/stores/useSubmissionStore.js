@@ -1,6 +1,8 @@
 import { create } from "zustand"
 import { submissionService, OFFICIAL_DRL_2026_BLOCKS } from "../services/submission-service"
 
+const getDraftStorageKey = (semesterId) => `drl_compose_draft_${semesterId || "active"}`
+
 export const useSubmissionStore = create((set, get) => ({
   scores: {},
   classScores: {},
@@ -39,18 +41,30 @@ export const useSubmissionStore = create((set, get) => ({
 
   setScore: (code, value) => {
     const num = value === "" ? "" : Number(value)
-    set((state) => ({
-      scores: { ...state.scores, [code]: num },
-      isDirty: true,
-    }))
+    set((state) => {
+      const nextScores = { ...state.scores, [code]: num }
+      try {
+        const key = getDraftStorageKey(state.semester?.id)
+        localStorage.setItem(key, JSON.stringify({ scores: nextScores, proofs: state.proofs }))
+      } catch {}
+      return {
+        scores: nextScores,
+        isDirty: true,
+      }
+    })
   },
 
   addProof: (code, proofItem) => {
     set((state) => {
       const current = Array.isArray(state.proofs[code]) ? [...state.proofs[code]] : []
       if (current.length >= 5) return state // max 5 files per criterion
+      const nextProofs = { ...state.proofs, [code]: [...current, proofItem] }
+      try {
+        const key = getDraftStorageKey(state.semester?.id)
+        localStorage.setItem(key, JSON.stringify({ scores: state.scores, proofs: nextProofs }))
+      } catch {}
       return {
-        proofs: { ...state.proofs, [code]: [...current, proofItem] },
+        proofs: nextProofs,
         isDirty: true,
       }
     })
@@ -60,8 +74,13 @@ export const useSubmissionStore = create((set, get) => ({
     set((state) => {
       const current = Array.isArray(state.proofs[code]) ? [...state.proofs[code]] : []
       const updated = current.filter((_, idx) => idx !== targetIndex)
+      const nextProofs = { ...state.proofs, [code]: updated }
+      try {
+        const key = getDraftStorageKey(state.semester?.id)
+        localStorage.setItem(key, JSON.stringify({ scores: state.scores, proofs: nextProofs }))
+      } catch {}
       return {
-        proofs: { ...state.proofs, [code]: updated },
+        proofs: nextProofs,
         isDirty: true,
       }
     })
@@ -176,6 +195,34 @@ export const useSubmissionStore = create((set, get) => ({
       const formStatus = formRes?.status || "DRAFT"
       const isReadOnly = formStatus !== "DRAFT" && formStatus !== "REJECTED"
 
+      // Restore uncommitted edits from draft cache if returning from signature setup or navigation
+      if (formStatus === "DRAFT" || formStatus === "REJECTED") {
+        try {
+          const key = getDraftStorageKey(activeSemester?.id)
+          const cached = JSON.parse(localStorage.getItem(key) || "null")
+          if (cached && typeof cached === "object") {
+            if (cached.scores && typeof cached.scores === "object") {
+              Object.keys(cached.scores).forEach((k) => {
+                if (cached.scores[k] !== "" && cached.scores[k] != null) {
+                  if (scores[k] === "" || scores[k] == null || scores[k] === 0) {
+                    scores[k] = cached.scores[k]
+                  }
+                }
+              })
+            }
+            if (cached.proofs && typeof cached.proofs === "object") {
+              Object.keys(cached.proofs).forEach((k) => {
+                if (Array.isArray(cached.proofs[k]) && cached.proofs[k].length > 0) {
+                  if (!proofs[k] || proofs[k].length === 0) {
+                    proofs[k] = cached.proofs[k]
+                  }
+                }
+              })
+            }
+          }
+        } catch {}
+      }
+
       set({
         semester: activeSemester,
         scoreFormId: formRes?.scoreFormId || null,
@@ -262,6 +309,11 @@ export const useSubmissionStore = create((set, get) => ({
         details: payloadDetails,
       })
 
+      try {
+        const key = getDraftStorageKey(semester.id)
+        localStorage.setItem(key, JSON.stringify({ scores, proofs }))
+      } catch {}
+
       const now = new Date()
       const timeStr = now.toLocaleTimeString("vi-VN", {
         hour: "2-digit",
@@ -293,6 +345,11 @@ export const useSubmissionStore = create((set, get) => ({
         semesterId: semester.id,
         signatureBase64,
       })
+
+      try {
+        const key = getDraftStorageKey(semester.id)
+        localStorage.removeItem(key)
+      } catch {}
 
       set({ status: "SUBMITTED", isReadOnly: true, isDirty: false, submitting: false })
       return true

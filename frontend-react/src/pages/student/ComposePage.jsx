@@ -233,7 +233,7 @@ export default function ComposePage() {
   }, [user, userStorageKey, studentSignature])
 
   // Toolbar Action 3: Đẩy duyệt (Pre-submission validation & signature check)
-  const handleSubmitClick = () => {
+  const handleSubmitClick = async () => {
     const errors = []
 
     // 1. Validate required criteria and required proofs
@@ -261,6 +261,13 @@ export default function ComposePage() {
 
     if (totalScore > 100) {
       errors.push("Tổng điểm tự chấm không được vượt quá 100 điểm.")
+    }
+
+    // Luôn lưu nháp để bảo toàn 100% dữ liệu người dùng đã nhập
+    try {
+      await save()
+    } catch (saveErr) {
+      console.warn("Auto save draft before signature check failed:", saveErr)
     }
 
     if (errors.length > 0) {
@@ -1078,7 +1085,10 @@ export default function ComposePage() {
             </Button>
             <Button
               variant="primary"
-              onClick={() => {
+              onClick={async () => {
+                try {
+                  await save()
+                } catch {}
                 setMissingSigModalOpen(false)
                 navigate("/student/signature")
               }}
@@ -1121,7 +1131,10 @@ export default function ComposePage() {
         }}
         onClose={() => setSignModalOpen(false)}
         onConfirm={handleConfirmSignAndSubmit}
-        onNavigateToSignature={() => {
+        onNavigateToSignature={async () => {
+          try {
+            await save()
+          } catch {}
           setSignModalOpen(false)
           navigate("/student/signature")
         }}

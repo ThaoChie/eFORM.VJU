@@ -5,6 +5,7 @@ import { toast } from "react-hot-toast"
 import { rankScore } from "../../common/constants/index.js"
 import { useReviewStore } from "../../stores/useReviewStore"
 import { reviewService } from "../../services/review-service"
+import { OFFICIAL_DRL_2026_BLOCKS } from "../../services/submission-service"
 import { getProofUrl } from "../../lib/axios/client"
 import SignConfirmModal from "../../components/signature/SignConfirmModal"
 import PdfViewer from "../../components/ui/PdfViewer"
@@ -114,11 +115,49 @@ export default function ReviewDetailPage() {
     }
   }, [id])
 
-  // Flattened criteria list
+  // Canonical template order to synchronize criteria order 100% with Student ComposePage
+  const templateCritOrder = useMemo(() => {
+    let layout = OFFICIAL_DRL_2026_BLOCKS
+    if (detail?.templateLayoutJson) {
+      try {
+        const parsed =
+          typeof detail.templateLayoutJson === "string"
+            ? JSON.parse(detail.templateLayoutJson)
+            : detail.templateLayoutJson
+        if (Array.isArray(parsed) && parsed.length > 0) layout = parsed
+        else if (Array.isArray(parsed?.blocks) && parsed.blocks.length > 0) layout = parsed.blocks
+      } catch {}
+    }
+    const orderMap = new Map()
+    let idx = 0
+    if (Array.isArray(layout)) {
+      layout.forEach((g) => {
+        if (Array.isArray(g.children)) {
+          g.children.forEach((c) => {
+            if (c.fieldCode) orderMap.set(c.fieldCode, idx)
+            if (c.id) orderMap.set(String(c.id), idx)
+            idx++
+          })
+        }
+      })
+    }
+    return orderMap
+  }, [detail?.templateLayoutJson])
+
+  // Flattened and strictly sorted criteria list matching student compose structure
   const criteriaList = useMemo(() => {
     if (!detail?.details || !Array.isArray(detail.details)) return []
-    return detail.details
-  }, [detail])
+    const list = [...detail.details]
+    list.sort((a, b) => {
+      const keyA = a.criteriaCode || String(a.criteriaId || "")
+      const keyB = b.criteriaCode || String(b.criteriaId || "")
+      const orderA = templateCritOrder.has(keyA) ? templateCritOrder.get(keyA) : 9999
+      const orderB = templateCritOrder.has(keyB) ? templateCritOrder.get(keyB) : 9999
+      if (orderA !== orderB) return orderA - orderB
+      return (a.title || keyA).localeCompare(b.title || keyB, undefined, { numeric: true })
+    })
+    return list
+  }, [detail, templateCritOrder])
 
   // Parse proofs from detail items
   const allProofs = useMemo(() => {
@@ -335,11 +374,6 @@ export default function ReviewDetailPage() {
                         </span>
                         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-400">
                           <span className="font-semibold text-slate-500">Tối đa {max}đ</span>
-                          {c.criteriaCode && (
-                            <span className="font-mono text-[11px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">
-                              {c.criteriaCode}
-                            </span>
-                          )}
                           {c.requiresProof && (
                             <span className="text-brand font-medium text-[11px] flex items-center gap-1">
                               <Paperclip className="size-3" /> Cần MC
