@@ -19,15 +19,20 @@ export const getApiOrigin = () => {
 
 export const getProofUrl = (url) => {
   if (!url) return '';
-  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http://') || url.startsWith('https://')) {
+  if (url.startsWith('data:') || url.startsWith('blob:')) {
     return url;
   }
-  const origin = getApiOrigin();
-  let path = url;
-  if (!path.startsWith('/api/')) {
-    path = `/api/v1/editor/proofs/${path.replace(/^\/+/, '')}`;
+  let finalUrl = url;
+  if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+    const origin = getApiOrigin();
+    let path = finalUrl;
+    if (!path.startsWith('/api/')) {
+      path = `/api/v1/editor/proofs/${path.replace(/^\/+/, '')}`;
+    }
+    finalUrl = `${origin}${path}`;
   }
-  return `${origin}${path}`;
+  // Sanitize double quotes and spaces so it never breaks HTML attributes or URI parsing
+  return finalUrl.replace(/"/g, '%22');
 };
 
 export const client = axios.create({

@@ -30,7 +30,9 @@ public class LocalFileSystemStorageService implements StorageService {
 
     @Override
     public String uploadFile(MultipartFile file, String bucketName) throws Exception {
-        String filename = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
+        String original = file.getOriginalFilename() != null ? file.getOriginalFilename() : "file";
+        String cleanName = original.replaceAll("[^a-zA-Z0-9._-]", "_");
+        String filename = UUID.randomUUID().toString() + "_" + cleanName;
         Path destinationFile = rootLocation.resolve(bucketName).resolve(filename);
         Files.copy(file.getInputStream(), destinationFile, StandardCopyOption.REPLACE_EXISTING);
         return filename;

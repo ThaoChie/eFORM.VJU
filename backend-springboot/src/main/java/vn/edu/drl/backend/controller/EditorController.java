@@ -61,21 +61,40 @@ public class EditorController {
         return ApiResponse.success("/api/v1/editor/proofs/" + objectKey);
     }
 
-    @GetMapping("/proofs/{filename}")
+    @GetMapping("/proofs/{filename:.+}")
     public ResponseEntity<byte[]> getProofFile(@PathVariable String filename) {
         try {
-            byte[] bytes = storageService.getFileBytes("proofs", filename);
+            String decodedName = java.net.URLDecoder.decode(filename, java.nio.charset.StandardCharsets.UTF_8);
+            byte[] bytes = null;
+            try {
+                bytes = storageService.getFileBytes("proofs", decodedName);
+            } catch (Exception notDecoded) {
+                bytes = storageService.getFileBytes("proofs", filename);
+            }
+            if (bytes == null) {
+                return ResponseEntity.notFound().build();
+            }
             String contentType = "application/octet-stream";
-            String lower = filename.toLowerCase();
-            if (lower.endsWith(".pdf") || (bytes != null && bytes.length > 4 && bytes[0] == 0x25 && bytes[1] == 0x50 && bytes[2] == 0x44 && bytes[3] == 0x46)) {
+            String lower = decodedName.toLowerCase();
+            if (lower.endsWith(".pdf") || (bytes.length > 4 && bytes[0] == 0x25 && bytes[1] == 0x50 && bytes[2] == 0x44 && bytes[3] == 0x46)) {
                 contentType = "application/pdf";
-            } else if (lower.endsWith(".png") || (bytes != null && bytes.length > 4 && (bytes[0] & 0xFF) == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47)) {
+            } else if (lower.endsWith(".png") || (bytes.length > 4 && (bytes[0] & 0xFF) == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47)) {
                 contentType = "image/png";
-            } else if (lower.endsWith(".jpg") || lower.endsWith(".jpeg") || (bytes != null && bytes.length > 3 && (bytes[0] & 0xFF) == 0xFF && (bytes[1] & 0xFF) == 0xD8)) {
+            } else if (lower.endsWith(".jpg") || lower.endsWith(".jpeg") || (bytes.length > 3 && (bytes[0] & 0xFF) == 0xFF && (bytes[1] & 0xFF) == 0xD8)) {
                 contentType = "image/jpeg";
+            } else if (lower.endsWith(".webp")) {
+                contentType = "image/webp";
+            } else if (lower.endsWith(".xlsx")) {
+                contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            } else if (lower.endsWith(".xls")) {
+                contentType = "application/vnd.ms-excel";
+            } else if (lower.endsWith(".docx")) {
+                contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+            } else if (lower.endsWith(".doc")) {
+                contentType = "application/msword";
             }
             return ResponseEntity.ok()
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + java.net.URLEncoder.encode(decodedName, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20") + "\"")
                     .contentType(MediaType.parseMediaType(contentType))
                     .body(bytes);
         } catch (Exception e) {

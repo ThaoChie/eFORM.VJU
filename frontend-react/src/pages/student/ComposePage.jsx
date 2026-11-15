@@ -35,6 +35,7 @@ import { submissionService } from "../../services/submission-service"
 import { getProofUrl } from "../../lib/axios/client"
 import SignConfirmModal from "../../components/signature/SignConfirmModal"
 import PdfViewer, { isValidSignatureImage } from "../../components/ui/PdfViewer"
+import EvidenceViewer from "../../components/ui/EvidenceViewer"
 import { Button, Card, Input, Modal } from "../../components/ui/Primitives"
 
 const formatDescription = (desc) => {
@@ -362,28 +363,32 @@ export default function ComposePage() {
         setCritUploadError((prev) => ({ ...prev, [targetField]: null }))
 
         let fileUrl = ""
+        // Tạo Base64 Data URL để đảm bảo 100% tệp luôn xem và tải được mọi lúc, không phụ thuộc bộ nhớ tạm của server
+        let dataUrl = ""
+        try {
+          dataUrl = await new Promise((resolve) => {
+            const reader = new FileReader()
+            reader.onload = () => resolve(reader.result)
+            reader.onerror = () => resolve("")
+            reader.readAsDataURL(file)
+          })
+        } catch {}
+
         try {
           const res = await submissionService.uploadProof(semester?.id, file)
           const rawUrl = typeof res === "string" ? res : res?.url
           if (rawUrl) {
             fileUrl = getProofUrl(rawUrl)
           }
-        } catch {
-          // Fallback to Data URL if storage is not connected
+        } catch (uploadErr) {
+          console.warn("Upload to server storage failed, falling back to embedded Data URL:", uploadErr)
         }
 
-        // Đảm bảo fileUrl luôn xem được vĩnh viễn trên mọi máy (chuyển thành Base64 Data URL nếu server chưa có MinIO)
-        if (!fileUrl || !fileUrl.includes("/")) {
-          fileUrl = await new Promise((resolve) => {
-            const reader = new FileReader()
-            reader.onload = () => resolve(reader.result)
-            reader.onerror = () => resolve(URL.createObjectURL(file))
-            reader.readAsDataURL(file)
-          })
-        }
+        // Ưu tiên dataUrl để preview và tải xuống tức thời không phụ thuộc server ephemeral storage
+        const finalUrl = dataUrl || fileUrl
 
         const newProofItem = {
-          url: fileUrl,
+          url: finalUrl,
           name: file.name,
           type: file.type,
           size: file.size,
@@ -1140,72 +1145,8 @@ export default function ComposePage() {
         }}
       />
 
-      {/* 6. MODAL 4: LIGHTBOX XEM LỚN MINH CHỨNG (ẢNH HOẶC PDF) */}
-      <Modal
-        open={!!previewProof}
-        wide
-        title={`Xem minh chứng: ${previewProof?.name || ""}`}
-        onClose={() => setPreviewProof(null)}
-        footer={
-          <div className="flex items-center justify-between w-full">
-            {previewProof?.url && (
-              <a
-                href={getProofUrl(previewProof.url)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs text-brand font-semibold hover:underline"
-              >
-                <ExternalLink className="size-3.5" />
-                Mở trong tab mới
-              </a>
-            )}
-            <Button variant="secondary" onClick={() => setPreviewProof(null)}>
-              Đóng
-            </Button>
-          </div>
-        }
-      >
-        <div className="flex min-h-[380px] items-center justify-center p-2 bg-slate-100 rounded-lg overflow-hidden">
-          {previewProof?.name?.toLowerCase().endsWith(".xlsx") ||
-          previewProof?.name?.toLowerCase().endsWith(".xls") ||
-          previewProof?.type?.includes("sheet") ||
-          previewProof?.type?.includes("excel") ? (
-            <div className="flex flex-col items-center justify-center p-8 text-center">
-              <div className="size-16 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-4 shadow-xs">
-                <FileSpreadsheet className="size-8" />
-              </div>
-              <h3 className="font-bold text-slate-800 text-base">{previewProof?.name}</h3>
-              <p className="text-xs text-slate-500 mt-1">Bảng tính Microsoft Excel (.xlsx)</p>
-              {previewProof?.url && (
-                <a
-                  href={getProofUrl(previewProof.url)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  download={previewProof.name}
-                  className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 transition"
-                >
-                  <ExternalLink className="size-4" />
-                  Tải xuống / Mở tệp Excel
-                </a>
-              )}
-            </div>
-          ) : previewProof?.type === "application/pdf" ||
-          previewProof?.name?.toLowerCase().endsWith(".pdf") ||
-          (typeof previewProof?.url === "string" && previewProof.url.toLowerCase().endsWith(".pdf")) ? (
-            <iframe
-              src={getProofUrl(previewProof.url)}
-              title={previewProof.name}
-              className="size-full min-h-[480px] rounded border border-slate-200"
-            />
-          ) : (
-            <img
-              src={getProofUrl(previewProof?.url)}
-              alt={previewProof?.name}
-              className="max-h-[500px] max-w-full rounded object-contain shadow-xs"
-            />
-          )}
-        </div>
-      </Modal>
+      {/* 6. MODAL 4: LIGHTBOX XEM LỚN MINH CHỨNG */}
+      <EvidenceViewer proof={previewProof} onClose={() => setPreviewProof(null)} />
     </>
   )
 }
