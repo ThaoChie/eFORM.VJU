@@ -73,7 +73,24 @@ export const useAuthStore = create((set) => ({
   },
   logout: () => {
     localStorage.removeItem('token')
+    localStorage.removeItem('user')
     localStorage.removeItem('user_signature')
     set({ user: null, token: null })
+  },
+  async changePassword(oldPassword, newPassword) {
+    set({ loading: true })
+    try {
+      const res = await authService.changePassword(oldPassword, newPassword)
+      const user = sanitizeUser(await authService.getMe())
+      user.role = normalizeRole(user.role)
+      try {
+        localStorage.setItem('user', JSON.stringify(user))
+      } catch {}
+      set({ user, loading: false })
+      return res
+    } catch (e) {
+      set({ loading: false })
+      throw e
+    }
   },
 }))

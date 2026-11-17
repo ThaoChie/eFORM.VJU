@@ -68,6 +68,12 @@ public class User {
     @Column(name = "is_active")
     private Boolean isActive = true;
 
+    @Column(name = "is_first_login")
+    private Boolean isFirstLogin = false;
+
+    @Column(name = "must_change_password")
+    private Boolean mustChangePassword = false;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private Instant createdAt;
 }

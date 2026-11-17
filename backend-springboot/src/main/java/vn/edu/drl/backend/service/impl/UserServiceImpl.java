@@ -74,6 +74,8 @@ public class UserServiceImpl implements UserService {
             u.setRole(Role.STUDENT);
         }
         u.setPasswordHash(passwordEncoder.encode("123456"));
+        u.setIsFirstLogin(true);
+        u.setMustChangePassword(true);
         u.setPositionTitle(req.getPositionTitle());
         u.setAcademicCohort(req.getAcademicCohort());
         if (req.getEffectiveDeptId() != null) {
@@ -264,6 +266,8 @@ public class UserServiceImpl implements UserService {
                         u.setRole(Role.STUDENT);
                     }
                     u.setPasswordHash(passwordEncoder.encode("123456"));
+                    u.setIsFirstLogin(true);
+                    u.setMustChangePassword(true);
                     
                     if (!deptCode.isEmpty()) {
                         Department d = deptRepo.findByDeptCode(deptCode).orElse(null);
