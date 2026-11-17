@@ -62,6 +62,9 @@ client.interceptors.response.use(
     return response.data;
   },
   (error) => {
+    if (error.response && error.response.data && error.response.data.message) {
+      error.message = error.response.data.message;
+    }
     return Promise.reject(error);
   }
 );

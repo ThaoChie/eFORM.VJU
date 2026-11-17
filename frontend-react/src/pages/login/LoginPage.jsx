@@ -19,7 +19,11 @@ export default function LoginPage() {
     setError("")
     try {
       const user = await login(email, password)
-      navigate(homeByRole[user.role] || "/login")
+      if (user.isFirstLogin || user.mustChangePassword) {
+        navigate("/change-password")
+      } else {
+        navigate(homeByRole[user.role] || "/login")
+      }
     } catch (err) {
       setError(err.message || "Lỗi mạng hoặc server không phản hồi")
     }
@@ -32,7 +36,11 @@ export default function LoginPage() {
     setError("");
     try {
       const user = await login(e, p);
-      navigate(homeByRole[user.role] || "/login")
+      if (user.isFirstLogin || user.mustChangePassword) {
+        navigate("/change-password")
+      } else {
+        navigate(homeByRole[user.role] || "/login")
+      }
     } catch (err) {
       setError(err.message || "Lỗi mạng hoặc server không phản hồi")
     }
