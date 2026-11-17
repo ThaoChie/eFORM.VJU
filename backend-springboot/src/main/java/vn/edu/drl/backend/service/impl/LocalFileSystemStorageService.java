@@ -59,6 +59,20 @@ public class LocalFileSystemStorageService implements StorageService {
     @Override
     public byte[] getFileBytes(String bucketName, String objectName) throws Exception {
         Path file = rootLocation.resolve(bucketName).resolve(objectName);
-        return Files.readAllBytes(file);
+        if (Files.exists(file)) {
+            return Files.readAllBytes(file);
+        }
+        Path dir = rootLocation.resolve(bucketName);
+        if (Files.exists(dir)) {
+            try (java.util.stream.Stream<Path> stream = Files.list(dir)) {
+                java.util.Optional<Path> match = stream
+                        .filter(p -> p.getFileName().toString().contains(objectName) || objectName.contains(p.getFileName().toString()))
+                        .findFirst();
+                if (match.isPresent()) {
+                    return Files.readAllBytes(match.get());
+                }
+            } catch (Exception ignored) {}
+        }
+        return new byte[0];
     }
 }

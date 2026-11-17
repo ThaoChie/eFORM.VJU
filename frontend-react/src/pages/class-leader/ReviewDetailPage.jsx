@@ -43,7 +43,8 @@ export default function ReviewDetailPage() {
     const resolvedUrl = p.url ? getProofUrl(p.url) : ""
     setPreviewProof({
       ...p,
-      url: resolvedUrl || p.url,
+      url: resolvedUrl || p.url || p.dataUrl,
+      dataUrl: p.dataUrl,
     })
   }
 
@@ -160,10 +161,13 @@ export default function ReviewDetailPage() {
           const parsed = JSON.parse(c.proofUrl)
           if (Array.isArray(parsed)) {
             parsed.forEach((p, idx) => {
+              const urlVal = typeof p === "string" ? p : (p.url || p.dataUrl)
+              const dataUrlVal = typeof p === "object" ? p.dataUrl : null
               list.push({
                 criteriaCode: c.criteriaCode,
                 criteriaTitle: c.title,
-                url: typeof p === "string" ? p : p.url,
+                url: urlVal,
+                dataUrl: dataUrlVal,
                 name: typeof p === "string" ? (p.split("/").pop() || `Minh chứng ${idx + 1}`) : p.name,
               })
             })

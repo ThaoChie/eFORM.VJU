@@ -71,7 +71,18 @@ public class EditorController {
             } catch (Exception notDecoded) {
                 bytes = storageService.getFileBytes("proofs", filename);
             }
-            if (bytes == null) {
+            if (bytes == null || bytes.length == 0) {
+                java.nio.file.Path localFile = java.nio.file.Paths.get("/tmp/drl-storage/proofs").resolve(filename);
+                if (java.nio.file.Files.exists(localFile)) {
+                    bytes = java.nio.file.Files.readAllBytes(localFile);
+                } else {
+                    java.nio.file.Path decodedLocal = java.nio.file.Paths.get("/tmp/drl-storage/proofs").resolve(decodedName);
+                    if (java.nio.file.Files.exists(decodedLocal)) {
+                        bytes = java.nio.file.Files.readAllBytes(decodedLocal);
+                    }
+                }
+            }
+            if (bytes == null || bytes.length == 0) {
                 return ResponseEntity.notFound().build();
             }
             String contentType = "application/octet-stream";

@@ -10,8 +10,8 @@ const isEnvUrlLocal = Boolean(
 );
 
 const resolvedBaseURL = isLocalhost
-  ? (envApiUrl || 'http://localhost:8080/api/v1')
-  : (!isEnvUrlLocal && envApiUrl ? envApiUrl : 'https://drl-backend-v5xb.onrender.com/api/v1');
+  ? (envApiUrl && !envApiUrl.includes('drl-backend-f0sx') ? envApiUrl : 'http://localhost:8080/api/v1')
+  : (!isEnvUrlLocal && envApiUrl && !envApiUrl.includes('drl-backend-f0sx') ? envApiUrl : 'https://drl-backend-v5xb.onrender.com/api/v1');
 
 export const getApiOrigin = () => {
   return resolvedBaseURL.replace(/\/api\/v1\/?$/, '');
@@ -22,7 +22,10 @@ export const getProofUrl = (url) => {
   if (url.startsWith('data:') || url.startsWith('blob:')) {
     return url;
   }
-  let finalUrl = url;
+  let finalUrl = String(url).trim();
+  if (finalUrl.includes('drl-backend-f0sx.onrender.com')) {
+    finalUrl = finalUrl.replace('drl-backend-f0sx.onrender.com', 'drl-backend-v5xb.onrender.com');
+  }
   if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
     const origin = getApiOrigin();
     let path = finalUrl;
@@ -31,8 +34,13 @@ export const getProofUrl = (url) => {
     }
     finalUrl = `${origin}${path}`;
   }
-  // Sanitize double quotes and spaces so it never breaks HTML attributes or URI parsing
-  return finalUrl.replace(/"/g, '%22');
+  try {
+    const parsed = new URL(finalUrl);
+    parsed.pathname = encodeURI(decodeURI(parsed.pathname));
+    return parsed.toString();
+  } catch {
+    return encodeURI(finalUrl).replace(/"/g, '%22');
+  }
 };
 
 export const client = axios.create({

@@ -384,11 +384,12 @@ export default function ComposePage() {
           console.warn("Upload to server storage failed, falling back to embedded Data URL:", uploadErr)
         }
 
-        // Ưu tiên dataUrl để preview và tải xuống tức thời không phụ thuộc server ephemeral storage
-        const finalUrl = dataUrl || fileUrl
+        // Lưu cả fileUrl từ máy chủ và dataUrl làm fallback an toàn
+        const finalUrl = fileUrl || dataUrl
 
         const newProofItem = {
           url: finalUrl,
+          dataUrl: dataUrl,
           name: file.name,
           type: file.type,
           size: file.size,

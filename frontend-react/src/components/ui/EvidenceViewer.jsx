@@ -129,32 +129,58 @@ export function getProofCategory(file = {}) {
  */
 export default function EvidenceViewer({ proof, onClose }) {
   const [imgError, setImgError] = useState(false)
+  const [blobSrc, setBlobSrc] = useState(null)
   const [downloading, setDownloading] = useState(false)
 
   // Reset error state when proof changes
   useEffect(() => {
     setImgError(false)
-  }, [proof?.url, proof?.name])
+    setBlobSrc(null)
+  }, [proof?.url, proof?.name, proof?.dataUrl])
 
   if (!proof) return null
 
   const category = getProofCategory(proof)
-  const safeUrl = proof.url ? getProofUrl(proof.url) : ""
+  const safeUrl = proof.url ? getProofUrl(proof.url) : (proof.dataUrl || "")
   const fileName = proof.name || "Minh chứng đính kèm"
 
+  const handleImageError = async () => {
+    if (proof?.dataUrl && proof.dataUrl !== safeUrl) {
+      setBlobSrc(proof.dataUrl)
+      return
+    }
+    if (safeUrl && !safeUrl.startsWith("data:") && !blobSrc) {
+      try {
+        const response = await fetch(safeUrl, { method: "GET", mode: "cors" })
+        if (response.ok) {
+          const blob = await response.blob()
+          if (blob && blob.size > 0) {
+            setBlobSrc(URL.createObjectURL(blob))
+            return
+          }
+        }
+      } catch (err) {
+        console.warn("Direct blob fetch fallback failed:", err)
+      }
+    }
+    setImgError(true)
+  }
+
   const handleDownload = async () => {
-    if (!safeUrl && !proof.url) return
+    const activeUrl = blobSrc || safeUrl || proof.url || proof.dataUrl
+    if (!activeUrl) return
     setDownloading(true)
     try {
-      await downloadProofFile(safeUrl || proof.url, fileName)
+      await downloadProofFile(activeUrl, fileName)
     } finally {
       setDownloading(false)
     }
   }
 
   const handleOpenOriginal = () => {
-    if (!safeUrl && !proof.url) return
-    const targetUrl = safeUrl || proof.url
+    const activeUrl = blobSrc || safeUrl || proof.url || proof.dataUrl
+    if (!activeUrl) return
+    const targetUrl = activeUrl
     // If it's a huge data URL, create a blob window
     if (targetUrl.startsWith("data:")) {
       const win = window.open()
@@ -209,11 +235,11 @@ export default function EvidenceViewer({ proof, onClose }) {
         {/* 1. IMAGE PREVIEW */}
         {category === "IMAGE" && (
           <div className="w-full flex flex-col items-center justify-center p-2">
-            {!imgError && safeUrl ? (
+            {!imgError && (blobSrc || safeUrl) ? (
               <img
-                src={safeUrl}
+                src={blobSrc || safeUrl}
                 alt={fileName}
-                onError={() => setImgError(true)}
+                onError={handleImageError}
                 className="max-h-[60vh] max-w-full rounded-lg object-contain shadow-sm bg-white select-none transition-transform"
               />
             ) : (
