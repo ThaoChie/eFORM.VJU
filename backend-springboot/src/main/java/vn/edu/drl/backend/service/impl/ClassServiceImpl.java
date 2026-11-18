@@ -41,6 +41,7 @@ public class ClassServiceImpl implements ClassService {
     private ClassResponse mapToResponse(ClassEntity c) {
         ClassResponse res = new ClassResponse();
         res.setId(c.getId());
+        res.setCreatedAt(c.getCreatedAt());
         res.setClassCode(c.getClassCode());
         res.setClassName(c.getClassName());
         res.setAcademicCohort(c.getAcademicCohort());

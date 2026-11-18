@@ -182,6 +182,7 @@ export default function DirectoryPage() {
       { key: "action", title: "Thao tác", render: actionButtons },
     ];
     rows = items.map((item) => ({
+      ...item,
       id: item.id,
       code: item.deptCode,
       name: item.deptName,
@@ -208,6 +209,7 @@ export default function DirectoryPage() {
       { key: "action", title: "Thao tác", render: actionButtons },
     ];
     rows = items.map((item) => ({
+      ...item,
       id: item.id,
       code: item.majorCode,
       name: item.majorName,
@@ -672,7 +674,15 @@ export default function DirectoryPage() {
       classes: "Danh_sach_Lop",
       users: "Danh_sach_Nguoi_dung"
     };
-    exportToExcel(visibleCols, rows, tabNames[active] || "Danh_sach");
+    const sortedRows = [...rows].sort((a, b) => {
+      const timeA = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const timeB = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
+      if (timeA && timeB && timeA !== timeB) {
+        return timeB - timeA;
+      }
+      return Number(b?.id ?? 0) - Number(a?.id ?? 0);
+    });
+    exportToExcel(visibleCols, sortedRows, tabNames[active] || "Danh_sach");
   };
 
   const handleDownloadTemplate = async () => {
@@ -764,6 +774,14 @@ export default function DirectoryPage() {
       {renderFilters()}
 
       {(() => {
+        rows.sort((a, b) => {
+          const timeA = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const timeB = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
+          if (timeA && timeB && timeA !== timeB) {
+            return timeB - timeA;
+          }
+          return Number(b?.id ?? 0) - Number(a?.id ?? 0);
+        });
         const totalPages = Math.ceil(rows.length / pageSize) || 1;
         const currentData = rows.slice((page - 1) * pageSize, page * pageSize);
         return (

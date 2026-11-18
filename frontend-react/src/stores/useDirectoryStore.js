@@ -22,7 +22,14 @@ export const useDirectoryStore = create((set, get) => ({
         data = await directoryService.getUsers();
       }
       const sorted = Array.isArray(data)
-        ? [...data].sort((a, b) => Number(b?.id ?? 0) - Number(a?.id ?? 0))
+        ? [...data].sort((a, b) => {
+            const timeA = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const timeB = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
+            if (timeA && timeB && timeA !== timeB) {
+              return timeB - timeA;
+            }
+            return Number(b?.id ?? 0) - Number(a?.id ?? 0);
+          })
         : [];
       set({ items: sorted, currentType: type, loading: false });
     } catch (e) {

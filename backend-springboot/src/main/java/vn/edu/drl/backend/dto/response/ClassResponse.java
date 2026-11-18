@@ -5,6 +5,7 @@ import java.util.List;
 @Data
 public class ClassResponse {
     private Long id;
+    private java.time.Instant createdAt;
     private String classCode;
     private String className;
     private String academicCohort;
