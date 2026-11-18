@@ -1,9 +1,24 @@
 import { create } from "zustand"
 import { submissionService, OFFICIAL_DRL_2026_BLOCKS } from "../services/submission-service"
 
-const getDraftStorageKey = (semesterId) => `drl_compose_draft_${semesterId || "active"}`
+const getCurrentUserId = () => {
+  try {
+    const raw = localStorage.getItem("user")
+    if (raw) {
+      const u = JSON.parse(raw)
+      return u?.id || u?.studentId || null
+    }
+  } catch {}
+  return null
+}
 
-export const useSubmissionStore = create((set, get) => ({
+const getDraftStorageKey = (semesterId, userId = null) => {
+  const uid = userId != null ? userId : getCurrentUserId()
+  if (!uid) return null
+  return `drl_compose_draft_u${uid}_sem${semesterId || "active"}`
+}
+
+const initialSubmissionState = {
   scores: {},
   classScores: {},
   proofs: {}, // { [fieldCode]: Array<{ url, name, type, size }> }
@@ -38,6 +53,12 @@ export const useSubmissionStore = create((set, get) => ({
   saving: false,
   submitting: false,
   error: null,
+}
+
+export const useSubmissionStore = create((set, get) => ({
+  ...initialSubmissionState,
+
+  reset: () => set({ ...initialSubmissionState }),
 
   setScore: (code, value) => {
     const num = value === "" ? "" : Number(value)
@@ -45,7 +66,9 @@ export const useSubmissionStore = create((set, get) => ({
       const nextScores = { ...state.scores, [code]: num }
       try {
         const key = getDraftStorageKey(state.semester?.id)
-        localStorage.setItem(key, JSON.stringify({ scores: nextScores, proofs: state.proofs }))
+        if (key) {
+          localStorage.setItem(key, JSON.stringify({ scores: nextScores, proofs: state.proofs }))
+        }
       } catch {}
       return {
         scores: nextScores,
@@ -61,7 +84,9 @@ export const useSubmissionStore = create((set, get) => ({
       const nextProofs = { ...state.proofs, [code]: [...current, proofItem] }
       try {
         const key = getDraftStorageKey(state.semester?.id)
-        localStorage.setItem(key, JSON.stringify({ scores: state.scores, proofs: nextProofs }))
+        if (key) {
+          localStorage.setItem(key, JSON.stringify({ scores: state.scores, proofs: nextProofs }))
+        }
       } catch {}
       return {
         proofs: nextProofs,
@@ -77,7 +102,9 @@ export const useSubmissionStore = create((set, get) => ({
       const nextProofs = { ...state.proofs, [code]: updated }
       try {
         const key = getDraftStorageKey(state.semester?.id)
-        localStorage.setItem(key, JSON.stringify({ scores: state.scores, proofs: nextProofs }))
+        if (key) {
+          localStorage.setItem(key, JSON.stringify({ scores: state.scores, proofs: nextProofs }))
+        }
       } catch {}
       return {
         proofs: nextProofs,
@@ -88,8 +115,26 @@ export const useSubmissionStore = create((set, get) => ({
 
   setIsDirty: (val) => set({ isDirty: !!val }),
 
-  fetchFormData: async (routeId = null) => {
-    set({ loading: true, error: null, noActiveSemester: false })
+  fetchFormData: async (routeId = null, targetUserId = null) => {
+    set({
+      loading: true,
+      error: null,
+      noActiveSemester: false,
+      scores: {},
+      classScores: {},
+      proofs: {},
+      notes: {},
+      details: [],
+      scoreFormId: null,
+      status: "DRAFT",
+      hasSignature: false,
+      studentSignature: null,
+      classSignature: null,
+      deanSignature: null,
+      classLeaderName: null,
+      deanName: null,
+      isDirty: false,
+    })
     try {
       let formRes = null
       let activeSemester = null
@@ -195,11 +240,13 @@ export const useSubmissionStore = create((set, get) => ({
       const formStatus = formRes?.status || "DRAFT"
       const isReadOnly = formStatus !== "DRAFT" && formStatus !== "REJECTED"
 
-      // Restore uncommitted edits from draft cache if returning from signature setup or navigation
-      if (formStatus === "DRAFT" || formStatus === "REJECTED") {
+      // Restore uncommitted edits from draft cache only for this specific user
+      const currentUserId = targetUserId != null ? targetUserId : getCurrentUserId()
+      const draftKey = getDraftStorageKey(activeSemester?.id, currentUserId)
+
+      if (draftKey && (formStatus === "DRAFT" || formStatus === "REJECTED")) {
         try {
-          const key = getDraftStorageKey(activeSemester?.id)
-          const cached = JSON.parse(localStorage.getItem(key) || "null")
+          const cached = JSON.parse(localStorage.getItem(draftKey) || "null")
           if (cached && typeof cached === "object") {
             if (cached.scores && typeof cached.scores === "object") {
               Object.keys(cached.scores).forEach((k) => {
@@ -311,7 +358,9 @@ export const useSubmissionStore = create((set, get) => ({
 
       try {
         const key = getDraftStorageKey(semester.id)
-        localStorage.setItem(key, JSON.stringify({ scores, proofs }))
+        if (key) {
+          localStorage.setItem(key, JSON.stringify({ scores, proofs }))
+        }
       } catch {}
 
       const now = new Date()
@@ -348,7 +397,9 @@ export const useSubmissionStore = create((set, get) => ({
 
       try {
         const key = getDraftStorageKey(semester.id)
-        localStorage.removeItem(key)
+        if (key) {
+          localStorage.removeItem(key)
+        }
       } catch {}
 
       set({ status: "SUBMITTED", isReadOnly: true, isDirty: false, submitting: false })

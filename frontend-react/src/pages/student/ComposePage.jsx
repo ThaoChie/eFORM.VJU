@@ -86,6 +86,7 @@ export default function ComposePage() {
     deanSignature,
     classLeaderName,
     deanName,
+    reset: resetSubmissionStore,
   } = useSubmissionStore()
 
   // Modals & States
@@ -121,12 +122,12 @@ export default function ComposePage() {
     }).catch(() => {})
   }, [])
 
-  // Fetch form data on mount or when route param changes
+  // Fetch form data on mount, when route param changes, or when active user changes
   useEffect(() => {
-    fetchFormData(routeParamId).catch((err) => {
+    fetchFormData(routeParamId, user?.id).catch((err) => {
       console.warn("fetchFormData error:", err)
     })
-  }, [routeParamId])
+  }, [routeParamId, user?.id])
 
   // Real-time group calculations according to DRL rules (clamped sum per group)
   const { groupScores, totalScore } = useMemo(() => {
@@ -226,10 +227,6 @@ export default function ComposePage() {
         return localStorage.getItem(`user_signature_${stored.id}`)
       }
     } catch {}
-    try {
-      const legacy = localStorage.getItem("user_signature")
-      if (isValidSignatureImage(legacy)) return legacy
-    } catch {}
     return null
   }, [user, userStorageKey, studentSignature])
 
@@ -297,7 +294,6 @@ export default function ComposePage() {
         currentSignatureImg ||
         user?.signatureSpecimenUrl ||
         (userStorageKey ? localStorage.getItem(userStorageKey) : null) ||
-        localStorage.getItem("user_signature_4") ||
         "DIGITALLY_SIGNED_BY_STUDENT"
       await submit(finalSig)
       setSignModalOpen(false)

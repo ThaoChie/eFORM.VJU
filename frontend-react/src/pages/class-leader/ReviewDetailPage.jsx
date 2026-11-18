@@ -61,7 +61,6 @@ export default function ReviewDetailPage() {
   const classLeaderSig = useMemo(() => {
     return (
       (currentUser?.id ? localStorage.getItem(`user_signature_${currentUser.id}`) : null) ||
-      localStorage.getItem("user_signature_3") ||
       currentUser?.signatureSpecimenUrl ||
       null
     )

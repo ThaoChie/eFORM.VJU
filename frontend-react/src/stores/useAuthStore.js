@@ -19,6 +19,8 @@ const sanitizeUser = (user) => {
 }
 import { create } from "zustand"
 import { authService } from "../services/auth-service"
+import { useSubmissionStore } from "./useSubmissionStore"
+import { useNotificationStore } from "./useNotificationStore"
 
 const normalizeRole = (role) => {
   if (!role) return role;
@@ -75,6 +77,25 @@ export const useAuthStore = create((set) => ({
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     localStorage.removeItem('user_signature')
+
+    // Xóa sạch bộ nhớ tạm draft và chữ ký để phân tách tuyệt đối giữa các tài khoản
+    try {
+      const keysToRemove = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i)
+        if (k && (k.startsWith('drl_compose_draft') || k.startsWith('user_signature'))) {
+          keysToRemove.push(k)
+        }
+      }
+      keysToRemove.forEach((k) => localStorage.removeItem(k))
+    } catch {}
+
+    // Reset store trong RAM tránh giữ state của user trước
+    try {
+      useSubmissionStore.getState().reset?.()
+      useNotificationStore.setState?.({ items: [], unreadCount: 0, total: 0, loading: false })
+    } catch {}
+
     set({ user: null, token: null })
   },
   async changePassword(oldPassword, newPassword) {
