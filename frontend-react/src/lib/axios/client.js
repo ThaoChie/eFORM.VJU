@@ -10,8 +10,8 @@ const isEnvUrlLocal = Boolean(
 );
 
 const resolvedBaseURL = isLocalhost
-  ? (envApiUrl || 'http://localhost:8080/api/v1')
-  : (!isEnvUrlLocal && envApiUrl ? envApiUrl : 'https://drl-backend-v5xb.onrender.com/api/v1');
+  ? (envApiUrl && !envApiUrl.includes('drl-backend-f0sx') ? envApiUrl : 'http://localhost:8080/api/v1')
+  : (!isEnvUrlLocal && envApiUrl && !envApiUrl.includes('drl-backend-f0sx') ? envApiUrl : 'https://drl-backend-v5xb.onrender.com/api/v1');
 
 export const getApiOrigin = () => {
   return resolvedBaseURL.replace(/\/api\/v1\/?$/, '');
@@ -19,15 +19,32 @@ export const getApiOrigin = () => {
 
 export const getProofUrl = (url) => {
   if (!url) return '';
-  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http://') || url.startsWith('https://')) {
+  if (url.startsWith('data:') || url.startsWith('blob:')) {
     return url;
   }
-  const origin = getApiOrigin();
-  let path = url;
-  if (!path.startsWith('/api/')) {
-    path = `/api/v1/editor/proofs/${path.replace(/^\/+/, '')}`;
+  let finalUrl = String(url).trim();
+  if (finalUrl.includes('drl-backend-f0sx.onrender.com')) {
+    finalUrl = finalUrl.replace('drl-backend-f0sx.onrender.com', 'drl-backend-v5xb.onrender.com');
   }
-  return `${origin}${path}`;
+  if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+    const origin = getApiOrigin();
+    let path = finalUrl;
+    if (!path.startsWith('/api/')) {
+      path = `/api/v1/editor/proofs/${path.replace(/^\/+/, '')}`;
+    }
+    finalUrl = `${origin}${path}`;
+  }
+  try {
+    const parsed = new URL(finalUrl);
+    // Properly encode each path segment to handle spaces, quotes, and Vietnamese characters safely
+    parsed.pathname = parsed.pathname
+      .split('/')
+      .map((seg) => encodeURIComponent(decodeURIComponent(seg)))
+      .join('/');
+    return parsed.toString();
+  } catch {
+    return encodeURI(finalUrl).replace(/"/g, '%22');
+  }
 };
 
 export const client = axios.create({
@@ -57,6 +74,9 @@ client.interceptors.response.use(
     return response.data;
   },
   (error) => {
+    if (error.response && error.response.data && error.response.data.message) {
+      error.message = error.response.data.message;
+    }
     return Promise.reject(error);
   }
 );

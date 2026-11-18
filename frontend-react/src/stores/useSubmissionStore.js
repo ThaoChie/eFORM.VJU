@@ -1,7 +1,45 @@
 import { create } from "zustand"
 import { submissionService, OFFICIAL_DRL_2026_BLOCKS } from "../services/submission-service"
 
-export const useSubmissionStore = create((set, get) => ({
+const getCurrentUserId = () => {
+  try {
+    const raw = localStorage.getItem("user")
+    if (raw) {
+      const u = JSON.parse(raw)
+      return u?.id || u?.studentId || null
+    }
+  } catch {}
+  return null
+}
+
+const getDraftStorageKey = (semesterId, userId = null) => {
+  const uid = userId != null ? userId : getCurrentUserId()
+  if (!uid) return null
+  return `drl_compose_draft_u${uid}_sem${semesterId || "active"}`
+}
+
+const sanitizeProofsForStorage = (proofsObj) => {
+  if (!proofsObj || typeof proofsObj !== "object") return proofsObj
+  const clean = {}
+  Object.keys(proofsObj).forEach((k) => {
+    const val = proofsObj[k]
+    if (Array.isArray(val)) {
+      clean[k] = val.map((p) => {
+        if (!p || typeof p !== "object") return p
+        const { dataUrl, ...rest } = p
+        if (dataUrl && dataUrl.length < 50000) {
+          return { ...rest, dataUrl }
+        }
+        return rest
+      })
+    } else {
+      clean[k] = val
+    }
+  })
+  return clean
+}
+
+const initialSubmissionState = {
   scores: {},
   classScores: {},
   proofs: {}, // { [fieldCode]: Array<{ url, name, type, size }> }
@@ -36,21 +74,43 @@ export const useSubmissionStore = create((set, get) => ({
   saving: false,
   submitting: false,
   error: null,
+}
+
+export const useSubmissionStore = create((set, get) => ({
+  ...initialSubmissionState,
+
+  reset: () => set({ ...initialSubmissionState }),
 
   setScore: (code, value) => {
     const num = value === "" ? "" : Number(value)
-    set((state) => ({
-      scores: { ...state.scores, [code]: num },
-      isDirty: true,
-    }))
+    set((state) => {
+      const nextScores = { ...state.scores, [code]: num }
+      try {
+        const key = getDraftStorageKey(state.semester?.id)
+        if (key) {
+          localStorage.setItem(key, JSON.stringify({ scores: nextScores, proofs: sanitizeProofsForStorage(state.proofs) }))
+        }
+      } catch {}
+      return {
+        scores: nextScores,
+        isDirty: true,
+      }
+    })
   },
 
   addProof: (code, proofItem) => {
     set((state) => {
       const current = Array.isArray(state.proofs[code]) ? [...state.proofs[code]] : []
       if (current.length >= 5) return state // max 5 files per criterion
+      const nextProofs = { ...state.proofs, [code]: [...current, proofItem] }
+      try {
+        const key = getDraftStorageKey(state.semester?.id)
+        if (key) {
+          localStorage.setItem(key, JSON.stringify({ scores: state.scores, proofs: sanitizeProofsForStorage(nextProofs) }))
+        }
+      } catch {}
       return {
-        proofs: { ...state.proofs, [code]: [...current, proofItem] },
+        proofs: nextProofs,
         isDirty: true,
       }
     })
@@ -60,8 +120,15 @@ export const useSubmissionStore = create((set, get) => ({
     set((state) => {
       const current = Array.isArray(state.proofs[code]) ? [...state.proofs[code]] : []
       const updated = current.filter((_, idx) => idx !== targetIndex)
+      const nextProofs = { ...state.proofs, [code]: updated }
+      try {
+        const key = getDraftStorageKey(state.semester?.id)
+        if (key) {
+          localStorage.setItem(key, JSON.stringify({ scores: state.scores, proofs: sanitizeProofsForStorage(nextProofs) }))
+        }
+      } catch {}
       return {
-        proofs: { ...state.proofs, [code]: updated },
+        proofs: nextProofs,
         isDirty: true,
       }
     })
@@ -69,8 +136,26 @@ export const useSubmissionStore = create((set, get) => ({
 
   setIsDirty: (val) => set({ isDirty: !!val }),
 
-  fetchFormData: async (routeId = null) => {
-    set({ loading: true, error: null, noActiveSemester: false })
+  fetchFormData: async (routeId = null, targetUserId = null) => {
+    set({
+      loading: true,
+      error: null,
+      noActiveSemester: false,
+      scores: {},
+      classScores: {},
+      proofs: {},
+      notes: {},
+      details: [],
+      scoreFormId: null,
+      status: "DRAFT",
+      hasSignature: false,
+      studentSignature: null,
+      classSignature: null,
+      deanSignature: null,
+      classLeaderName: null,
+      deanName: null,
+      isDirty: false,
+    })
     try {
       let formRes = null
       let activeSemester = null
@@ -176,6 +261,36 @@ export const useSubmissionStore = create((set, get) => ({
       const formStatus = formRes?.status || "DRAFT"
       const isReadOnly = formStatus !== "DRAFT" && formStatus !== "REJECTED"
 
+      // Restore uncommitted edits from draft cache only for this specific user
+      const currentUserId = targetUserId != null ? targetUserId : getCurrentUserId()
+      const draftKey = getDraftStorageKey(activeSemester?.id, currentUserId)
+
+      if (draftKey && (formStatus === "DRAFT" || formStatus === "REJECTED")) {
+        try {
+          const cached = JSON.parse(localStorage.getItem(draftKey) || "null")
+          if (cached && typeof cached === "object") {
+            if (cached.scores && typeof cached.scores === "object") {
+              Object.keys(cached.scores).forEach((k) => {
+                if (cached.scores[k] !== "" && cached.scores[k] != null) {
+                  if (scores[k] === "" || scores[k] == null || scores[k] === 0) {
+                    scores[k] = cached.scores[k]
+                  }
+                }
+              })
+            }
+            if (cached.proofs && typeof cached.proofs === "object") {
+              Object.keys(cached.proofs).forEach((k) => {
+                if (Array.isArray(cached.proofs[k]) && cached.proofs[k].length > 0) {
+                  if (!proofs[k] || proofs[k].length === 0) {
+                    proofs[k] = cached.proofs[k]
+                  }
+                }
+              })
+            }
+          }
+        } catch {}
+      }
+
       set({
         semester: activeSemester,
         scoreFormId: formRes?.scoreFormId || null,
@@ -244,7 +359,16 @@ export const useSubmissionStore = create((set, get) => ({
         const critProofList = proofs[code] || []
         let proofUrlVal = null
         if (Array.isArray(critProofList) && critProofList.length > 0) {
-          proofUrlVal = JSON.stringify(critProofList)
+          // Do not send giant dataUrl in draft details payload
+          const cleanProofList = critProofList.map((p) => {
+            if (p && typeof p === "object") {
+              const { dataUrl, ...rest } = p
+              if (dataUrl && dataUrl.length < 50000) return p
+              return rest
+            }
+            return p
+          })
+          proofUrlVal = JSON.stringify(cleanProofList)
         } else if (typeof critProofList === "string" && critProofList) {
           proofUrlVal = critProofList
         }
@@ -261,6 +385,13 @@ export const useSubmissionStore = create((set, get) => ({
         semesterId: semester.id,
         details: payloadDetails,
       })
+
+      try {
+        const key = getDraftStorageKey(semester.id)
+        if (key) {
+          localStorage.setItem(key, JSON.stringify({ scores, proofs: sanitizeProofsForStorage(proofs) }))
+        }
+      } catch {}
 
       const now = new Date()
       const timeStr = now.toLocaleTimeString("vi-VN", {
@@ -293,6 +424,13 @@ export const useSubmissionStore = create((set, get) => ({
         semesterId: semester.id,
         signatureBase64,
       })
+
+      try {
+        const key = getDraftStorageKey(semester.id)
+        if (key) {
+          localStorage.removeItem(key)
+        }
+      } catch {}
 
       set({ status: "SUBMITTED", isReadOnly: true, isDirty: false, submitting: false })
       return true

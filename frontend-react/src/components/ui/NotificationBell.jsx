@@ -138,6 +138,8 @@ export default function NotificationBell() {
     <div className="relative" ref={dropdownRef}>
       <IconButton
         label="Thông báo"
+        tooltipPlacement="bottom"
+        tooltipAlign="right"
         onClick={() => setOpen(!open)}
         className={`relative ${open ? "bg-slate-100 text-slate-900" : ""}`}
       >

@@ -159,14 +159,6 @@ export default function SignatureUploader({ level = 1 }) {
         if (user?.id) {
           localStorage.setItem(`user_signature_${user.id}`, finalSignature)
         }
-        localStorage.setItem("user_signature", finalSignature)
-        if (level === 2 || user?.role === "CLASS_LEADER" || user?.role === "CLASS_DEPUTY") {
-          localStorage.setItem("user_signature_3", finalSignature)
-        } else if (level === 3 || user?.role === "DEAN") {
-          localStorage.setItem("user_signature_2", finalSignature)
-        } else {
-          localStorage.setItem("user_signature_4", finalSignature)
-        }
       } catch (storageErr) {
         console.warn("Storage quota warning:", storageErr)
       }

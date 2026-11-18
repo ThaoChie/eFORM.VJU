@@ -4,8 +4,10 @@ import { useEffect, useState } from "react"
 import {
   BrowserRouter,
   Navigate,
+  Outlet,
   Route,
   Routes,
+  useLocation,
   useNavigate,
 } from "react-router-dom"
 import AppLayout from "./components/ui/AppLayout"
@@ -13,6 +15,7 @@ import { Button } from "./components/ui/Primitives"
 import { homeByRole } from "./common/permission-config"
 import { useAuthStore } from "./stores/useAuthStore"
 import LoginPage from "./pages/login/LoginPage"
+import ChangePasswordPage from "./pages/login/ChangePasswordPage"
 import StudentDashboard from "./pages/student/StudentDashboard"
 import ComposePage from "./pages/student/ComposePage"
 import PendingListPage from "./pages/student/PendingListPage"
@@ -39,11 +42,31 @@ import FieldCodeDetailPage from "./pages/admin/field-codes/FieldCodeDetailPage"
 import DirectoryPage from "./pages/admin/directory/DirectoryPage"
 import ApprovalQueuePage from "./pages/admin/approvals/ApprovalQueuePage"
 
-function Guard({ roles }) {
+function ProtectedRoute({
+  roles = ["student", "class-leader", "class-deputy", "dean", "admin"],
+  children,
+}) {
   const user = useAuthStore((state) => state.user)
+  const location = useLocation()
+
   if (!user) return <Navigate to="/login" replace />
-  if (!roles.includes(user.role)) return <Navigate to="/403" replace />
-  return <AppLayout />
+
+  const isFirstLogin = Boolean(user.isFirstLogin || user.mustChangePassword)
+  if (isFirstLogin && location.pathname !== "/change-password") {
+    return <Navigate to="/change-password" replace />
+  }
+
+  if (roles && !roles.includes(user.role)) return <Navigate to="/403" replace />
+
+  return children ? children : <Outlet />
+}
+
+function Guard({ roles }) {
+  return (
+    <ProtectedRoute roles={roles}>
+      <AppLayout />
+    </ProtectedRoute>
+  )
 }
 
 function ErrorPage({ denied = false }) {
@@ -78,6 +101,9 @@ function ErrorPage({ denied = false }) {
 
 function Start() {
   const user = useAuthStore((state) => state.user)
+  if (user && (user.isFirstLogin || user.mustChangePassword)) {
+    return <Navigate to="/change-password" replace />
+  }
   return <Navigate to={user ? homeByRole[user.role] : "/login"} replace />
 }
 
@@ -98,7 +124,15 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Start />} />
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/change-password" element={<LoginPage />} />
+        <Route
+          element={
+            <ProtectedRoute
+              roles={["student", "class-leader", "class-deputy", "dean", "admin"]}
+            />
+          }
+        >
+          <Route path="/change-password" element={<ChangePasswordPage />} />
+        </Route>
         <Route
           element={
             <Guard roles={["student", "class-leader", "class-deputy"]} />

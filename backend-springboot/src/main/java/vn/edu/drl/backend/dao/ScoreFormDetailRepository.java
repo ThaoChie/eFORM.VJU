@@ -7,9 +7,10 @@ import vn.edu.drl.backend.model.ScoreFormDetail;
 import java.util.List;
 
 public interface ScoreFormDetailRepository extends JpaRepository<ScoreFormDetail, Long> {
-    List<ScoreFormDetail> findByScoreFormId(Long scoreFormId);
+    @Query("SELECT d FROM ScoreFormDetail d LEFT JOIN FETCH d.criteria c WHERE d.scoreForm.id = :scoreFormId ORDER BY COALESCE(c.orderIndex, 9999) ASC, c.criteriaCode ASC, d.id ASC")
+    List<ScoreFormDetail> findByScoreFormId(@Param("scoreFormId") Long scoreFormId);
 
-    @Query("SELECT d FROM ScoreFormDetail d JOIN FETCH d.criteria WHERE d.scoreForm.id = :scoreFormId ORDER BY d.criteria.orderIndex ASC, d.id ASC")
+    @Query("SELECT d FROM ScoreFormDetail d LEFT JOIN FETCH d.criteria c WHERE d.scoreForm.id = :scoreFormId ORDER BY COALESCE(c.orderIndex, 9999) ASC, c.criteriaCode ASC, d.id ASC")
     List<ScoreFormDetail> findByScoreFormIdWithCriteria(@Param("scoreFormId") Long scoreFormId);
 
     void deleteByScoreFormId(Long scoreFormId);

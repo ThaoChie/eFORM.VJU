@@ -347,7 +347,7 @@ public class EditorServiceImpl implements EditorService {
                 if (sl.getSigner() != null) {
                     response.setClassLeaderName(sl.getSigner().getFullName());
                 }
-            } else if (sl.getSignOrder() != null && sl.getSignOrder() == 3) {
+            } else if ((sl.getSignOrder() != null && sl.getSignOrder() == 3) || sl.getSignerRole() == Role.DEAN) {
                 String img = sl.getSignatureImgUrl();
                 if (img != null && !img.contains("CONFIRMED") && !img.contains("DIGITALLY") && !img.trim().isEmpty()) {
                     response.setDeanSignature(vn.edu.drl.backend.service.engine.ImageConversionUtils.ensureStandardWebImage(img));
@@ -359,6 +359,14 @@ public class EditorServiceImpl implements EditorService {
         }
         if ((response.getStudentSignature() == null || response.getStudentSignature().trim().isEmpty()) && form.getStudent() != null) {
             response.setStudentSignature(vn.edu.drl.backend.service.engine.ImageConversionUtils.ensureStandardWebImage(form.getStudent().getSignatureSpecimenUrl()));
+        }
+        if (form.getStatus() == ScoreFormStatus.DEAN_APPROVED && (response.getDeanSignature() == null || response.getDeanSignature().trim().isEmpty())) {
+            String dName = (response.getDeanName() != null && !response.getDeanName().trim().isEmpty()) ? response.getDeanName() : "Trưởng Khoa CNTT";
+            response.setDeanSignature(vn.edu.drl.backend.service.engine.ImageConversionUtils.generateSpecimenPngBase64(
+                dName,
+                "Trưởng Khoa",
+                new java.awt.Color(136, 19, 55)
+            ));
         }
 
         if (form.getStatus() == ScoreFormStatus.REJECTED) {

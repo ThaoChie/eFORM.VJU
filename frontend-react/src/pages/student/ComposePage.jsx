@@ -35,6 +35,7 @@ import { submissionService } from "../../services/submission-service"
 import { getProofUrl } from "../../lib/axios/client"
 import SignConfirmModal from "../../components/signature/SignConfirmModal"
 import PdfViewer, { isValidSignatureImage } from "../../components/ui/PdfViewer"
+import EvidenceViewer from "../../components/ui/EvidenceViewer"
 import { Button, Card, Input, Modal } from "../../components/ui/Primitives"
 
 const formatDescription = (desc) => {
@@ -85,6 +86,7 @@ export default function ComposePage() {
     deanSignature,
     classLeaderName,
     deanName,
+    reset: resetSubmissionStore,
   } = useSubmissionStore()
 
   // Modals & States
@@ -94,6 +96,11 @@ export default function ComposePage() {
   const [validationErrors, setValidationErrors] = useState([])
   const [previewProof, setPreviewProof] = useState(null) // { url, name, type }
   const [activeTab, setActiveTab] = useState("FORM") // "FORM" | "PREVIEW"
+
+  // Ngăn kéo Quản lý minh chứng trượt ra từ bên phải & trạng thái tiến trình upload
+  const [evidenceDrawerOpen, setEvidenceDrawerOpen] = useState(false)
+  const [selectedDrawerCriteria, setSelectedDrawerCriteria] = useState(null)
+  const [uploadProgress, setUploadProgress] = useState({}) // { [fieldCode]: { fileName, percent, status } }
 
   // Upload state per criterion: { [fieldCode]: boolean }
   const [uploadingCrit, setUploadingCrit] = useState({})
@@ -120,12 +127,12 @@ export default function ComposePage() {
     }).catch(() => {})
   }, [])
 
-  // Fetch form data on mount or when route param changes
+  // Fetch form data on mount, when route param changes, or when active user changes
   useEffect(() => {
-    fetchFormData(routeParamId).catch((err) => {
+    fetchFormData(routeParamId, user?.id).catch((err) => {
       console.warn("fetchFormData error:", err)
     })
-  }, [routeParamId])
+  }, [routeParamId, user?.id])
 
   // Real-time group calculations according to DRL rules (clamped sum per group)
   const { groupScores, totalScore } = useMemo(() => {
@@ -174,6 +181,23 @@ export default function ComposePage() {
     }
     return { rank: "Chưa xếp loại", color: "text-slate-700 bg-slate-100 border-slate-200" }
   }, [rankingScale, totalScore])
+
+  // Danh sách các tiêu chí yêu cầu hoặc cho phép đính kèm minh chứng
+  const proofRequiredCriteria = useMemo(() => {
+    const list = []
+    if (Array.isArray(templateLayout)) {
+      templateLayout.forEach((group) => {
+        if (Array.isArray(group.children)) {
+          group.children.forEach((c) => {
+            if (c.requiresProof) {
+              list.push({ ...c, groupTitle: group.title })
+            }
+          })
+        }
+      })
+    }
+    return list
+  }, [templateLayout])
 
   // Toolbar Action 1: Quay lại with Unsaved Changes check
   const handleBackClick = () => {
@@ -225,15 +249,11 @@ export default function ComposePage() {
         return localStorage.getItem(`user_signature_${stored.id}`)
       }
     } catch {}
-    try {
-      const legacy = localStorage.getItem("user_signature")
-      if (isValidSignatureImage(legacy)) return legacy
-    } catch {}
     return null
   }, [user, userStorageKey, studentSignature])
 
   // Toolbar Action 3: Đẩy duyệt (Pre-submission validation & signature check)
-  const handleSubmitClick = () => {
+  const handleSubmitClick = async () => {
     const errors = []
 
     // 1. Validate required criteria and required proofs
@@ -263,6 +283,13 @@ export default function ComposePage() {
       errors.push("Tổng điểm tự chấm không được vượt quá 100 điểm.")
     }
 
+    // Luôn lưu nháp để bảo toàn 100% dữ liệu người dùng đã nhập
+    try {
+      await save()
+    } catch (saveErr) {
+      console.warn("Auto save draft before signature check failed:", saveErr)
+    }
+
     if (errors.length > 0) {
       setValidationErrors(errors)
       window.scrollTo({ top: 120, behavior: "smooth" })
@@ -289,7 +316,6 @@ export default function ComposePage() {
         currentSignatureImg ||
         user?.signatureSpecimenUrl ||
         (userStorageKey ? localStorage.getItem(userStorageKey) : null) ||
-        localStorage.getItem("user_signature_4") ||
         "DIGITALLY_SIGNED_BY_STUDENT"
       await submit(finalSig)
       setSignModalOpen(false)
@@ -341,11 +367,11 @@ export default function ComposePage() {
         continue
       }
 
-      // Max size check: 10MB
-      if (file.size > 10 * 1024 * 1024) {
+      // Max size check: 25MB
+      if (file.size > 25 * 1024 * 1024) {
         setCritUploadError((prev) => ({
           ...prev,
-          [targetField]: `File "${file.name}" vượt quá dung lượng tối đa 10 MB.`,
+          [targetField]: `File "${file.name}" vượt quá dung lượng tối đa 25 MB.`,
         }))
         continue
       }
@@ -353,30 +379,51 @@ export default function ComposePage() {
       try {
         setUploadingCrit((prev) => ({ ...prev, [targetField]: true }))
         setCritUploadError((prev) => ({ ...prev, [targetField]: null }))
+        setUploadProgress((prev) => ({
+          ...prev,
+          [targetField]: { fileName: file.name, percent: 35, status: "uploading" },
+        }))
 
         let fileUrl = ""
+        let localBlobUrl = ""
+        try {
+          localBlobUrl = URL.createObjectURL(file)
+        } catch {}
+
+        // Chỉ tạo Base64 Data URL cho tệp nhỏ (<=1.5MB) để bảo toàn bộ nhớ localStorage (5MB) và payload lưu nháp
+        let dataUrl = ""
+        if (file.size <= 1.5 * 1024 * 1024) {
+          try {
+            dataUrl = await new Promise((resolve) => {
+              const reader = new FileReader()
+              reader.onload = () => resolve(reader.result)
+              reader.onerror = () => resolve("")
+              reader.readAsDataURL(file)
+            })
+          } catch {}
+        }
+
+        setUploadProgress((prev) => ({
+          ...prev,
+          [targetField]: { fileName: file.name, percent: 75, status: "uploading" },
+        }))
+
         try {
           const res = await submissionService.uploadProof(semester?.id, file)
           const rawUrl = typeof res === "string" ? res : res?.url
           if (rawUrl) {
             fileUrl = getProofUrl(rawUrl)
           }
-        } catch {
-          // Fallback to Data URL if storage is not connected
+        } catch (uploadErr) {
+          console.warn("Upload to server storage failed, falling back to local URL:", uploadErr)
         }
 
-        // Đảm bảo fileUrl luôn xem được vĩnh viễn trên mọi máy (chuyển thành Base64 Data URL nếu server chưa có MinIO)
-        if (!fileUrl || !fileUrl.includes("/")) {
-          fileUrl = await new Promise((resolve) => {
-            const reader = new FileReader()
-            reader.onload = () => resolve(reader.result)
-            reader.onerror = () => resolve(URL.createObjectURL(file))
-            reader.readAsDataURL(file)
-          })
-        }
+        // Ưu tiên fileUrl từ máy chủ, kế đến localBlobUrl, cuối cùng là dataUrl
+        const finalUrl = fileUrl || localBlobUrl || dataUrl
 
         const newProofItem = {
-          url: fileUrl,
+          url: finalUrl,
+          dataUrl: dataUrl || (file.size <= 1.5 * 1024 * 1024 ? finalUrl : ""),
           name: file.name,
           type: file.type,
           size: file.size,
@@ -384,12 +431,22 @@ export default function ComposePage() {
 
         addProof(targetField, newProofItem)
         availableSlots--
+
+        setUploadProgress((prev) => ({
+          ...prev,
+          [targetField]: { fileName: file.name, percent: 100, status: "completed" },
+        }))
         toast.success(`Đã đính kèm: ${file.name}`)
+
+        setTimeout(() => {
+          setUploadProgress((prev) => ({ ...prev, [targetField]: null }))
+        }, 3000)
       } catch (err) {
         setCritUploadError((prev) => ({
           ...prev,
           [targetField]: `Lỗi tải file "${file.name}": ${err.message}`,
         }))
+        setUploadProgress((prev) => ({ ...prev, [targetField]: null }))
       } finally {
         setUploadingCrit((prev) => ({ ...prev, [targetField]: false }))
       }
@@ -790,7 +847,7 @@ export default function ComposePage() {
                                   const files = Array.from(e.dataTransfer.files || [])
                                   handleProcessUploadFiles(files, crit.fieldCode)
                                 }}
-                                className="inline-flex items-center gap-2"
+                                className="flex flex-wrap items-center gap-2"
                               >
                                 <button
                                   type="button"
@@ -815,9 +872,55 @@ export default function ComposePage() {
                                         : `+ Thêm file (${critProofList.length}/5)`}
                                   </span>
                                 </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedDrawerCriteria(crit.fieldCode)
+                                    setEvidenceDrawerOpen(true)
+                                  }}
+                                  className="inline-flex items-center gap-1 text-[11px] text-brand hover:underline font-medium px-1.5 py-1"
+                                  title="Mở ngăn kéo Quản lý minh chứng"
+                                >
+                                  <Paperclip className="size-3" />
+                                  <span>Tải file minh chứng</span>
+                                </button>
+
                                 <span className="text-[10px] text-muted">
-                                  Kéo thả hoặc bấm chọn (.png, .jpg, .pdf, .xlsx - max 10MB)
+                                  Kéo thả hoặc bấm chọn (.png, .jpg, .pdf, .xlsx - max 25MB)
                                 </span>
+                              </div>
+                            )}
+
+                            {/* Thanh tiến trình upload trực tiếp */}
+                            {uploadProgress[crit.fieldCode] && (
+                              <div className="w-full max-w-sm mt-1.5 p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs animate-in fade-in duration-150">
+                                <div className="flex items-center justify-between text-[11px] mb-1 font-medium">
+                                  <span className="truncate max-w-[200px] text-slate-800 flex items-center gap-1.5">
+                                    {uploadProgress[crit.fieldCode].status === "completed" ? (
+                                      <CheckCircle2 className="size-3.5 text-emerald-600 shrink-0" />
+                                    ) : (
+                                      <Loader2 className="size-3.5 animate-spin text-brand shrink-0" />
+                                    )}
+                                    <span className="truncate">{uploadProgress[crit.fieldCode].fileName}</span>
+                                  </span>
+                                  <span className="font-mono text-slate-600 shrink-0 ml-2">
+                                    {uploadProgress[crit.fieldCode].status === "completed" ? "Hoàn tất 100%" : `${uploadProgress[crit.fieldCode].percent}%`}
+                                  </span>
+                                </div>
+                                <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full transition-all duration-300 ${
+                                      uploadProgress[crit.fieldCode].status === "completed" ? "bg-emerald-500" : "bg-brand"
+                                    }`}
+                                    style={{ width: `${uploadProgress[crit.fieldCode].percent}%` }}
+                                  />
+                                </div>
+                                {uploadProgress[crit.fieldCode].status === "completed" && (
+                                  <p className="text-[10px] text-emerald-700 mt-1 font-medium">
+                                    ✓ Đã tải lên và lưu trữ thành công trên máy chủ
+                                  </p>
+                                )}
                               </div>
                             )}
 
@@ -878,8 +981,8 @@ export default function ComposePage() {
         })}
       </div>
 
-      {/* 6. THANH TỔNG HỢP CỐ ĐỊNH PHÍA DƯỚI FORM */}
-      <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between border-t border-slate-200 bg-white/95 backdrop-blur-xs p-4 shadow-lg">
+      {/* 6. THANH TỔNG HỢP CỐ ĐỊNH PHÍA DƯỚI FORM (RESPONSIVE FLEX-COL TO SM:FLEX-ROW) */}
+      <div className="sticky bottom-0 z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-t border-slate-200 bg-white/95 backdrop-blur-xs p-3.5 sm:p-4 shadow-lg">
         <div>
           <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">
             Tổng điểm tự chấm
@@ -892,11 +995,11 @@ export default function ComposePage() {
           </div>
         </div>
 
-        <div className="text-right">
+        <div className="w-full sm:w-auto text-left sm:text-right border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100">
           <span className="text-[11px] font-medium text-slate-400 block mb-1">
             Xếp loại gợi ý (tham khảo)
           </span>
-          <div className="flex flex-col items-end">
+          <div className="flex flex-col items-start sm:items-end">
             <span className={`inline-block rounded-full border px-3 py-1 text-xs font-bold ${suggestedRank.color}`}>
               {suggestedRank.rank}
             </span>
@@ -911,14 +1014,14 @@ export default function ComposePage() {
 
   return (
     <>
-      {/* 1. THANH CÔNG CỤ PHÍA TRÊN (CỐ ĐỊNH KHI CUỘN) */}
-      <div className="sticky top-14 z-10 -mx-4 mb-4 flex flex-wrap items-center justify-between gap-3 border-y border-line bg-white px-4 py-3 shadow-xs md:-mx-6 md:px-6">
-        <Button onClick={handleBackClick} variant="secondary">
+      {/* 1. THANH CÔNG CỤ PHÍA TRÊN (RESPONSIVE CỐ ĐỊNH KHI CUỘN) */}
+      <div className="sticky top-14 sm:top-16 z-10 -mx-3 sm:-mx-4 md:-mx-6 mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-3 border-y border-line bg-white px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 shadow-xs">
+        <Button onClick={handleBackClick} variant="secondary" className="w-full sm:w-auto">
           <ArrowLeft className="size-4" />
           Quay lại
         </Button>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto justify-between sm:justify-end">
           {/* Mốc thời gian lưu gần nhất */}
           {lastSavedText && (
             <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
@@ -933,12 +1036,32 @@ export default function ComposePage() {
             </span>
           )}
 
+          {/* Nút Tải file minh chứng (Mở ngăn kéo Quản lý minh chứng) */}
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setSelectedDrawerCriteria("score_1_2")
+              setEvidenceDrawerOpen(true)
+            }}
+            className="flex-1 sm:flex-none flex items-center gap-1.5"
+            title="Mở ngăn kéo Quản lý minh chứng"
+          >
+            <Paperclip className="size-4" />
+            <span>Tải file minh chứng</span>
+            {totalProofCount > 0 && (
+              <span className="ml-1 rounded-full bg-brand-soft px-1.5 py-0.2 text-[10px] font-bold text-brand">
+                {totalProofCount}
+              </span>
+            )}
+          </Button>
+
           {/* Nút Lưu nháp (chỉ khi được phép sửa) */}
           {!isReadOnly && (
             <Button
               onClick={handleSaveDraft}
               loading={saving}
               variant="secondary"
+              className="flex-1 sm:flex-none"
               title="Lưu lại điểm tự chấm và minh chứng (trạng thái DRAFT)"
             >
               <Save className="size-4" />
@@ -952,6 +1075,7 @@ export default function ComposePage() {
               variant="primary"
               onClick={handleSubmitClick}
               loading={submitting}
+              className="flex-1 sm:flex-none"
               title="Kiểm tra form, ký số và gửi duyệt lên Ban cán sự lớp"
             >
               <Send className="size-4" />
@@ -1076,7 +1200,10 @@ export default function ComposePage() {
             </Button>
             <Button
               variant="primary"
-              onClick={() => {
+              onClick={async () => {
+                try {
+                  await save()
+                } catch {}
                 setMissingSigModalOpen(false)
                 navigate("/student/signature")
               }}
@@ -1119,78 +1246,260 @@ export default function ComposePage() {
         }}
         onClose={() => setSignModalOpen(false)}
         onConfirm={handleConfirmSignAndSubmit}
-        onNavigateToSignature={() => {
+        onNavigateToSignature={async () => {
+          try {
+            await save()
+          } catch {}
           setSignModalOpen(false)
           navigate("/student/signature")
         }}
       />
 
-      {/* 6. MODAL 4: LIGHTBOX XEM LỚN MINH CHỨNG (ẢNH HOẶC PDF) */}
-      <Modal
-        open={!!previewProof}
-        wide
-        title={`Xem minh chứng: ${previewProof?.name || ""}`}
-        onClose={() => setPreviewProof(null)}
-        footer={
-          <div className="flex items-center justify-between w-full">
-            {previewProof?.url && (
-              <a
-                href={getProofUrl(previewProof.url)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs text-brand font-semibold hover:underline"
-              >
-                <ExternalLink className="size-3.5" />
-                Mở trong tab mới
-              </a>
-            )}
-            <Button variant="secondary" onClick={() => setPreviewProof(null)}>
-              Đóng
-            </Button>
-          </div>
-        }
-      >
-        <div className="flex min-h-[380px] items-center justify-center p-2 bg-slate-100 rounded-lg overflow-hidden">
-          {previewProof?.name?.toLowerCase().endsWith(".xlsx") ||
-          previewProof?.name?.toLowerCase().endsWith(".xls") ||
-          previewProof?.type?.includes("sheet") ||
-          previewProof?.type?.includes("excel") ? (
-            <div className="flex flex-col items-center justify-center p-8 text-center">
-              <div className="size-16 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-4 shadow-xs">
-                <FileSpreadsheet className="size-8" />
-              </div>
-              <h3 className="font-bold text-slate-800 text-base">{previewProof?.name}</h3>
-              <p className="text-xs text-slate-500 mt-1">Bảng tính Microsoft Excel (.xlsx)</p>
-              {previewProof?.url && (
-                <a
-                  href={getProofUrl(previewProof.url)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  download={previewProof.name}
-                  className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 transition"
+      {/* 6. MODAL 4: LIGHTBOX XEM LỚN MINH CHỨNG */}
+      <EvidenceViewer proof={previewProof} onClose={() => setPreviewProof(null)} />
+
+      {/* 7. NGĂN KÉO QUẢN LÝ MINH CHỨNG (DRAWER TRƯỢT RA TỪ BÊN PHẢI) */}
+      {evidenceDrawerOpen && (
+        <div className="fixed inset-0 z-50 overflow-hidden">
+          {/* Backdrop mờ phía sau */}
+          <div
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
+            onClick={() => setEvidenceDrawerOpen(false)}
+          />
+
+          <div className="fixed inset-y-0 right-0 max-w-full flex pl-8">
+            <div className="w-screen max-w-md sm:max-w-lg md:max-w-xl bg-white shadow-2xl flex flex-col border-l border-slate-200 animate-in slide-in-from-right duration-300">
+              {/* Header ngăn kéo */}
+              <div className="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50/80">
+                <div className="flex items-center gap-2.5">
+                  <div className="size-9 rounded-lg bg-brand-soft text-brand flex items-center justify-center shrink-0">
+                    <Paperclip className="size-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-800">Quản lý minh chứng</h3>
+                    <p className="text-xs text-slate-500">
+                      Tổng cộng {totalProofCount} minh chứng đã đính kèm trên biểu mẫu
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEvidenceDrawerOpen(false)}
+                  className="rounded-lg p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition"
+                  title="Đóng ngăn kéo"
                 >
-                  <ExternalLink className="size-4" />
-                  Tải xuống / Mở tệp Excel
-                </a>
-              )}
+                  <X className="size-5" />
+                </button>
+              </div>
+
+              {/* Nội dung danh sách tiêu chí cần minh chứng */}
+              <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+                {proofRequiredCriteria.length === 0 ? (
+                  <div className="py-12 text-center text-slate-400">
+                    <Paperclip className="size-10 mx-auto mb-2 text-slate-300" />
+                    <p className="text-sm">Không có tiêu chí nào yêu cầu minh chứng.</p>
+                  </div>
+                ) : (
+                  proofRequiredCriteria.map((c) => {
+                    const fieldCode = c.fieldCode
+                    const critProofList = proofs[fieldCode] || []
+                    const critProgress = uploadProgress[fieldCode]
+                    const isUploading = uploadingCrit[fieldCode]
+                    const uploadErr = critUploadError[fieldCode]
+                    const currentScore = scores[fieldCode] != null ? scores[fieldCode] : 0
+
+                    return (
+                      <div
+                        key={fieldCode}
+                        id={`drawer-crit-${fieldCode}`}
+                        className={`rounded-xl border p-4 transition ${
+                          selectedDrawerCriteria === fieldCode
+                            ? "border-brand ring-1 ring-brand/30 bg-brand-soft/5"
+                            : "border-slate-200 bg-white hover:border-slate-300"
+                        }`}
+                      >
+                        {/* Tiêu đề tiêu chí */}
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div>
+                            <span className="text-[11px] font-bold text-brand uppercase tracking-wider">
+                              {c.groupTitle || "Tiêu chí"}
+                            </span>
+                            <h4 className="text-xs sm:text-sm font-semibold text-slate-800 mt-0.5">
+                              {c.title}
+                            </h4>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+                              Điểm: {currentScore}đ / Tối đa {c.maxScore}đ
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Ô kéo thả tải lên cho tiêu chí này */}
+                        {!isReadOnly && critProofList.length < 5 && (
+                          <div
+                            onDragOver={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                            }}
+                            onDrop={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              const files = Array.from(e.dataTransfer.files || [])
+                              handleProcessUploadFiles(files, fieldCode)
+                            }}
+                            onClick={() => handleTriggerUpload(fieldCode)}
+                            className="mt-2.5 flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-200 hover:border-brand rounded-xl bg-slate-50/60 hover:bg-white cursor-pointer transition text-center group"
+                          >
+                            {isUploading ? (
+                              <Loader2 className="size-6 text-brand animate-spin mb-1.5" />
+                            ) : (
+                              <Upload className="size-6 text-slate-400 group-hover:text-brand mb-1.5 transition" />
+                            )}
+                            <p className="text-xs font-medium text-slate-700">
+                              Kéo thả file minh chứng vào đây hoặc{" "}
+                              <span className="text-brand font-semibold underline">chọn tệp</span>
+                            </p>
+                            <p className="text-[10px] text-slate-400 mt-0.5">
+                              Hỗ trợ PDF, PNG, JPG, XLSX (Dung lượng lên đến 25MB)
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Thanh tiến trình upload và trạng thái hoàn tất */}
+                        {critProgress && (
+                          <div className="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs animate-in fade-in duration-150">
+                            <div className="flex items-center justify-between text-[11px] mb-1.5 font-medium">
+                              <span className="truncate max-w-[220px] text-slate-800 flex items-center gap-1.5">
+                                {critProgress.status === "completed" ? (
+                                  <CheckCircle2 className="size-3.5 text-emerald-600 shrink-0" />
+                                ) : (
+                                  <Loader2 className="size-3.5 animate-spin text-brand shrink-0" />
+                                )}
+                                <span className="truncate">{critProgress.fileName}</span>
+                              </span>
+                              <span className="font-mono text-slate-600 shrink-0 ml-2">
+                                {critProgress.status === "completed" ? "Hoàn tất 100%" : `${critProgress.percent}%`}
+                              </span>
+                            </div>
+                            <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full transition-all duration-300 ${
+                                  critProgress.status === "completed" ? "bg-emerald-500" : "bg-brand"
+                                }`}
+                                style={{ width: `${critProgress.percent}%` }}
+                              />
+                            </div>
+                            {critProgress.status === "completed" && (
+                              <p className="text-[10px] text-emerald-700 mt-1 font-medium">
+                                ✓ Đã tải lên và lưu trữ thành công trên máy chủ
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {uploadErr && (
+                          <div className="mt-2 flex items-center gap-1.5 text-xs text-rose-600">
+                            <AlertCircle className="size-3.5 shrink-0" />
+                            <span>{uploadErr}</span>
+                          </div>
+                        )}
+
+                        {/* Danh sách minh chứng đã đính kèm */}
+                        {critProofList.length > 0 && (
+                          <div className="mt-3 space-y-1.5">
+                            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                              Tệp đã đính kèm ({critProofList.length}/5):
+                            </p>
+                            {critProofList.map((item, idx) => {
+                              const isPdf =
+                                item.type === "application/pdf" ||
+                                (typeof item.url === "string" && item.url.toLowerCase().endsWith(".pdf")) ||
+                                (item.name && item.name.toLowerCase().endsWith(".pdf"))
+                              const isExcel =
+                                item.type?.includes("sheet") ||
+                                item.type?.includes("excel") ||
+                                (item.name && (item.name.toLowerCase().endsWith(".xlsx") || item.name.toLowerCase().endsWith(".xls")))
+                              const fileSizeStr = item.size
+                                ? item.size > 1024 * 1024
+                                  ? `${(item.size / (1024 * 1024)).toFixed(1)} MB`
+                                  : `${Math.round(item.size / 1024)} KB`
+                                : ""
+
+                              return (
+                                <div
+                                  key={idx}
+                                  className="flex items-center justify-between p-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs transition"
+                                >
+                                  <div
+                                    onClick={() => setPreviewProof(item)}
+                                    className="flex items-center gap-2 overflow-hidden cursor-pointer flex-1 mr-2"
+                                  >
+                                    <div className="size-7 rounded bg-slate-100 flex items-center justify-center shrink-0 text-slate-600">
+                                      {isExcel ? (
+                                        <FileSpreadsheet className="size-4 text-emerald-600" />
+                                      ) : isPdf ? (
+                                        <FileText className="size-4 text-rose-600" />
+                                      ) : (
+                                        <Paperclip className="size-4 text-brand" />
+                                      )}
+                                    </div>
+                                    <div className="overflow-hidden">
+                                      <p className="font-medium text-slate-800 truncate" title={item.name}>
+                                        {item.name || `Minh chứng ${idx + 1}`}
+                                      </p>
+                                      {fileSizeStr && (
+                                        <span className="text-[10px] text-slate-400 font-mono">
+                                          {fileSizeStr}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={() => setPreviewProof(item)}
+                                      className="p-1 text-slate-400 hover:text-brand rounded transition"
+                                      title="Xem minh chứng"
+                                    >
+                                      <Eye className="size-4" />
+                                    </button>
+                                    {!isReadOnly && (
+                                      <button
+                                        type="button"
+                                        onClick={() => removeProof(fieldCode, idx)}
+                                        className="p-1 text-slate-400 hover:text-rose-600 rounded transition"
+                                        title="Xóa minh chứng này"
+                                      >
+                                        <X className="size-4" />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+
+              {/* Footer ngăn kéo */}
+              <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+                <span className="text-xs text-slate-500">
+                  {totalProofCount > 0 ? `Đã lưu ${totalProofCount} minh chứng` : "Chưa có minh chứng"}
+                </span>
+                <Button variant="secondary" onClick={() => setEvidenceDrawerOpen(false)} className="text-xs h-9 px-4">
+                  Đóng
+                </Button>
+              </div>
             </div>
-          ) : previewProof?.type === "application/pdf" ||
-          previewProof?.name?.toLowerCase().endsWith(".pdf") ||
-          (typeof previewProof?.url === "string" && previewProof.url.toLowerCase().endsWith(".pdf")) ? (
-            <iframe
-              src={getProofUrl(previewProof.url)}
-              title={previewProof.name}
-              className="size-full min-h-[480px] rounded border border-slate-200"
-            />
-          ) : (
-            <img
-              src={getProofUrl(previewProof?.url)}
-              alt={previewProof?.name}
-              className="max-h-[500px] max-w-full rounded object-contain shadow-xs"
-            />
-          )}
+          </div>
         </div>
-      </Modal>
+      )}
     </>
   )
 }

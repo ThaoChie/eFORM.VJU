@@ -1,6 +1,14 @@
 server:
   port: ${PORT:8080}
+  tomcat:
+    max-http-form-post-size: 35MB
+    max-swallow-size: 35MB
 spring:
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 30MB
+      max-request-size: 35MB
   main:
     lazy-initialization: false
     allow-bean-definition-overriding: true

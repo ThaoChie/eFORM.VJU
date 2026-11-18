@@ -1,5 +1,6 @@
 export const API_PATHS = {
   LOGIN: "/auth/login",
+  CHANGE_PASSWORD: "/auth/change-password",
   FORMS: "/forms",
   FIELD_CODES: "/field-codes",
   SUBMISSIONS: "/submissions",

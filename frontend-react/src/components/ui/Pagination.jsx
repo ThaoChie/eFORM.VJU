@@ -64,10 +64,10 @@ export default function Pagination({
 
   return (
     <div
-      className={`flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-line bg-white ${className}`}
+      className={`flex flex-col sm:flex-row items-center justify-between gap-3 px-3 sm:px-4 py-3 border-t border-line bg-white select-none ${className}`}
     >
       {/* GÓC TRÁI: DROPDOWN CHỌN SỐ BẢN GHI & TEXT THÔNG TIN CHUẨN */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5 sm:gap-3 text-center sm:text-left">
         {onPageSizeChange && (
           <div className="flex items-center gap-1.5 text-xs text-slate-500">
             <span>Xem</span>
@@ -79,7 +79,7 @@ export default function Pagination({
                   onPageSizeChange(newSize)
                   onPageChange?.(1)
                 }}
-                className="h-7.5 appearance-none rounded-md border border-slate-200 bg-white pl-2.5 pr-6 text-xs font-medium text-slate-700 shadow-2xs hover:border-slate-300 hover:bg-slate-50/70 focus:border-brand focus:ring-2 focus:ring-brand/15 focus:outline-hidden transition cursor-pointer"
+                className="h-8 sm:h-7.5 appearance-none rounded-md border border-slate-200 bg-white pl-2.5 pr-6 text-xs font-medium text-slate-700 shadow-2xs hover:border-slate-300 hover:bg-slate-50/70 focus:border-brand focus:ring-2 focus:ring-brand/15 focus:outline-hidden transition cursor-pointer"
               >
                 {pageSizeOptions.map((opt) => (
                   <option key={opt} value={opt}>
@@ -105,15 +105,15 @@ export default function Pagination({
         </span>
       </div>
 
-      {/* CỤM ĐIỀU HƯỚNG BÊN PHẢI ĐẦY ĐỦ CÁC NÚT BẤM */}
-      <div className="flex items-center gap-1">
+      {/* CỤM ĐIỀU HƯỚNG BÊN PHẢI ĐẦY ĐỦ CÁC NÚT BẤM (RESPONSIVE TOUCH-TARGET >= 44px) */}
+      <div className="flex items-center gap-1 sm:gap-1.5 w-full sm:w-auto justify-center sm:justify-end">
         {/* Về trang đầu (<<) */}
         <button
           type="button"
           title="Về trang đầu"
           disabled={safeCurrentPage <= 1}
           onClick={() => onPageChange?.(1)}
-          className="inline-flex size-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:hover:bg-white disabled:hover:text-slate-600 transition disabled:cursor-not-allowed"
+          className="inline-flex min-h-[44px] min-w-[40px] sm:min-h-0 sm:min-w-0 sm:size-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:hover:bg-white disabled:hover:text-slate-600 transition disabled:cursor-not-allowed active:scale-95"
         >
           <ChevronsLeft className="size-4" />
         </button>
@@ -124,35 +124,42 @@ export default function Pagination({
           title="Trang trước"
           disabled={safeCurrentPage <= 1}
           onClick={() => onPageChange?.(Math.max(1, safeCurrentPage - 1))}
-          className="inline-flex size-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:hover:bg-white disabled:hover:text-slate-600 transition disabled:cursor-not-allowed"
+          className="inline-flex min-h-[44px] min-w-[40px] sm:min-h-0 sm:min-w-0 sm:size-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:hover:bg-white disabled:hover:text-slate-600 transition disabled:cursor-not-allowed active:scale-95"
         >
           <ChevronLeft className="size-4" />
         </button>
 
-        {/* Danh sách số trang dạng nút bấm trực quan (active state có nền nổi bật) */}
-        {pages.map((p, idx) =>
-          p === "..." ? (
-            <span
-              key={`ellipsis-${idx}`}
-              className="flex size-8 items-center justify-center text-xs text-slate-400 select-none"
-            >
-              …
-            </span>
-          ) : (
-            <button
-              key={p}
-              type="button"
-              onClick={() => onPageChange?.(p)}
-              className={`inline-flex size-8 items-center justify-center rounded-lg text-xs font-semibold transition ${
-                p === safeCurrentPage
-                  ? "bg-brand text-white shadow-xs"
-                  : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900"
-              }`}
-            >
-              {p}
-            </button>
-          )
-        )}
+        {/* Mobile: Hiển thị tóm tắt trang gọn gàng không bị tràn ngang */}
+        <div className="sm:hidden flex items-center justify-center px-2 text-xs font-semibold text-slate-700 min-h-[44px]">
+          <span>{safeCurrentPage} / {totalPages}</span>
+        </div>
+
+        {/* Desktop / Tablet: Danh sách số trang dạng nút bấm trực quan */}
+        <div className="hidden sm:inline-flex items-center gap-1">
+          {pages.map((p, idx) =>
+            p === "..." ? (
+              <span
+                key={`ellipsis-${idx}`}
+                className="flex size-8 items-center justify-center text-xs text-slate-400 select-none"
+              >
+                …
+              </span>
+            ) : (
+              <button
+                key={p}
+                type="button"
+                onClick={() => onPageChange?.(p)}
+                className={`inline-flex size-8 items-center justify-center rounded-lg text-xs font-semibold transition active:scale-95 ${
+                  p === safeCurrentPage
+                    ? "bg-brand text-white shadow-xs"
+                    : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                }`}
+              >
+                {p}
+              </button>
+            )
+          )}
+        </div>
 
         {/* Trang sau (>) */}
         <button
@@ -160,7 +167,7 @@ export default function Pagination({
           title="Trang sau"
           disabled={safeCurrentPage >= totalPages}
           onClick={() => onPageChange?.(Math.min(totalPages, safeCurrentPage + 1))}
-          className="inline-flex size-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:hover:bg-white disabled:hover:text-slate-600 transition disabled:cursor-not-allowed"
+          className="inline-flex min-h-[44px] min-w-[40px] sm:min-h-0 sm:min-w-0 sm:size-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:hover:bg-white disabled:hover:text-slate-600 transition disabled:cursor-not-allowed active:scale-95"
         >
           <ChevronRight className="size-4" />
         </button>
@@ -171,7 +178,7 @@ export default function Pagination({
           title="Về trang cuối"
           disabled={safeCurrentPage >= totalPages}
           onClick={() => onPageChange?.(totalPages)}
-          className="inline-flex size-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:hover:bg-white disabled:hover:text-slate-600 transition disabled:cursor-not-allowed"
+          className="inline-flex min-h-[44px] min-w-[40px] sm:min-h-0 sm:min-w-0 sm:size-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:hover:bg-white disabled:hover:text-slate-600 transition disabled:cursor-not-allowed active:scale-95"
         >
           <ChevronsRight className="size-4" />
         </button>

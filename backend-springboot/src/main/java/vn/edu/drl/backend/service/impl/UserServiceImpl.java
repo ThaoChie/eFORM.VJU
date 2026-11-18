@@ -84,6 +84,8 @@ public class UserServiceImpl implements UserService {
             throw new vn.edu.drl.backend.exception.BusinessException("Trường Lớp là bắt buộc.");
         }
         u.setPasswordHash(passwordEncoder.encode("123456"));
+        u.setIsFirstLogin(true);
+        u.setMustChangePassword(true);
         u.setPositionTitle(req.getPositionTitle());
         u.setAcademicCohort(req.getAcademicCohort());
         u.setDob(req.getDob());
@@ -380,6 +382,8 @@ public class UserServiceImpl implements UserService {
                         u.setRole(Role.STUDENT);
                     }
                     u.setPasswordHash(passwordEncoder.encode("123456"));
+                    u.setIsFirstLogin(true);
+                    u.setMustChangePassword(true);
                     
                     if (!majorCode.isEmpty()) {
                         var majorOpt = majorRepo.findByMajorCode(majorCode);
