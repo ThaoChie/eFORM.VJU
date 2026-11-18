@@ -97,6 +97,11 @@ export default function ComposePage() {
   const [previewProof, setPreviewProof] = useState(null) // { url, name, type }
   const [activeTab, setActiveTab] = useState("FORM") // "FORM" | "PREVIEW"
 
+  // Ngăn kéo Quản lý minh chứng trượt ra từ bên phải & trạng thái tiến trình upload
+  const [evidenceDrawerOpen, setEvidenceDrawerOpen] = useState(false)
+  const [selectedDrawerCriteria, setSelectedDrawerCriteria] = useState(null)
+  const [uploadProgress, setUploadProgress] = useState({}) // { [fieldCode]: { fileName, percent, status } }
+
   // Upload state per criterion: { [fieldCode]: boolean }
   const [uploadingCrit, setUploadingCrit] = useState({})
   const [critUploadError, setCritUploadError] = useState({})
@@ -176,6 +181,23 @@ export default function ComposePage() {
     }
     return { rank: "Chưa xếp loại", color: "text-slate-700 bg-slate-100 border-slate-200" }
   }, [rankingScale, totalScore])
+
+  // Danh sách các tiêu chí yêu cầu hoặc cho phép đính kèm minh chứng
+  const proofRequiredCriteria = useMemo(() => {
+    const list = []
+    if (Array.isArray(templateLayout)) {
+      templateLayout.forEach((group) => {
+        if (Array.isArray(group.children)) {
+          group.children.forEach((c) => {
+            if (c.requiresProof) {
+              list.push({ ...c, groupTitle: group.title })
+            }
+          })
+        }
+      })
+    }
+    return list
+  }, [templateLayout])
 
   // Toolbar Action 1: Quay lại with Unsaved Changes check
   const handleBackClick = () => {
@@ -345,11 +367,11 @@ export default function ComposePage() {
         continue
       }
 
-      // Max size check: 10MB
-      if (file.size > 10 * 1024 * 1024) {
+      // Max size check: 25MB
+      if (file.size > 25 * 1024 * 1024) {
         setCritUploadError((prev) => ({
           ...prev,
-          [targetField]: `File "${file.name}" vượt quá dung lượng tối đa 10 MB.`,
+          [targetField]: `File "${file.name}" vượt quá dung lượng tối đa 25 MB.`,
         }))
         continue
       }
@@ -357,18 +379,34 @@ export default function ComposePage() {
       try {
         setUploadingCrit((prev) => ({ ...prev, [targetField]: true }))
         setCritUploadError((prev) => ({ ...prev, [targetField]: null }))
+        setUploadProgress((prev) => ({
+          ...prev,
+          [targetField]: { fileName: file.name, percent: 35, status: "uploading" },
+        }))
 
         let fileUrl = ""
-        // Tạo Base64 Data URL để đảm bảo 100% tệp luôn xem và tải được mọi lúc, không phụ thuộc bộ nhớ tạm của server
-        let dataUrl = ""
+        let localBlobUrl = ""
         try {
-          dataUrl = await new Promise((resolve) => {
-            const reader = new FileReader()
-            reader.onload = () => resolve(reader.result)
-            reader.onerror = () => resolve("")
-            reader.readAsDataURL(file)
-          })
+          localBlobUrl = URL.createObjectURL(file)
         } catch {}
+
+        // Chỉ tạo Base64 Data URL cho tệp nhỏ (<=1.5MB) để bảo toàn bộ nhớ localStorage (5MB) và payload lưu nháp
+        let dataUrl = ""
+        if (file.size <= 1.5 * 1024 * 1024) {
+          try {
+            dataUrl = await new Promise((resolve) => {
+              const reader = new FileReader()
+              reader.onload = () => resolve(reader.result)
+              reader.onerror = () => resolve("")
+              reader.readAsDataURL(file)
+            })
+          } catch {}
+        }
+
+        setUploadProgress((prev) => ({
+          ...prev,
+          [targetField]: { fileName: file.name, percent: 75, status: "uploading" },
+        }))
 
         try {
           const res = await submissionService.uploadProof(semester?.id, file)
@@ -377,15 +415,15 @@ export default function ComposePage() {
             fileUrl = getProofUrl(rawUrl)
           }
         } catch (uploadErr) {
-          console.warn("Upload to server storage failed, falling back to embedded Data URL:", uploadErr)
+          console.warn("Upload to server storage failed, falling back to local URL:", uploadErr)
         }
 
-        // Lưu cả fileUrl từ máy chủ và dataUrl làm fallback an toàn
-        const finalUrl = fileUrl || dataUrl
+        // Ưu tiên fileUrl từ máy chủ, kế đến localBlobUrl, cuối cùng là dataUrl
+        const finalUrl = fileUrl || localBlobUrl || dataUrl
 
         const newProofItem = {
           url: finalUrl,
-          dataUrl: dataUrl,
+          dataUrl: dataUrl || (file.size <= 1.5 * 1024 * 1024 ? finalUrl : ""),
           name: file.name,
           type: file.type,
           size: file.size,
@@ -393,12 +431,22 @@ export default function ComposePage() {
 
         addProof(targetField, newProofItem)
         availableSlots--
+
+        setUploadProgress((prev) => ({
+          ...prev,
+          [targetField]: { fileName: file.name, percent: 100, status: "completed" },
+        }))
         toast.success(`Đã đính kèm: ${file.name}`)
+
+        setTimeout(() => {
+          setUploadProgress((prev) => ({ ...prev, [targetField]: null }))
+        }, 3000)
       } catch (err) {
         setCritUploadError((prev) => ({
           ...prev,
           [targetField]: `Lỗi tải file "${file.name}": ${err.message}`,
         }))
+        setUploadProgress((prev) => ({ ...prev, [targetField]: null }))
       } finally {
         setUploadingCrit((prev) => ({ ...prev, [targetField]: false }))
       }
@@ -799,7 +847,7 @@ export default function ComposePage() {
                                   const files = Array.from(e.dataTransfer.files || [])
                                   handleProcessUploadFiles(files, crit.fieldCode)
                                 }}
-                                className="inline-flex items-center gap-2"
+                                className="flex flex-wrap items-center gap-2"
                               >
                                 <button
                                   type="button"
@@ -824,9 +872,55 @@ export default function ComposePage() {
                                         : `+ Thêm file (${critProofList.length}/5)`}
                                   </span>
                                 </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedDrawerCriteria(crit.fieldCode)
+                                    setEvidenceDrawerOpen(true)
+                                  }}
+                                  className="inline-flex items-center gap-1 text-[11px] text-brand hover:underline font-medium px-1.5 py-1"
+                                  title="Mở ngăn kéo Quản lý minh chứng"
+                                >
+                                  <Paperclip className="size-3" />
+                                  <span>Tải file minh chứng</span>
+                                </button>
+
                                 <span className="text-[10px] text-muted">
-                                  Kéo thả hoặc bấm chọn (.png, .jpg, .pdf, .xlsx - max 10MB)
+                                  Kéo thả hoặc bấm chọn (.png, .jpg, .pdf, .xlsx - max 25MB)
                                 </span>
+                              </div>
+                            )}
+
+                            {/* Thanh tiến trình upload trực tiếp */}
+                            {uploadProgress[crit.fieldCode] && (
+                              <div className="w-full max-w-sm mt-1.5 p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs animate-in fade-in duration-150">
+                                <div className="flex items-center justify-between text-[11px] mb-1 font-medium">
+                                  <span className="truncate max-w-[200px] text-slate-800 flex items-center gap-1.5">
+                                    {uploadProgress[crit.fieldCode].status === "completed" ? (
+                                      <CheckCircle2 className="size-3.5 text-emerald-600 shrink-0" />
+                                    ) : (
+                                      <Loader2 className="size-3.5 animate-spin text-brand shrink-0" />
+                                    )}
+                                    <span className="truncate">{uploadProgress[crit.fieldCode].fileName}</span>
+                                  </span>
+                                  <span className="font-mono text-slate-600 shrink-0 ml-2">
+                                    {uploadProgress[crit.fieldCode].status === "completed" ? "Hoàn tất 100%" : `${uploadProgress[crit.fieldCode].percent}%`}
+                                  </span>
+                                </div>
+                                <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full transition-all duration-300 ${
+                                      uploadProgress[crit.fieldCode].status === "completed" ? "bg-emerald-500" : "bg-brand"
+                                    }`}
+                                    style={{ width: `${uploadProgress[crit.fieldCode].percent}%` }}
+                                  />
+                                </div>
+                                {uploadProgress[crit.fieldCode].status === "completed" && (
+                                  <p className="text-[10px] text-emerald-700 mt-1 font-medium">
+                                    ✓ Đã tải lên và lưu trữ thành công trên máy chủ
+                                  </p>
+                                )}
                               </div>
                             )}
 
@@ -941,6 +1035,25 @@ export default function ComposePage() {
               Có thay đổi chưa lưu
             </span>
           )}
+
+          {/* Nút Tải file minh chứng (Mở ngăn kéo Quản lý minh chứng) */}
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setSelectedDrawerCriteria("score_1_2")
+              setEvidenceDrawerOpen(true)
+            }}
+            className="flex-1 sm:flex-none flex items-center gap-1.5"
+            title="Mở ngăn kéo Quản lý minh chứng"
+          >
+            <Paperclip className="size-4" />
+            <span>Tải file minh chứng</span>
+            {totalProofCount > 0 && (
+              <span className="ml-1 rounded-full bg-brand-soft px-1.5 py-0.2 text-[10px] font-bold text-brand">
+                {totalProofCount}
+              </span>
+            )}
+          </Button>
 
           {/* Nút Lưu nháp (chỉ khi được phép sửa) */}
           {!isReadOnly && (
@@ -1144,6 +1257,249 @@ export default function ComposePage() {
 
       {/* 6. MODAL 4: LIGHTBOX XEM LỚN MINH CHỨNG */}
       <EvidenceViewer proof={previewProof} onClose={() => setPreviewProof(null)} />
+
+      {/* 7. NGĂN KÉO QUẢN LÝ MINH CHỨNG (DRAWER TRƯỢT RA TỪ BÊN PHẢI) */}
+      {evidenceDrawerOpen && (
+        <div className="fixed inset-0 z-50 overflow-hidden">
+          {/* Backdrop mờ phía sau */}
+          <div
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
+            onClick={() => setEvidenceDrawerOpen(false)}
+          />
+
+          <div className="fixed inset-y-0 right-0 max-w-full flex pl-8">
+            <div className="w-screen max-w-md sm:max-w-lg md:max-w-xl bg-white shadow-2xl flex flex-col border-l border-slate-200 animate-in slide-in-from-right duration-300">
+              {/* Header ngăn kéo */}
+              <div className="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50/80">
+                <div className="flex items-center gap-2.5">
+                  <div className="size-9 rounded-lg bg-brand-soft text-brand flex items-center justify-center shrink-0">
+                    <Paperclip className="size-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-800">Quản lý minh chứng</h3>
+                    <p className="text-xs text-slate-500">
+                      Tổng cộng {totalProofCount} minh chứng đã đính kèm trên biểu mẫu
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEvidenceDrawerOpen(false)}
+                  className="rounded-lg p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition"
+                  title="Đóng ngăn kéo"
+                >
+                  <X className="size-5" />
+                </button>
+              </div>
+
+              {/* Nội dung danh sách tiêu chí cần minh chứng */}
+              <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+                {proofRequiredCriteria.length === 0 ? (
+                  <div className="py-12 text-center text-slate-400">
+                    <Paperclip className="size-10 mx-auto mb-2 text-slate-300" />
+                    <p className="text-sm">Không có tiêu chí nào yêu cầu minh chứng.</p>
+                  </div>
+                ) : (
+                  proofRequiredCriteria.map((c) => {
+                    const fieldCode = c.fieldCode
+                    const critProofList = proofs[fieldCode] || []
+                    const critProgress = uploadProgress[fieldCode]
+                    const isUploading = uploadingCrit[fieldCode]
+                    const uploadErr = critUploadError[fieldCode]
+                    const currentScore = scores[fieldCode] != null ? scores[fieldCode] : 0
+
+                    return (
+                      <div
+                        key={fieldCode}
+                        id={`drawer-crit-${fieldCode}`}
+                        className={`rounded-xl border p-4 transition ${
+                          selectedDrawerCriteria === fieldCode
+                            ? "border-brand ring-1 ring-brand/30 bg-brand-soft/5"
+                            : "border-slate-200 bg-white hover:border-slate-300"
+                        }`}
+                      >
+                        {/* Tiêu đề tiêu chí */}
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div>
+                            <span className="text-[11px] font-bold text-brand uppercase tracking-wider">
+                              {c.groupTitle || "Tiêu chí"}
+                            </span>
+                            <h4 className="text-xs sm:text-sm font-semibold text-slate-800 mt-0.5">
+                              {c.title}
+                            </h4>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+                              Điểm: {currentScore}đ / Tối đa {c.maxScore}đ
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Ô kéo thả tải lên cho tiêu chí này */}
+                        {!isReadOnly && critProofList.length < 5 && (
+                          <div
+                            onDragOver={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                            }}
+                            onDrop={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              const files = Array.from(e.dataTransfer.files || [])
+                              handleProcessUploadFiles(files, fieldCode)
+                            }}
+                            onClick={() => handleTriggerUpload(fieldCode)}
+                            className="mt-2.5 flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-200 hover:border-brand rounded-xl bg-slate-50/60 hover:bg-white cursor-pointer transition text-center group"
+                          >
+                            {isUploading ? (
+                              <Loader2 className="size-6 text-brand animate-spin mb-1.5" />
+                            ) : (
+                              <Upload className="size-6 text-slate-400 group-hover:text-brand mb-1.5 transition" />
+                            )}
+                            <p className="text-xs font-medium text-slate-700">
+                              Kéo thả file minh chứng vào đây hoặc{" "}
+                              <span className="text-brand font-semibold underline">chọn tệp</span>
+                            </p>
+                            <p className="text-[10px] text-slate-400 mt-0.5">
+                              Hỗ trợ PDF, PNG, JPG, XLSX (Dung lượng lên đến 25MB)
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Thanh tiến trình upload và trạng thái hoàn tất */}
+                        {critProgress && (
+                          <div className="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs animate-in fade-in duration-150">
+                            <div className="flex items-center justify-between text-[11px] mb-1.5 font-medium">
+                              <span className="truncate max-w-[220px] text-slate-800 flex items-center gap-1.5">
+                                {critProgress.status === "completed" ? (
+                                  <CheckCircle2 className="size-3.5 text-emerald-600 shrink-0" />
+                                ) : (
+                                  <Loader2 className="size-3.5 animate-spin text-brand shrink-0" />
+                                )}
+                                <span className="truncate">{critProgress.fileName}</span>
+                              </span>
+                              <span className="font-mono text-slate-600 shrink-0 ml-2">
+                                {critProgress.status === "completed" ? "Hoàn tất 100%" : `${critProgress.percent}%`}
+                              </span>
+                            </div>
+                            <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full transition-all duration-300 ${
+                                  critProgress.status === "completed" ? "bg-emerald-500" : "bg-brand"
+                                }`}
+                                style={{ width: `${critProgress.percent}%` }}
+                              />
+                            </div>
+                            {critProgress.status === "completed" && (
+                              <p className="text-[10px] text-emerald-700 mt-1 font-medium">
+                                ✓ Đã tải lên và lưu trữ thành công trên máy chủ
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {uploadErr && (
+                          <div className="mt-2 flex items-center gap-1.5 text-xs text-rose-600">
+                            <AlertCircle className="size-3.5 shrink-0" />
+                            <span>{uploadErr}</span>
+                          </div>
+                        )}
+
+                        {/* Danh sách minh chứng đã đính kèm */}
+                        {critProofList.length > 0 && (
+                          <div className="mt-3 space-y-1.5">
+                            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                              Tệp đã đính kèm ({critProofList.length}/5):
+                            </p>
+                            {critProofList.map((item, idx) => {
+                              const isPdf =
+                                item.type === "application/pdf" ||
+                                (typeof item.url === "string" && item.url.toLowerCase().endsWith(".pdf")) ||
+                                (item.name && item.name.toLowerCase().endsWith(".pdf"))
+                              const isExcel =
+                                item.type?.includes("sheet") ||
+                                item.type?.includes("excel") ||
+                                (item.name && (item.name.toLowerCase().endsWith(".xlsx") || item.name.toLowerCase().endsWith(".xls")))
+                              const fileSizeStr = item.size
+                                ? item.size > 1024 * 1024
+                                  ? `${(item.size / (1024 * 1024)).toFixed(1)} MB`
+                                  : `${Math.round(item.size / 1024)} KB`
+                                : ""
+
+                              return (
+                                <div
+                                  key={idx}
+                                  className="flex items-center justify-between p-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs transition"
+                                >
+                                  <div
+                                    onClick={() => setPreviewProof(item)}
+                                    className="flex items-center gap-2 overflow-hidden cursor-pointer flex-1 mr-2"
+                                  >
+                                    <div className="size-7 rounded bg-slate-100 flex items-center justify-center shrink-0 text-slate-600">
+                                      {isExcel ? (
+                                        <FileSpreadsheet className="size-4 text-emerald-600" />
+                                      ) : isPdf ? (
+                                        <FileText className="size-4 text-rose-600" />
+                                      ) : (
+                                        <Paperclip className="size-4 text-brand" />
+                                      )}
+                                    </div>
+                                    <div className="overflow-hidden">
+                                      <p className="font-medium text-slate-800 truncate" title={item.name}>
+                                        {item.name || `Minh chứng ${idx + 1}`}
+                                      </p>
+                                      {fileSizeStr && (
+                                        <span className="text-[10px] text-slate-400 font-mono">
+                                          {fileSizeStr}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={() => setPreviewProof(item)}
+                                      className="p-1 text-slate-400 hover:text-brand rounded transition"
+                                      title="Xem minh chứng"
+                                    >
+                                      <Eye className="size-4" />
+                                    </button>
+                                    {!isReadOnly && (
+                                      <button
+                                        type="button"
+                                        onClick={() => removeProof(fieldCode, idx)}
+                                        className="p-1 text-slate-400 hover:text-rose-600 rounded transition"
+                                        title="Xóa minh chứng này"
+                                      >
+                                        <X className="size-4" />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+
+              {/* Footer ngăn kéo */}
+              <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+                <span className="text-xs text-slate-500">
+                  {totalProofCount > 0 ? `Đã lưu ${totalProofCount} minh chứng` : "Chưa có minh chứng"}
+                </span>
+                <Button variant="secondary" onClick={() => setEvidenceDrawerOpen(false)} className="text-xs h-9 px-4">
+                  Đóng
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

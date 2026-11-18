@@ -1,6 +1,16 @@
+server:
+  tomcat:
+    max-http-form-post-size: 35MB
+    max-swallow-size: 35MB
+
 spring:
   main:
     allow-bean-definition-overriding: true
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 30MB
+      max-request-size: 35MB
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/edrl_db}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}

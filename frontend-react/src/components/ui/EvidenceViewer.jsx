@@ -12,6 +12,7 @@ import {
   Eye,
   CheckCircle2,
   X,
+  Loader2,
 } from "lucide-react"
 import { Button, Modal } from "./Primitives"
 import { getProofUrl } from "../../lib/axios/client"
@@ -130,19 +131,94 @@ export function getProofCategory(file = {}) {
 export default function EvidenceViewer({ proof, onClose }) {
   const [imgError, setImgError] = useState(false)
   const [blobSrc, setBlobSrc] = useState(null)
+  const [pdfBlobUrl, setPdfBlobUrl] = useState(null)
+  const [pdfLoading, setPdfLoading] = useState(false)
   const [downloading, setDownloading] = useState(false)
 
   // Reset error state when proof changes
   useEffect(() => {
     setImgError(false)
     setBlobSrc(null)
+    setPdfBlobUrl(null)
+    setPdfLoading(false)
   }, [proof?.url, proof?.name, proof?.dataUrl])
 
-  if (!proof) return null
+  const category = proof ? getProofCategory(proof) : "OTHER"
+  const safeUrl = proof?.url ? getProofUrl(proof.url) : (proof?.dataUrl || "")
+  const fileName = proof?.name || "Minh chứng đính kèm"
 
-  const category = getProofCategory(proof)
-  const safeUrl = proof.url ? getProofUrl(proof.url) : (proof.dataUrl || "")
-  const fileName = proof.name || "Minh chứng đính kèm"
+  // Prepare PDF as a native Blob URL to ensure full pagination, toolbar, and zoom controls
+  useEffect(() => {
+    if (!proof || category !== "PDF" || !safeUrl) {
+      setPdfBlobUrl(null)
+      setPdfLoading(false)
+      return
+    }
+
+    let isCancelled = false
+    let createdUrl = null
+
+    const preparePdf = async () => {
+      setPdfLoading(true)
+
+      // If already a blob URL, use it directly
+      if (safeUrl.startsWith("blob:")) {
+        setPdfBlobUrl(safeUrl)
+        setPdfLoading(false)
+        return
+      }
+
+      // If data URL, convert to blob URL for seamless PDF rendering and native page navigation
+      if (safeUrl.startsWith("data:")) {
+        try {
+          const res = await fetch(safeUrl)
+          const blob = await res.blob()
+          if (!isCancelled && blob && blob.size > 0) {
+            createdUrl = URL.createObjectURL(blob)
+            setPdfBlobUrl(createdUrl)
+          }
+        } catch (err) {
+          console.warn("Data URL to blob conversion failed:", err)
+          if (!isCancelled) setPdfBlobUrl(safeUrl)
+        } finally {
+          if (!isCancelled) setPdfLoading(false)
+        }
+        return
+      }
+
+      // Remote HTTP URL: fetch as blob to render via local blob URL with full browser PDF controls
+      try {
+        const res = await fetch(safeUrl, { method: "GET", mode: "cors" })
+        if (res.ok) {
+          const blob = await res.blob()
+          if (!isCancelled && blob && blob.size > 0) {
+            createdUrl = URL.createObjectURL(blob)
+            setPdfBlobUrl(createdUrl)
+            setPdfLoading(false)
+            return
+          }
+        }
+      } catch (fetchErr) {
+        console.warn("Remote PDF blob fetch failed, fallback to direct safeUrl:", fetchErr)
+      }
+
+      if (!isCancelled) {
+        setPdfBlobUrl(safeUrl)
+        setPdfLoading(false)
+      }
+    }
+
+    preparePdf()
+
+    return () => {
+      isCancelled = true
+      if (createdUrl) {
+        URL.revokeObjectURL(createdUrl)
+      }
+    }
+  }, [proof, safeUrl, category])
+
+  if (!proof) return null
 
   const handleImageError = async () => {
     if (proof?.dataUrl && proof.dataUrl !== safeUrl) {
@@ -167,7 +243,7 @@ export default function EvidenceViewer({ proof, onClose }) {
   }
 
   const handleDownload = async () => {
-    const activeUrl = blobSrc || safeUrl || proof.url || proof.dataUrl
+    const activeUrl = pdfBlobUrl || blobSrc || safeUrl || proof.url || proof.dataUrl
     if (!activeUrl) return
     setDownloading(true)
     try {
@@ -178,22 +254,34 @@ export default function EvidenceViewer({ proof, onClose }) {
   }
 
   const handleOpenOriginal = () => {
-    const activeUrl = blobSrc || safeUrl || proof.url || proof.dataUrl
+    const activeUrl = pdfBlobUrl || blobSrc || safeUrl || proof.url || proof.dataUrl
     if (!activeUrl) return
-    const targetUrl = activeUrl
-    // If it's a huge data URL, create a blob window
-    if (targetUrl.startsWith("data:")) {
-      const win = window.open()
-      if (win) {
-        if (category === "IMAGE") {
-          win.document.write(`<title>${fileName}</title><body style="margin:0;background:#0f172a;display:flex;align-items:center;justify-content:center;height:100vh;"><img src="${targetUrl}" style="max-width:100%;max-height:100%;object-fit:contain;"/></body>`)
-        } else {
-          win.location.href = targetUrl
+
+    // If it's a data URL, convert to Blob URL first so Chrome won't block top-level navigation
+    if (activeUrl.startsWith("data:")) {
+      try {
+        const arr = activeUrl.split(",")
+        const mime = arr[0].match(/:(.*?);/)[1]
+        const bstr = atob(arr[1])
+        let n = bstr.length
+        const u8arr = new Uint8Array(n)
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n)
         }
+        const blob = new Blob([u8arr], { type: mime })
+        const tempBlobUrl = URL.createObjectURL(blob)
+        const win = window.open(tempBlobUrl, "_blank", "noopener,noreferrer")
+        if (!win) {
+          window.location.href = tempBlobUrl
+        }
+        setTimeout(() => URL.revokeObjectURL(tempBlobUrl), 60000)
         return
+      } catch (e) {
+        console.warn("Failed to open data URL via blob:", e)
       }
     }
-    window.open(targetUrl, "_blank", "noopener,noreferrer")
+
+    window.open(activeUrl, "_blank", "noopener,noreferrer")
   }
 
   return (
@@ -267,9 +355,15 @@ export default function EvidenceViewer({ proof, onClose }) {
         {/* 2. PDF PREVIEW */}
         {category === "PDF" && (
           <div className="w-full h-[62vh] flex flex-col items-center gap-2">
-            {safeUrl ? (
+            {pdfLoading ? (
+              <div className="flex flex-col items-center justify-center m-auto p-6 bg-white rounded-xl border border-slate-200 text-center">
+                <Loader2 className="size-8 animate-spin text-brand mb-2" />
+                <p className="text-xs font-semibold text-slate-700">Đang nạp xem trước tài liệu PDF...</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">{fileName}</p>
+              </div>
+            ) : (pdfBlobUrl || safeUrl) ? (
               <iframe
-                src={safeUrl}
+                src={pdfBlobUrl || safeUrl}
                 title={fileName}
                 className="w-full h-full rounded-lg border border-slate-200 bg-white"
               />

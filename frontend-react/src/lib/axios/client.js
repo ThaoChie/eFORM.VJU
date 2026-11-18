@@ -36,7 +36,11 @@ export const getProofUrl = (url) => {
   }
   try {
     const parsed = new URL(finalUrl);
-    parsed.pathname = encodeURI(decodeURI(parsed.pathname));
+    // Properly encode each path segment to handle spaces, quotes, and Vietnamese characters safely
+    parsed.pathname = parsed.pathname
+      .split('/')
+      .map((seg) => encodeURIComponent(decodeURIComponent(seg)))
+      .join('/');
     return parsed.toString();
   } catch {
     return encodeURI(finalUrl).replace(/"/g, '%22');

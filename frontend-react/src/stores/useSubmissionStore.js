@@ -18,6 +18,27 @@ const getDraftStorageKey = (semesterId, userId = null) => {
   return `drl_compose_draft_u${uid}_sem${semesterId || "active"}`
 }
 
+const sanitizeProofsForStorage = (proofsObj) => {
+  if (!proofsObj || typeof proofsObj !== "object") return proofsObj
+  const clean = {}
+  Object.keys(proofsObj).forEach((k) => {
+    const val = proofsObj[k]
+    if (Array.isArray(val)) {
+      clean[k] = val.map((p) => {
+        if (!p || typeof p !== "object") return p
+        const { dataUrl, ...rest } = p
+        if (dataUrl && dataUrl.length < 50000) {
+          return { ...rest, dataUrl }
+        }
+        return rest
+      })
+    } else {
+      clean[k] = val
+    }
+  })
+  return clean
+}
+
 const initialSubmissionState = {
   scores: {},
   classScores: {},
@@ -67,7 +88,7 @@ export const useSubmissionStore = create((set, get) => ({
       try {
         const key = getDraftStorageKey(state.semester?.id)
         if (key) {
-          localStorage.setItem(key, JSON.stringify({ scores: nextScores, proofs: state.proofs }))
+          localStorage.setItem(key, JSON.stringify({ scores: nextScores, proofs: sanitizeProofsForStorage(state.proofs) }))
         }
       } catch {}
       return {
@@ -85,7 +106,7 @@ export const useSubmissionStore = create((set, get) => ({
       try {
         const key = getDraftStorageKey(state.semester?.id)
         if (key) {
-          localStorage.setItem(key, JSON.stringify({ scores: state.scores, proofs: nextProofs }))
+          localStorage.setItem(key, JSON.stringify({ scores: state.scores, proofs: sanitizeProofsForStorage(nextProofs) }))
         }
       } catch {}
       return {
@@ -103,7 +124,7 @@ export const useSubmissionStore = create((set, get) => ({
       try {
         const key = getDraftStorageKey(state.semester?.id)
         if (key) {
-          localStorage.setItem(key, JSON.stringify({ scores: state.scores, proofs: nextProofs }))
+          localStorage.setItem(key, JSON.stringify({ scores: state.scores, proofs: sanitizeProofsForStorage(nextProofs) }))
         }
       } catch {}
       return {
@@ -338,7 +359,16 @@ export const useSubmissionStore = create((set, get) => ({
         const critProofList = proofs[code] || []
         let proofUrlVal = null
         if (Array.isArray(critProofList) && critProofList.length > 0) {
-          proofUrlVal = JSON.stringify(critProofList)
+          // Do not send giant dataUrl in draft details payload
+          const cleanProofList = critProofList.map((p) => {
+            if (p && typeof p === "object") {
+              const { dataUrl, ...rest } = p
+              if (dataUrl && dataUrl.length < 50000) return p
+              return rest
+            }
+            return p
+          })
+          proofUrlVal = JSON.stringify(cleanProofList)
         } else if (typeof critProofList === "string" && critProofList) {
           proofUrlVal = critProofList
         }
@@ -359,7 +389,7 @@ export const useSubmissionStore = create((set, get) => ({
       try {
         const key = getDraftStorageKey(semester.id)
         if (key) {
-          localStorage.setItem(key, JSON.stringify({ scores, proofs }))
+          localStorage.setItem(key, JSON.stringify({ scores, proofs: sanitizeProofsForStorage(proofs) }))
         }
       } catch {}
 
