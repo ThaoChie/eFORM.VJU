@@ -7,6 +7,13 @@ import java.nio.file.Files;
 import java.util.Base64;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.geom.Path2D;
 
 public class ImageConversionUtils {
 
@@ -106,8 +113,8 @@ public class ImageConversionUtils {
                 }
             }
             double bgBrightness = cornerPixels > 0 ? (double)totalBrightness / cornerPixels : 220.0;
-            double paperThreshold = Math.max(185.0, bgBrightness - 10.0);
-            double inkThreshold = Math.max(90.0, paperThreshold - 80.0);
+            double paperThreshold = Math.max(80.0, bgBrightness - 15.0);
+            double inkThreshold = Math.max(25.0, paperThreshold - 60.0);
 
             int minX = width, minY = height, maxX = 0, maxY = 0;
 
@@ -161,14 +168,58 @@ public class ImageConversionUtils {
     }
 
     public static String generateSpecimenPngBase64(String name, String roleTitle, java.awt.Color color) {
-        String cleanName = (name != null && !name.trim().isEmpty()) ? name.trim() : "Cán bộ lớp";
-        String strokeHex = color != null ? String.format("#%02x%02x%02x", color.getRed(), color.getGreen(), color.getBlue()) : "#1d4ed8";
-        String svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 280 85\" width=\"280\" height=\"85\">"
-                + "<path d=\"M 20,55 Q 50,15 90,58 T 160,40 Q 200,12 245,55\" fill=\"none\" stroke=\"" + strokeHex + "\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" opacity=\"0.85\"/>"
-                + "<path d=\"M 35,68 Q 130,76 250,58\" fill=\"none\" stroke=\"" + strokeHex + "\" stroke-width=\"2\" stroke-linecap=\"round\"/>"
-                + "<text x=\"50%\" y=\"46\" font-family=\"'Caveat', 'Dancing Script', 'Brush Script MT', cursive, sans-serif\" font-size=\"34\" font-weight=\"700\" fill=\"" + strokeHex + "\" text-anchor=\"middle\" font-style=\"italic\">"
-                + cleanName
-                + "</text></svg>";
-        return "data:image/svg+xml;utf8," + java.net.URLEncoder.encode(svg, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
+        String cleanName = (name != null && !name.trim().isEmpty()) ? name.trim() : "Trưởng Khoa";
+        Color strokeColor = color != null ? color : new Color(136, 19, 55);
+
+        int width = 320;
+        int height = 110;
+        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2 = image.createGraphics();
+
+        try {
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+            // Nét ký uốn lượn phong cách chữ ký tay
+            g2.setColor(strokeColor);
+            g2.setStroke(new BasicStroke(2.8f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+
+            Path2D path = new Path2D.Double();
+            path.moveTo(35, 65);
+            path.quadTo(75, 20, 115, 68);
+            path.quadTo(155, 30, 205, 55);
+            path.quadTo(245, 18, 285, 62);
+            g2.draw(path);
+
+            // Nét gạch chân chữ ký
+            g2.setStroke(new BasicStroke(2.2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            Path2D underline = new Path2D.Double();
+            underline.moveTo(50, 78);
+            underline.curveTo(130, 88, 210, 82, 275, 70);
+            g2.draw(underline);
+
+            // Tên người ký
+            Font font = new Font("Serif", Font.BOLD | Font.ITALIC, 28);
+            g2.setFont(font);
+            FontMetrics fm = g2.getFontMetrics();
+            int textX = (width - fm.stringWidth(cleanName)) / 2;
+            int textY = 56;
+            g2.drawString(cleanName, textX, textY);
+
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            ImageIO.write(image, "png", baos);
+            return "data:image/png;base64," + Base64.getEncoder().encodeToString(baos.toByteArray());
+        } catch (Exception e) {
+            String strokeHex = String.format("#%02x%02x%02x", strokeColor.getRed(), strokeColor.getGreen(), strokeColor.getBlue());
+            String svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 280 85\" width=\"280\" height=\"85\">"
+                    + "<path d=\"M 20,55 Q 50,15 90,58 T 160,40 Q 200,12 245,55\" fill=\"none\" stroke=\"" + strokeHex + "\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" opacity=\"0.85\"/>"
+                    + "<path d=\"M 35,68 Q 130,76 250,58\" fill=\"none\" stroke=\"" + strokeHex + "\" stroke-width=\"2\" stroke-linecap=\"round\"/>"
+                    + "<text x=\"50%\" y=\"46\" font-family=\"'Caveat', 'Dancing Script', 'Brush Script MT', cursive, sans-serif\" font-size=\"34\" font-weight=\"700\" fill=\"" + strokeHex + "\" text-anchor=\"middle\" font-style=\"italic\">"
+                    + cleanName
+                    + "</text></svg>";
+            return "data:image/svg+xml;utf8," + java.net.URLEncoder.encode(svg, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
+        } finally {
+            g2.dispose();
+        }
     }
 }

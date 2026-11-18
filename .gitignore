@@ -84,35 +84,33 @@ tools/word-parser/.venv/
 backend_test_output.txt
 *transcript_extract.txt
 
-# File .md nội bộ (KHÔNG track, để mỗi người giữ local)
-context.md
-cheatsheet.md
-statusproject.md
-task.md
-unittest.md
-deploy.md
-README_DOCKER.md
-TEMPLATE_USER_GUIDE.md
-codegen.py
+# Markdown nội bộ (Bỏ qua toàn bộ file .md ngoại trừ README.md)
+*.md
+**/*.md
+!README.md
+!**/README.md
 
-# Thư mục tài liệu nội bộ
-documents/
-docs/
+# Sơ đồ thiết kế
+*.drawio
+**/*.drawio
 
-# IDE / Editor settings (không share cấu hình cá nhân)
-.vscode/
-.idea/
-
-# Script sinh keystore / smoke-test (chứa thông tin nhạy cảm khi chạy)
-scripts/
-
-# File tài liệu Word nội bộ
+# File tài liệu Office nội bộ
 *.doc
+**/*.doc
 *.docx
+**/*.docx
 ~$*
 *.xlsx
+**/*.xlsx
 *.pptx
+**/*.pptx
 *.ppt
+**/*.ppt
+
+# Thư mục tài liệu & script nội bộ
+documents/
+docs/
+scripts/
 
 # Codegen script tạm
 codegen.py

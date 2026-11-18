@@ -7,6 +7,7 @@ import lombok.Data;
 public class AuthUserResponse {
     private Long id;
     private String userID;
+    private String userCode;
     private String fullName;
     private String email;
     private String role;
@@ -21,4 +22,6 @@ public class AuthUserResponse {
     private String signatureHash;
     private java.time.Instant signatureRegisteredAt;
     private Boolean isSignatureLocked;
+    private Boolean isFirstLogin;
+    private Boolean mustChangePassword;
 }

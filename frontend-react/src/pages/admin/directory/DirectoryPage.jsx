@@ -89,12 +89,17 @@ export default function DirectoryPage() {
     }
   }, [active, fetchItems]);
 
-  const renderStatus = (status) => (
-    <span className="inline-flex items-center gap-2 text-sm">
-      <span className={`size-2 rounded-full ${status === "Đang hoạt động" ? "bg-brand" : "border border-disabled bg-canvas"}`} />
-      {status}
-    </span>
-  );
+  const renderStatus = (status) => {
+    const isActive = status === "Đang hoạt động" || status === 1;
+    return (
+      <div className="inline-flex items-center gap-1.5 text-xs">
+        <span className={`size-1.5 rounded-full shrink-0 ${isActive ? "bg-emerald-500" : "bg-rose-500"}`} />
+        <span className={isActive ? "font-medium text-emerald-700" : "font-medium text-rose-700"}>
+          {isActive ? "Đang hoạt động" : "Vô hiệu hóa"}
+        </span>
+      </div>
+    );
+  };
 
   const actionButtons = (r) => {
     const isActive = r.status === "Đang hoạt động" || r.status === 1;
@@ -169,7 +174,7 @@ export default function DirectoryPage() {
   if (active === "departments") {
     columns = [
       { key: "stt", title: "STT", render: (_, i) => (page - 1) * pageSize + i + 1 },
-      { key: "code", title: "Mã Khoa", render: (r) => <code className="font-mono">{r.code}</code> },
+      { key: "code", title: "Mã Khoa", render: (r) => <span className="font-mono text-xs text-slate-700">{r.code}</span> },
       { key: "name", title: "Tên Khoa" },
       { key: "dean", title: "Trưởng Khoa" },
       { key: "classesCount", title: "Số lớp", render: (r) => <span className="text-brand font-medium">{r.classesCount}</span> },
@@ -191,7 +196,7 @@ export default function DirectoryPage() {
   } else if (active === "majors") {
     columns = [
       { key: "stt", title: "STT", render: (_, i) => (page - 1) * pageSize + i + 1 },
-      { key: "code", title: "Mã Ngành", render: (r) => <code className="font-mono">{r.code}</code> },
+      { key: "code", title: "Mã Ngành", render: (r) => <span className="font-mono text-xs text-slate-700">{r.code}</span> },
       { key: "name", title: "Tên Ngành" },
       { key: "department", title: "Khoa trực thuộc", render: (r) => (
         <div className="leading-tight">
@@ -217,7 +222,7 @@ export default function DirectoryPage() {
   } else if (active === "classes") {
     columns = [
       { key: "stt", title: "STT", render: (_, i) => (page - 1) * pageSize + i + 1 },
-      { key: "code", title: "Mã lớp", render: (r) => <code className="font-mono">{r.code}</code> },
+      { key: "code", title: "Mã lớp", render: (r) => <span className="font-mono text-xs text-slate-700">{r.code}</span> },
       { key: "name", title: "Tên lớp" },
       { key: "academicCohort", title: "Niên khóa" },
       { key: "major", title: "Ngành", render: (r) => (
@@ -288,7 +293,7 @@ export default function DirectoryPage() {
   } else if (active === "users") {
     columns = [
       { key: "stt", title: "STT", render: (_, i) => (page - 1) * pageSize + i + 1 },
-      { key: "userCode", title: "Mã người dùng", render: (r) => r.userCode ? <code className="font-mono">{r.userCode}</code> : <span className="text-muted">—</span> },
+      { key: "userCode", title: "Mã người dùng", render: (r) => r.userCode ? <span className="font-mono text-xs text-slate-700">{r.userCode}</span> : <span className="text-muted">—</span> },
       { key: "fullName", title: "Họ và tên", render: (r) => r.fullName || <span className="text-muted">—</span> },
       { key: "dob", title: "Ngày sinh", render: (r) => r.dob || <span className="text-muted">—</span> },
       { key: "email", title: "Email", render: (r) => r.email || <span className="text-muted">—</span> },
@@ -330,7 +335,7 @@ export default function DirectoryPage() {
   } else if (active === "offices") {
     columns = [
       { key: "stt", title: "STT", render: (_, i) => (page - 1) * pageSize + i + 1 },
-      { key: "code", title: "Mã phòng ban", render: (r) => <code className="font-mono">{r.code}</code> },
+      { key: "code", title: "Mã phòng ban", render: (r) => <span className="font-mono text-xs text-slate-700">{r.code}</span> },
       { key: "name", title: "Tên phòng ban" },
       { key: "head", title: "Trưởng phòng", render: (r) => r.headName || "Chưa chỉ định" },
       { key: "status", title: "Trạng thái", render: (r) => renderStatus(r.status === 1 ? "Đang hoạt động" : "Vô hiệu hóa") },
@@ -739,19 +744,19 @@ export default function DirectoryPage() {
   return (
     <>
       <PageTitle title="Danh bạ đơn vị" description="Hệ thống được phát triển bởi nhóm sinh viên Trường Đại học Việt Nhật" />
-      <div className="mb-4 flex overflow-x-auto border-b border-line">
+      <div className="mb-4 flex overflow-x-auto border-b border-line custom-scrollbar">
         {tabs.map(([key, label]) => (
           <button
             key={key}
             onClick={() => nav(`/admin/directory/${key}`)}
-            className={`whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${active === key ? 'border-brand text-brand' : 'border-transparent text-muted hover:border-line hover:text-foreground'}`}
+            className={`whitespace-nowrap border-b-2 px-4 py-3 min-h-[44px] text-sm font-medium transition-colors ${active === key ? 'border-brand text-brand font-semibold' : 'border-transparent text-muted hover:border-line hover:text-foreground'}`}
           >
             {label}
           </button>
         ))}
       </div>
 
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">Quản lý danh mục</h1>
         {renderToolbar()}
       </div>

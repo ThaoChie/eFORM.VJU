@@ -16,7 +16,7 @@ import vn.edu.drl.backend.dto.response.DeanApproveBatchResponse;
 import vn.edu.drl.backend.dto.response.WorkflowDetailResponse;
 import vn.edu.drl.backend.dto.response.WorkflowQueueItemResponse;
 import vn.edu.drl.backend.security.SecurityUtils;
-import vn.edu.drl.backend.service.WorkflowService;
+import vn.edu.drl.backend.service.interfaces.WorkflowService;
 import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
@@ -74,5 +74,14 @@ public class WorkflowController {
         Long userId = SecurityUtils.getCurrentUserId();
         String ipAddress = httpRequest.getRemoteAddr();
         return ApiResponse.success(workflowService.deanApproveBatch(userId, request, ipAddress));
+    }
+
+    @GetMapping("/batches/{classId}/forms")
+    @PreAuthorize("hasAnyRole('DEAN', 'ADMIN')")
+    public ApiResponse<java.util.List<WorkflowQueueItemResponse>> getBatchForms(
+            @PathVariable String classId,
+            @RequestParam(required = false) String status) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        return ApiResponse.success(workflowService.getBatchForms(userId, classId, status));
     }
 }

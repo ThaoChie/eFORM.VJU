@@ -1,4 +1,4 @@
-package vn.edu.drl.backend.service;
+package vn.edu.drl.backend.service.interfaces;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -30,4 +30,5 @@ public interface WorkflowService {
     void rejectForm(Long userId, Long formId, RejectRequest request);
     DeanApproveBatchResponse deanApproveBatch(Long userId, DeanApproveBatchRequest request, String ipAddress);
     List<DeanBatchResponse> getDeanBatches(Long userId);
+    List<WorkflowQueueItemResponse> getBatchForms(Long userId, String classId, String status);
 }

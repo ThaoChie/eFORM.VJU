@@ -23,6 +23,7 @@ import {
   IconButton,
   Input,
   PageTitle,
+  Pagination,
   Select,
   Table,
   Modal,
@@ -48,7 +49,7 @@ export default function FormVersionListPage() {
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
-  const pageSize = 10
+  const [pageSize, setPageSize] = useState(10)
 
   // Filter options
   const [semesters, setSemesters] = useState([])
@@ -146,32 +147,36 @@ export default function FormVersionListPage() {
   const totalPages = Math.ceil(filteredData.length / pageSize) || 1;
   const paginatedData = filteredData.slice((page - 1) * pageSize, page * pageSize);
 
-  // Status badge renderer - Thiết kế phẳng, đơn giản, gọn gàng và không ngắt dòng
+  // Status badge renderer - Dạng chấm tròn tối giản kèm chữ nhẹ nhàng
   const renderStatusTag = (status) => {
     switch (status) {
       case "ACTIVE":
         return (
-          <span className="inline-block whitespace-nowrap rounded-md bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 border border-emerald-200">
-            Hiệu lực
-          </span>
+          <div className="inline-flex items-center gap-1.5 text-xs">
+            <span className="size-1.5 rounded-full shrink-0 bg-emerald-500" />
+            <span className="font-medium text-emerald-700">Hiệu lực</span>
+          </div>
         );
       case "INACTIVE":
         return (
-          <span className="inline-block whitespace-nowrap rounded-md bg-rose-50 px-2.5 py-0.5 text-xs font-medium text-rose-700 border border-rose-200">
-            Vô hiệu hóa
-          </span>
+          <div className="inline-flex items-center gap-1.5 text-xs">
+            <span className="size-1.5 rounded-full shrink-0 bg-rose-500" />
+            <span className="font-medium text-rose-700">Vô hiệu hóa</span>
+          </div>
         );
       case "EXPIRED":
         return (
-          <span className="inline-block whitespace-nowrap rounded-md bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600 border border-slate-200">
-            Hết hiệu lực
-          </span>
+          <div className="inline-flex items-center gap-1.5 text-xs">
+            <span className="size-1.5 rounded-full shrink-0 bg-slate-400" />
+            <span className="text-slate-500">Hết hiệu lực</span>
+          </div>
         );
       default:
         return (
-          <span className="inline-block whitespace-nowrap rounded-md bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700 border border-amber-200">
-            {status || "Bản nháp"}
-          </span>
+          <div className="inline-flex items-center gap-1.5 text-xs">
+            <span className="size-1.5 rounded-full shrink-0 bg-amber-500" />
+            <span className="font-medium text-amber-700">{status || "Bản nháp"}</span>
+          </div>
         );
     }
   };
@@ -482,29 +487,15 @@ export default function FormVersionListPage() {
           loading={loading}
         />
 
-        {/* Phân trang */}
-        <div className="mt-4 flex items-center justify-between rounded-lg border border-line bg-white px-4 py-3 shadow-sm">
-          <span className="text-sm text-muted">
-            Tổng số {filteredData.length} phiên bản
-          </span>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              disabled={page === 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              <ChevronLeft className="size-4" />
-            </Button>
-            <span className="text-sm font-medium px-2">Trang {page} / {totalPages}</span>
-            <Button
-              variant="ghost"
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            >
-              <ChevronRight className="size-4" />
-            </Button>
-          </div>
-        </div>
+        {/* Phân trang chuẩn hệ thống */}
+        <Pagination
+          currentPage={page}
+          pageSize={pageSize}
+          totalItems={filteredData.length}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+          className="mt-4 rounded-xl border border-line"
+        />
       </div>
 
       {/* Modal: Xem chi tiết danh sách các version của biểu mẫu */}

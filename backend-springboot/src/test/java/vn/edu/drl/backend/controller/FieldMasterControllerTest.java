@@ -16,7 +16,7 @@ import vn.edu.drl.backend.dto.request.FieldMasterRequest;
 import vn.edu.drl.backend.dto.response.FieldMasterResponse;
 import vn.edu.drl.backend.enu.FieldDataType;
 import vn.edu.drl.backend.model.FieldMaster;
-import vn.edu.drl.backend.service.FieldMasterService;
+import vn.edu.drl.backend.service.interfaces.FieldMasterService;
 
 import java.util.Collections;
 

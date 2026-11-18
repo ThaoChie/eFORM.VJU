@@ -110,7 +110,7 @@ export default function AdminDashboard() {
               return (
                 <div
                   key={dept.departmentId || dept.departmentName}
-                  className="grid grid-cols-[160px_1fr_60px] items-center gap-3 text-xs"
+                  className="grid grid-cols-1 sm:grid-cols-[160px_1fr_60px] items-center gap-1.5 sm:gap-3 text-xs"
                 >
                   <span className="font-medium text-slate-700 truncate" title={dept.departmentName}>
                     {dept.departmentName}

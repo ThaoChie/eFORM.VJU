@@ -5,7 +5,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.drl.backend.Wrapper.ApiResponse;
 import vn.edu.drl.backend.dto.response.AdminApprovalItemResponse;
-import vn.edu.drl.backend.service.AdminApprovalService;
+import vn.edu.drl.backend.service.interfaces.AdminApprovalService;
 
 import java.util.List;
 import java.util.Map;

@@ -1,7 +1,9 @@
 import React from 'react';
-import { ShieldCheck, LogOut, X } from 'lucide-react';
+import { ShieldCheck, KeyRound, LogOut, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const Sidebar = ({ allowedMenus, activeTab, setActiveTab, user, logout, isMobileMenuOpen, setIsMobileMenuOpen }) => {
+  const navigate = useNavigate();
   const SidebarContent = () => (
     <>
       <div className="p-5 flex items-center justify-between bg-[#002140]">
@@ -45,6 +47,16 @@ const Sidebar = ({ allowedMenus, activeTab, setActiveTab, user, logout, isMobile
             <p className="text-xs text-slate-400 truncate">{user.role}</p>
           </div>
         </div>
+        <button 
+          onClick={() => {
+            if (setIsMobileMenuOpen) setIsMobileMenuOpen(false);
+            navigate('/change-password');
+          }}
+          className="w-full flex items-center justify-center space-x-2 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white py-2 rounded-md transition-colors text-sm"
+        >
+          <KeyRound size={16} /> <span>Đổi mật khẩu</span>
+        </button>
+        <div className="my-2 border-t border-white/10" role="separator" />
         <button 
           onClick={logout}
           className="w-full flex items-center justify-center space-x-2 bg-white/5 hover:bg-red-500/20 hover:text-red-400 text-slate-300 py-2 rounded-md transition-colors text-sm"

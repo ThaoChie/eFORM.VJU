@@ -1385,10 +1385,19 @@ export default function FormDesignerPage() {
                       <div className="flex items-center gap-2">
                         <input
                           type="number"
+                          step="1"
+                          onKeyDown={(e) => {
+                            if (["e", "E", "+", "-", ".", ","].includes(e.key)) {
+                              e.preventDefault();
+                            }
+                          }}
                           min="1"
                           max="100"
                           value={selectedInfo.block.maxScore || 20}
-                          onChange={(e) => handleUpdateSelectedBlock("maxScore", Number(e.target.value))}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value, 10);
+                            handleUpdateSelectedBlock("maxScore", isNaN(val) ? "" : Math.max(1, Math.min(100, val)));
+                          }}
                           className="h-9 w-24 rounded-lg border border-line bg-white px-3 text-center text-sm font-bold text-brand outline-none focus:border-brand focus:ring-2 focus:ring-brand-soft font-mono"
                         />
                         <span className="text-xs font-semibold text-slate-600">điểm</span>
@@ -1476,10 +1485,19 @@ export default function FormDesignerPage() {
                       <div className="flex items-center gap-2">
                         <input
                           type="number"
+                          step="1"
+                          onKeyDown={(e) => {
+                            if (["e", "E", "+", "-", ".", ","].includes(e.key)) {
+                              e.preventDefault();
+                            }
+                          }}
                           min="1"
                           max="100"
                           value={selectedInfo.block.maxScore || 10}
-                          onChange={(e) => handleUpdateSelectedBlock("maxScore", Number(e.target.value))}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value, 10);
+                            handleUpdateSelectedBlock("maxScore", isNaN(val) ? "" : Math.max(1, Math.min(100, val)));
+                          }}
                           className="h-9 w-24 rounded-lg border border-line bg-white px-3 text-center text-sm font-bold text-brand outline-none focus:border-brand focus:ring-2 focus:ring-brand-soft font-mono"
                         />
                         <span className="text-xs font-semibold text-slate-600">điểm</span>

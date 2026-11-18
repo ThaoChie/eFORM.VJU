@@ -3,12 +3,14 @@ import { useEffect, useState } from "react"
 import { toast } from "react-hot-toast"
 import StatCard from "../../components/ui/StatCard"
 import StatusTag from "../../components/ui/StatusTag"
-import { Button, Card, PageTitle, Table } from "../../components/ui/Primitives"
+import { Button, Card, PageTitle, Pagination, Table } from "../../components/ui/Primitives"
 import { client } from "../../lib/axios/client"
 
 export default function ClassOverviewPage() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
 
   useEffect(() => {
     const fetchClassOverview = async () => {
@@ -174,9 +176,9 @@ export default function ClassOverviewPage() {
 
       <div className="mt-4">
         <Table
-          rows={students}
+          rows={students.slice((page - 1) * pageSize, page * pageSize)}
           columns={[
-            { key: "stt", title: "STT", render: (_, i) => i + 1 },
+            { key: "stt", title: "STT", render: (_, i) => (page - 1) * pageSize + i + 1 },
             { key: "name", title: "Họ tên" },
             { key: "code", title: "Mã sinh viên", render: (r) => <span className="font-mono text-xs">{r.code}</span> },
             { key: "className", title: "Lớp", render: (r) => r.className },
@@ -188,6 +190,16 @@ export default function ClassOverviewPage() {
               render: (r) => <StatusTag status={r.status} />,
             },
           ]}
+        />
+
+        {/* Phân trang chuẩn hệ thống */}
+        <Pagination
+          currentPage={page}
+          pageSize={pageSize}
+          totalItems={students.length}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+          className="mt-4 rounded-xl border border-line"
         />
       </div>
     </>

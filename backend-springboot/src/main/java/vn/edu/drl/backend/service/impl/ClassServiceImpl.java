@@ -15,7 +15,7 @@ import vn.edu.drl.backend.model.ClassEntity;
 import vn.edu.drl.backend.model.Department;
 import vn.edu.drl.backend.model.Major;
 import vn.edu.drl.backend.model.User;
-import vn.edu.drl.backend.service.ClassService;
+import vn.edu.drl.backend.service.interfaces.ClassService;
 
 import java.io.InputStream;
 import java.util.*;

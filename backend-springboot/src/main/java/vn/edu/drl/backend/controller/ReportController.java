@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import vn.edu.drl.backend.Wrapper.ApiResponse;
 import vn.edu.drl.backend.Wrapper.PageWrapper;
 import vn.edu.drl.backend.dto.response.WorkflowQueueItemResponse;
-import vn.edu.drl.backend.service.ReportService;
+import vn.edu.drl.backend.service.interfaces.ReportService;
 
 import java.io.ByteArrayInputStream;
 

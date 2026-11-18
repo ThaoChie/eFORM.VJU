@@ -17,9 +17,9 @@ import { removePaperBackground } from "../../lib/image-processing"
 export function isValidSignatureImage(sig) {
   if (!sig || typeof sig !== "string") return false
   const s = sig.trim()
-  if (s.length < 50) return false
+  if (s.length < 20) return false
   if (s.startsWith("blob:")) return false
-  if (s.startsWith("data:image/svg+xml") || s.includes("<svg") || s.includes("%3Csvg")) return false
+  if (s.startsWith("data:image/svg+xml") || s.includes("<svg") || s.includes("%3Csvg")) return true
   if (s.includes("DIGITALLY") || s.includes("CONFIRMED")) return false
   if (
     s.includes("AAAAEAAAAB") ||
@@ -30,10 +30,7 @@ export function isValidSignatureImage(sig) {
     return false
   }
   if (
-    s.startsWith("data:image/png") ||
-    s.startsWith("data:image/jpeg") ||
-    s.startsWith("data:image/jpg") ||
-    s.startsWith("data:image/webp") ||
+    s.startsWith("data:image/") ||
     s.startsWith("http://") ||
     s.startsWith("https://") ||
     s.startsWith("/")
@@ -46,13 +43,13 @@ export function isValidSignatureImage(sig) {
   return false
 }
 
-// Sinh ảnh chữ ký mực xanh uốn lượn sắc nét chuẩn phong cách ký tay chữ lồng dạng SVG
-export function generateSignatureSvg(name = "Nguyễn Văn A") {
+// Sinh ảnh chữ ký uốn lượn sắc nét chuẩn phong cách ký tay chữ lồng dạng SVG
+export function generateSignatureSvg(name = "Nguyễn Văn A", strokeColor = "#1d4ed8", textColor = "#1e3a8a") {
   const cleanName = (name || "Nguyễn Văn A").trim()
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 85" width="280" height="85">
-    <path d="M 20,55 Q 50,15 90,58 T 160,40 Q 200,12 245,55" fill="none" stroke="#1d4ed8" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>
-    <path d="M 35,68 Q 130,76 250,58" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round"/>
-    <text x="50%" y="46" font-family="'Caveat', 'Dancing Script', 'Brush Script MT', cursive, sans-serif" font-size="34" font-weight="700" fill="#1e3a8a" text-anchor="middle" font-style="italic">
+    <path d="M 20,55 Q 50,15 90,58 T 160,40 Q 200,12 245,55" fill="none" stroke="${strokeColor}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>
+    <path d="M 35,68 Q 130,76 250,58" fill="none" stroke="${strokeColor}" stroke-width="2" stroke-linecap="round"/>
+    <text x="50%" y="46" font-family="'Caveat', 'Dancing Script', 'Brush Script MT', cursive, sans-serif" font-size="34" font-weight="700" fill="${textColor}" text-anchor="middle" font-style="italic">
       ${cleanName}
     </text>
   </svg>`
@@ -60,7 +57,7 @@ export function generateSignatureSvg(name = "Nguyễn Văn A") {
 }
 
 export function formatDob(dateVal) {
-  if (!dateVal) return "15/09/2004"
+  if (!dateVal || String(dateVal).trim() === "") return "—"
   try {
     const s = String(dateVal).trim()
     if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
@@ -83,11 +80,20 @@ export function formatDob(dateVal) {
   return String(dateVal)
 }
 
-export function normalizeSignatureImage(sig) {
-  if (!isValidSignatureImage(sig)) {
-    return null
+export function normalizeSignatureImage(sig, fallbackName = "", strokeColor = "#1d4ed8", textColor = "#1e3a8a") {
+  if (!sig || typeof sig !== "string" || sig.trim() === "") {
+    return fallbackName ? generateSignatureSvg(fallbackName, strokeColor, textColor) : null
   }
   const s = sig.trim()
+  if (s.startsWith("data:image/svg+xml") || s.includes("<svg") || s.includes("%3Csvg")) {
+    if (!s.startsWith("data:image/svg+xml")) {
+      return `data:image/svg+xml;utf8,${encodeURIComponent(s)}`
+    }
+    return s
+  }
+  if (!isValidSignatureImage(sig)) {
+    return fallbackName ? generateSignatureSvg(fallbackName, strokeColor, textColor) : null
+  }
   if (
     s.startsWith("data:image/") ||
     s.startsWith("http://") ||
@@ -498,7 +504,7 @@ export default function PdfViewer({
 
   const deanSigImage = useMemo(() => {
     if (effectiveDeanSig) {
-      return normalizeSignatureImage(effectiveDeanSig, deanName || "Trưởng Khoa CNTT")
+      return normalizeSignatureImage(effectiveDeanSig, deanName || "Trưởng Khoa CNTT", "#881337", "#881337")
     }
     return null
   }, [effectiveDeanSig, deanName])
@@ -713,9 +719,9 @@ export default function PdfViewer({
               </div>
               <div className="flex flex-wrap justify-between">
                 <span>Lớp: <b>{user?.className || user?.classCode || "—"}</b></span>
-                <span>Ngành: <b>{user?.majorName || user?.major || "Công nghệ Thông tin"}</b></span>
-                <span>Khóa: <b>{user?.academicCohort || user?.cohort || "2023 - 2027"}</b></span>
-                <span>Khoa: <b>{user?.facultyName || user?.departmentName || "Khoa Công nghệ Thông tin"}</b></span>
+                <span>Ngành: <b>{user?.majorName || user?.major || "—"}</b></span>
+                <span>Khóa: <b>{user?.academicCohort || user?.cohort || "—"}</b></span>
+                <span>Khoa: <b>{user?.facultyName || user?.departmentName || "—"}</b></span>
               </div>
             </div>
 
@@ -821,6 +827,7 @@ export default function PdfViewer({
                         src={displayStudentSig}
                         alt="Chữ ký Sinh viên"
                         className="mx-auto max-h-12 max-w-[150px] object-contain"
+                        style={{ mixBlendMode: "multiply" }}
                       />
                     </div>
                   ) : (
@@ -894,6 +901,7 @@ export default function PdfViewer({
                             src={displayClassSig}
                             alt="Chữ ký Cán bộ lớp"
                             className="mx-auto max-h-12 max-w-[150px] object-contain"
+                            style={{ mixBlendMode: "multiply" }}
                           />
                         </div>
                       ) : (
@@ -912,6 +920,7 @@ export default function PdfViewer({
                             src={displayDeanSig}
                             alt="Chữ ký Giáo viên chủ nhiệm"
                             className="mx-auto max-h-12 max-w-[150px] object-contain"
+                            style={{ mixBlendMode: "multiply" }}
                           />
                         </div>
                       ) : (

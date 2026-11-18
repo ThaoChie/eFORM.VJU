@@ -48,7 +48,19 @@ const DraftFormPage = () => {
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Điểm Học tập (Tối đa 30) *</label>
-              <input type="number" className="w-full p-2 border rounded focus:ring-blue-500" placeholder="Nhập điểm..." />
+              <input
+                type="number"
+                step="1"
+                min="0"
+                max="30"
+                onKeyDown={(e) => {
+                  if (["e", "E", "+", "-", ".", ","].includes(e.key)) {
+                    e.preventDefault();
+                  }
+                }}
+                className="w-full p-2 border rounded focus:ring-blue-500"
+                placeholder="Nhập điểm..."
+              />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Minh chứng Học tập</label>

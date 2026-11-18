@@ -19,7 +19,7 @@ import vn.edu.drl.backend.model.ClassEntity;
 import vn.edu.drl.backend.model.Department;
 import vn.edu.drl.backend.model.Major;
 import vn.edu.drl.backend.model.User;
-import vn.edu.drl.backend.service.UserService;
+import vn.edu.drl.backend.service.interfaces.UserService;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -84,6 +84,8 @@ public class UserServiceImpl implements UserService {
             throw new vn.edu.drl.backend.exception.BusinessException("Trường Lớp là bắt buộc.");
         }
         u.setPasswordHash(passwordEncoder.encode("123456"));
+        u.setIsFirstLogin(true);
+        u.setMustChangePassword(true);
         u.setPositionTitle(req.getPositionTitle());
         u.setAcademicCohort(req.getAcademicCohort());
         u.setDob(req.getDob());
@@ -380,6 +382,8 @@ public class UserServiceImpl implements UserService {
                         u.setRole(Role.STUDENT);
                     }
                     u.setPasswordHash(passwordEncoder.encode("123456"));
+                    u.setIsFirstLogin(true);
+                    u.setMustChangePassword(true);
                     
                     if (!majorCode.isEmpty()) {
                         var majorOpt = majorRepo.findByMajorCode(majorCode);
@@ -561,5 +565,17 @@ public class UserServiceImpl implements UserService {
         } catch (Exception ignored) {}
 
         return hashHex;
+    }
+
+    @Override
+    @Transactional
+    public Map<String, Object> updateSignature(Long userId, String signatureUrl) {
+        String hashHex = updateSignatureSpecimen(userId, signatureUrl);
+        User user = repository.findById(userId).orElseThrow(() -> new RuntimeException("USER_NOT_FOUND"));
+        Map<String, Object> res = new HashMap<>();
+        res.put("signature", user.getSignatureSpecimenUrl());
+        res.put("signatureHash", hashHex);
+        res.put("isSignatureLocked", true);
+        return res;
     }
 }

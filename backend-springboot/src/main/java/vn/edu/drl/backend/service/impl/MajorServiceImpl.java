@@ -12,7 +12,7 @@ import vn.edu.drl.backend.dto.response.MajorResponse;
 import vn.edu.drl.backend.exception.BusinessException;
 import vn.edu.drl.backend.model.Department;
 import vn.edu.drl.backend.model.Major;
-import vn.edu.drl.backend.service.MajorService;
+import vn.edu.drl.backend.service.interfaces.MajorService;
 
 import java.io.InputStream;
 import java.util.*;

@@ -762,7 +762,7 @@ export default function FormVersionCreatePage() {
                         {field.fieldName || field.name}
                       </td>
                       <td className="px-4 py-3 text-xs">
-                        <span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-slate-700">
+                        <span className="font-medium text-slate-700">
                           {field.category || field.group || "COMMON"}
                         </span>
                       </td>

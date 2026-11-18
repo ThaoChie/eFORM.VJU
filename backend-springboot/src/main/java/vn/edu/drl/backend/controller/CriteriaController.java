@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.*;
 import vn.edu.drl.backend.Wrapper.ApiResponse;
 import vn.edu.drl.backend.dto.request.CriteriaRequest;
 import vn.edu.drl.backend.dto.response.CriteriaResponse;
-import vn.edu.drl.backend.service.CriteriaService;
+import vn.edu.drl.backend.service.interfaces.CriteriaService;
 
 import java.util.List;
 

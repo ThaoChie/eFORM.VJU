@@ -1,8 +1,17 @@
 server:
   port: ${PORT:8080}
+  tomcat:
+    max-http-form-post-size: 35MB
+    max-swallow-size: 35MB
 spring:
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 30MB
+      max-request-size: 35MB
   main:
     lazy-initialization: false
+    allow-bean-definition-overriding: true
   datasource:
     url: ${SPRING_DATASOURCE_URL}
     username: ${SPRING_DATASOURCE_USERNAME}
@@ -17,6 +26,12 @@ spring:
     open-in-view: true
     hibernate:
       ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
   flyway:
     enabled: true
     clean-disabled: true

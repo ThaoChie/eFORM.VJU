@@ -25,6 +25,21 @@ public interface ScoreFormRepository extends JpaRepository<ScoreForm, Long> {
     java.util.List<ScoreForm> findByStudentIdOrderByCreatedAtDesc(Long studentId);
     java.util.List<ScoreForm> findByStatusIn(java.util.Collection<vn.edu.drl.backend.enu.ScoreFormStatus> statuses);
 
+    @org.springframework.data.jpa.repository.Query("SELECT sf.student.department.id, sf.status, COUNT(sf) FROM ScoreForm sf WHERE sf.student.department.id IS NOT NULL GROUP BY sf.student.department.id, sf.status")
+    java.util.List<Object[]> countFormsByDepartmentAndStatusGrouped();
+
+    @org.springframework.data.jpa.repository.Query("SELECT sf.student.classEntity.id, sf.status, COUNT(sf) FROM ScoreForm sf WHERE sf.student.classEntity.id IS NOT NULL GROUP BY sf.student.classEntity.id, sf.status")
+    java.util.List<Object[]> countFormsByClassAndStatusGrouped();
+
+    @org.springframework.data.jpa.repository.Query("SELECT sf FROM ScoreForm sf JOIN FETCH sf.student s LEFT JOIN FETCH s.classEntity LEFT JOIN FETCH s.department WHERE s.department.id = :deptId")
+    java.util.List<ScoreForm> findByStudentDepartmentIdWithStudentAndClass(@org.springframework.data.repository.query.Param("deptId") Long deptId);
+
+    @org.springframework.data.jpa.repository.Query("SELECT sf FROM ScoreForm sf JOIN FETCH sf.student s LEFT JOIN FETCH s.classEntity LEFT JOIN FETCH s.department WHERE s.classEntity.id = :classId")
+    java.util.List<ScoreForm> findByStudentClassEntityIdWithStudentAndClass(@org.springframework.data.repository.query.Param("classId") Long classId);
+
+    @org.springframework.data.jpa.repository.Query("SELECT sf FROM ScoreForm sf JOIN FETCH sf.student s LEFT JOIN FETCH s.classEntity LEFT JOIN FETCH s.department WHERE s.department.id = :deptId AND sf.status = :status")
+    java.util.List<ScoreForm> findByStudentDepartmentIdAndStatusWithStudentAndClass(@org.springframework.data.repository.query.Param("deptId") Long deptId, @org.springframework.data.repository.query.Param("status") vn.edu.drl.backend.enu.ScoreFormStatus status);
+
     @org.springframework.data.jpa.repository.Query("SELECT COUNT(s) FROM ScoreForm s WHERE s.formVersion.id = :formVersionId AND s.status != vn.edu.drl.backend.enu.ScoreFormStatus.DEAN_APPROVED")
     long countUnfinishedByFormVersionId(@org.springframework.data.repository.query.Param("formVersionId") Long formVersionId);
 }

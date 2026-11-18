@@ -1,4 +1,4 @@
-package vn.edu.drl.backend.service;
+package vn.edu.drl.backend.service.interfaces;
 
 import vn.edu.drl.backend.dto.response.AdminApprovalItemResponse;
 import java.util.List;

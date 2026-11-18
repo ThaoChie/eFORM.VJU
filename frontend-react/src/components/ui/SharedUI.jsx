@@ -2,15 +2,8 @@ import React from 'react';
 import { Lock } from 'lucide-react';
 
 export const Badge = ({ type, text }) => {
-  const styles = {
-    NUMBER: 'bg-blue-50 text-blue-600 border-blue-200',
-    STRING: 'bg-emerald-50 text-emerald-600 border-emerald-200',
-    FILE: 'bg-amber-50 text-amber-600 border-amber-200',
-    SIGNATURE: 'bg-purple-50 text-purple-600 border-purple-200',
-    DEFAULT: 'bg-slate-50 text-slate-600 border-slate-200'
-  };
   return (
-    <span className={`px-2 py-0.5 text-xs font-medium rounded border ${styles[type] || styles.DEFAULT}`}>
+    <span className="text-xs font-medium text-slate-700">
       {text || type}
     </span>
   );

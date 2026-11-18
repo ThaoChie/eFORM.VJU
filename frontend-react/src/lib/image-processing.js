@@ -100,9 +100,9 @@ export function removePaperBackground(imageSource) {
         const bgB = sampleCount > 0 ? totalB / sampleCount : 240
         const bgLum = 0.299 * bgR + 0.587 * bgG + 0.114 * bgB
 
-        // Ngưỡng nhận diện giấy: các pixel có độ sáng cao hoặc gần màu nền mẫu
-        const paperThreshold = Math.max(170, Math.min(245, bgLum - 10))
-        const inkThreshold = Math.max(70, paperThreshold - 85)
+        // Ngưỡng nhận diện giấy: các pixel có độ sáng gần nền hoặc gần màu nền mẫu
+        const paperThreshold = Math.max(80, Math.min(245, bgLum - 15))
+        const inkThreshold = Math.max(25, paperThreshold - 60)
 
         let minX = width, minY = height, maxX = 0, maxY = 0
 
@@ -122,7 +122,7 @@ export function removePaperBackground(imageSource) {
               Math.pow(r - bgR, 2) + Math.pow(g - bgG, 2) + Math.pow(b - bgB, 2)
             )
 
-            if (lum >= paperThreshold || colorDist < 24) {
+            if (lum >= paperThreshold || colorDist < 42) {
               // Là giấy hoặc bóng mờ nền -> Trong suốt hoàn toàn
               d[idx + 3] = 0
             } else if (lum <= inkThreshold) {

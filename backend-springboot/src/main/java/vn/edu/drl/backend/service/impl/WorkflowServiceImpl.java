@@ -1,8 +1,8 @@
 package vn.edu.drl.backend.service.impl;
 
-import vn.edu.drl.backend.service.*;
+import vn.edu.drl.backend.service.interfaces.*;
 
-import vn.edu.drl.backend.service.WorkflowService;
+import vn.edu.drl.backend.service.interfaces.WorkflowService;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -156,7 +156,7 @@ public class WorkflowServiceImpl implements WorkflowService {
                 if (sl.getSigner() != null) {
                     res.setClassLeaderName(sl.getSigner().getFullName());
                 }
-            } else if (sl.getSignOrder() != null && sl.getSignOrder() == 3) {
+            } else if ((sl.getSignOrder() != null && sl.getSignOrder() == 3) || sl.getSignerRole() == Role.DEAN) {
                 String img = sl.getSignatureImgUrl();
                 if (img != null && !img.contains("CONFIRMED") && !img.contains("DIGITALLY") && !img.trim().isEmpty()) {
                     res.setDeanSignature(vn.edu.drl.backend.service.engine.ImageConversionUtils.ensureStandardWebImage(img));
@@ -201,6 +201,14 @@ public class WorkflowServiceImpl implements WorkflowService {
                     }
                 }
             }
+            if (res.getDeanSignature() == null || res.getDeanSignature().trim().isEmpty()) {
+                String dName = (res.getDeanName() != null && !res.getDeanName().trim().isEmpty()) ? res.getDeanName() : "Trưởng Khoa CNTT";
+                res.setDeanSignature(vn.edu.drl.backend.service.engine.ImageConversionUtils.generateSpecimenPngBase64(
+                    dName,
+                    "Trưởng Khoa",
+                    new java.awt.Color(136, 19, 55)
+                ));
+            }
         }
 
         // Ensure student, class leader, and dean NEVER have the same signature
@@ -229,20 +237,29 @@ public class WorkflowServiceImpl implements WorkflowService {
             res.setDeanSignature(null);
         }
 
-        List<ScoreFormDetail> details = scoreFormDetailRepository.findByScoreFormId(form.getId());
-        res.setDetails(details.stream().map(d -> {
-            WorkflowDetailResponse.WorkflowDetailItem item = new WorkflowDetailResponse.WorkflowDetailItem();
-            item.setCriteriaId(d.getCriteria() != null ? d.getCriteria().getId() : null);
-            item.setCriteriaCode(d.getCriteria() != null ? d.getCriteria().getCriteriaCode() : null);
-            item.setTitle(d.getCriteria() != null ? d.getCriteria().getTitle() : "");
-            item.setMaxScore(d.getCriteria() != null ? d.getCriteria().getMaxScore() : BigDecimal.ZERO);
-            item.setRequiresProof(d.getCriteria() != null ? d.getCriteria().getRequiresProof() : false);
-            item.setStudentScore(d.getStudentScore());
-            item.setClassScore(d.getClassScore());
-            item.setProofUrl(d.getProofUrl());
-            item.setStudentNote(d.getNote());
-            return item;
-        }).collect(Collectors.toList()));
+        List<ScoreFormDetail> details = scoreFormDetailRepository.findByScoreFormIdWithCriteria(form.getId());
+        res.setDetails(details.stream()
+            .sorted((d1, d2) -> {
+                int o1 = (d1.getCriteria() != null && d1.getCriteria().getOrderIndex() != null) ? d1.getCriteria().getOrderIndex() : 9999;
+                int o2 = (d2.getCriteria() != null && d2.getCriteria().getOrderIndex() != null) ? d2.getCriteria().getOrderIndex() : 9999;
+                if (o1 != o2) return Integer.compare(o1, o2);
+                String c1 = (d1.getCriteria() != null && d1.getCriteria().getCriteriaCode() != null) ? d1.getCriteria().getCriteriaCode() : "";
+                String c2 = (d2.getCriteria() != null && d2.getCriteria().getCriteriaCode() != null) ? d2.getCriteria().getCriteriaCode() : "";
+                return c1.compareTo(c2);
+            })
+            .map(d -> {
+                WorkflowDetailResponse.WorkflowDetailItem item = new WorkflowDetailResponse.WorkflowDetailItem();
+                item.setCriteriaId(d.getCriteria() != null ? d.getCriteria().getId() : null);
+                item.setCriteriaCode(d.getCriteria() != null ? d.getCriteria().getCriteriaCode() : null);
+                item.setTitle(d.getCriteria() != null ? d.getCriteria().getTitle() : "");
+                item.setMaxScore(d.getCriteria() != null ? d.getCriteria().getMaxScore() : BigDecimal.ZERO);
+                item.setRequiresProof(d.getCriteria() != null ? d.getCriteria().getRequiresProof() : false);
+                item.setStudentScore(d.getStudentScore());
+                item.setClassScore(d.getClassScore());
+                item.setProofUrl(d.getProofUrl());
+                item.setStudentNote(d.getNote());
+                return item;
+            }).collect(Collectors.toList()));
 
         return res;
     }
@@ -429,14 +446,37 @@ public class WorkflowServiceImpl implements WorkflowService {
         List<vn.edu.drl.backend.dto.response.DeanBatchResponse> batches = new ArrayList<>();
         List<Role> studentRoles = List.of(Role.STUDENT, Role.CLASS_LEADER, Role.CLASS_DEPUTY);
 
-        for (ClassEntity c : classes) {
-            long size = userRepository.countByClassEntityIdAndRoleIn(c.getId(), studentRoles);
-            long pending = scoreFormRepository.countByStatusAndStudentClassEntityId(ScoreFormStatus.CLASS_APPROVED, c.getId());
-            long done = scoreFormRepository.countByStatusAndStudentClassEntityId(ScoreFormStatus.DEAN_APPROVED, c.getId());
-            long submitted = scoreFormRepository.countByStatusAndStudentClassEntityId(ScoreFormStatus.SUBMITTED, c.getId());
+        // Tối ưu hoá truy vấn GROUP BY trước vòng lặp (giảm từ 5*N queries xuống còn 3 queries tổng hợp)
+        Map<Long, Long> classSizeMap = new HashMap<>();
+        for (Object[] r : userRepository.countStudentsByClassGrouped(studentRoles)) {
+            Long cId = ((Number) r[0]).longValue();
+            Long count = ((Number) r[1]).longValue();
+            classSizeMap.put(cId, count);
+        }
 
-            List<User> leaders = userRepository.findByClassEntityIdAndRole(c.getId(), Role.CLASS_LEADER);
-            String reviewer = !leaders.isEmpty() ? leaders.get(0).getFullName() : "Cán bộ lớp";
+        Map<Long, Map<ScoreFormStatus, Long>> classFormStatusMap = new HashMap<>();
+        for (Object[] r : scoreFormRepository.countFormsByClassAndStatusGrouped()) {
+            Long cId = ((Number) r[0]).longValue();
+            ScoreFormStatus status = (ScoreFormStatus) r[1];
+            Long count = ((Number) r[2]).longValue();
+            classFormStatusMap.computeIfAbsent(cId, k -> new HashMap<>()).put(status, count);
+        }
+
+        Map<Long, String> classLeaderMap = new HashMap<>();
+        for (User u : userRepository.findByRole(Role.CLASS_LEADER)) {
+            if (u.getClassEntity() != null) {
+                classLeaderMap.put(u.getClassEntity().getId(), u.getFullName());
+            }
+        }
+
+        for (ClassEntity c : classes) {
+            long size = classSizeMap.getOrDefault(c.getId(), 0L);
+            Map<ScoreFormStatus, Long> statusCounts = classFormStatusMap.getOrDefault(c.getId(), Collections.emptyMap());
+            long pending = statusCounts.getOrDefault(ScoreFormStatus.CLASS_APPROVED, 0L);
+            long done = statusCounts.getOrDefault(ScoreFormStatus.DEAN_APPROVED, 0L);
+            long submitted = statusCounts.getOrDefault(ScoreFormStatus.SUBMITTED, 0L);
+
+            String reviewer = classLeaderMap.getOrDefault(c.getId(), "Cán bộ lớp");
 
             String status;
             if (pending > 0) {
@@ -462,5 +502,76 @@ public class WorkflowServiceImpl implements WorkflowService {
                     .build());
         }
         return batches;
+    }
+
+    @Transactional(readOnly = true)
+    public List<WorkflowQueueItemResponse> getBatchForms(Long userId, String classIdStr, String statusFilter) {
+        User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
+        Long deptId = user.getDepartment() != null ? user.getDepartment().getId() : null;
+
+        List<ScoreForm> forms;
+        if ("all".equalsIgnoreCase(classIdStr)) {
+            if (deptId != null && user.getRole() == Role.DEAN) {
+                forms = scoreFormRepository.findByStudentDepartmentIdWithStudentAndClass(deptId);
+                if (forms.isEmpty()) {
+                    forms = scoreFormRepository.findByStudentDepartmentId(deptId);
+                }
+            } else {
+                forms = scoreFormRepository.findAll();
+            }
+        } else {
+            Long cId = null;
+            try {
+                cId = Long.parseLong(classIdStr);
+            } catch (Exception ignored) {}
+
+            if (cId != null) {
+                forms = scoreFormRepository.findByStudentClassEntityIdWithStudentAndClass(cId);
+                if (forms.isEmpty()) {
+                    forms = scoreFormRepository.findByStudentClassEntityId(cId);
+                }
+            } else {
+                Optional<ClassEntity> optClass = classRepository.findByClassCode(classIdStr);
+                if (optClass.isPresent()) {
+                    forms = scoreFormRepository.findByStudentClassEntityIdWithStudentAndClass(optClass.get().getId());
+                    if (forms.isEmpty()) {
+                        forms = scoreFormRepository.findByStudentClassEntityId(optClass.get().getId());
+                    }
+                } else {
+                    forms = Collections.emptyList();
+                }
+            }
+        }
+
+        java.util.stream.Stream<ScoreForm> stream = forms.stream()
+                .filter(f -> f.getStatus() == ScoreFormStatus.CLASS_APPROVED || f.getStatus() == ScoreFormStatus.DEAN_APPROVED);
+
+        if ("PENDING".equalsIgnoreCase(statusFilter)) {
+            stream = stream.filter(f -> f.getStatus() == ScoreFormStatus.CLASS_APPROVED);
+        } else if ("APPROVED".equalsIgnoreCase(statusFilter) || "DONE".equalsIgnoreCase(statusFilter)) {
+            stream = stream.filter(f -> f.getStatus() == ScoreFormStatus.DEAN_APPROVED);
+        }
+
+        return stream.map(f -> {
+            WorkflowQueueItemResponse dto = new WorkflowQueueItemResponse();
+            dto.setId(f.getId());
+            dto.setStudentId(f.getStudent() != null ? f.getStudent().getId() : null);
+            dto.setStudentCode(f.getStudent() != null ? f.getStudent().getUserCode() : "");
+            dto.setStudentName(f.getStudent() != null ? f.getStudent().getFullName() : "Sinh viên");
+            dto.setClassName(f.getStudent() != null && f.getStudent().getClassEntity() != null ? f.getStudent().getClassEntity().getClassName() : "");
+            dto.setStatus(f.getStatus());
+            dto.setStudentTotal(f.getStudentTotal());
+            dto.setClassTotal(f.getClassTotal());
+            dto.setSubmittedAt(f.getUpdatedAt() != null ? f.getUpdatedAt() : f.getCreatedAt());
+            return dto;
+        }).sorted((a, b) -> {
+            if (a.getStatus() != b.getStatus()) {
+                if (a.getStatus() == ScoreFormStatus.CLASS_APPROVED) return -1;
+                if (b.getStatus() == ScoreFormStatus.CLASS_APPROVED) return 1;
+            }
+            String codeA = a.getStudentCode() != null ? a.getStudentCode() : "";
+            String codeB = b.getStudentCode() != null ? b.getStudentCode() : "";
+            return codeA.compareToIgnoreCase(codeB);
+        }).collect(Collectors.toList());
     }
 }

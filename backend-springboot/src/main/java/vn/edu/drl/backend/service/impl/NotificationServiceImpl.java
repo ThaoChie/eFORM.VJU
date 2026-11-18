@@ -1,8 +1,8 @@
 package vn.edu.drl.backend.service.impl;
 
-import vn.edu.drl.backend.service.*;
+import vn.edu.drl.backend.service.interfaces.*;
 
-import vn.edu.drl.backend.service.NotificationService;
+import vn.edu.drl.backend.service.interfaces.NotificationService;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -38,6 +38,30 @@ public class NotificationServiceImpl implements NotificationService {
         notification.setLinkUrl(linkUrl);
         
         notificationRepository.save(notification);
+    }
+
+    @Override
+    @Transactional
+    public void createBatchNotifications(List<User> recipients, String title, String content, NotificationType type, String linkUrl) {
+        if (recipients == null || recipients.isEmpty()) return;
+        List<Notification> notifications = new java.util.ArrayList<>(recipients.size());
+        for (User u : recipients) {
+            Notification n = new Notification();
+            n.setUser(u);
+            n.setTitle(title);
+            n.setContent(content);
+            n.setType(type);
+            n.setLinkUrl(linkUrl);
+            notifications.add(n);
+        }
+        notificationRepository.saveAll(notifications);
+    }
+
+    @Override
+    @org.springframework.scheduling.annotation.Async
+    @Transactional
+    public void createBatchNotificationsAsync(List<User> recipients, String title, String content, NotificationType type, String linkUrl) {
+        createBatchNotifications(recipients, title, content, type, linkUrl);
     }
 
     public Map<String, Object> getNotifications(Long userId, Pageable pageable) {

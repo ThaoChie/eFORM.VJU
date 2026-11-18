@@ -32,6 +32,7 @@ import {
   SearchButton,
   Card,
   PageTitle,
+  Pagination,
   Modal,
   Input,
   Select,
@@ -41,6 +42,8 @@ import {
 export default function EvaluationPeriodListPage() {
   const [periods, setPeriods] = useState([])
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
 
   // Filter & Search states
   const [keyword, setKeyword] = useState("")
@@ -629,12 +632,17 @@ export default function EvaluationPeriodListPage() {
       })()}
 
       {/* Periods Table */}
-      <Table columns={columns} rows={periods} loading={loading} />
+      <Table columns={columns} rows={periods.slice((page - 1) * pageSize, page * pageSize)} loading={loading} />
 
-      <div className="mt-3 flex justify-between text-xs text-muted">
-        <span>Hiển thị {periods.length} kỳ chấm</span>
-        <span>Trang 1 / 1</span>
-      </div>
+      {/* Phân trang chuẩn hệ thống */}
+      <Pagination
+        currentPage={page}
+        pageSize={pageSize}
+        totalItems={periods.length}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+        className="mt-4 rounded-xl border border-line"
+      />
 
       {/* ========================================================================= */}
       {/* 1. Modal: Mở kỳ mới (C) */}
@@ -1054,7 +1062,7 @@ export default function EvaluationPeriodListPage() {
               {
                 key: "code",
                 title: "Mã học kỳ",
-                render: (r) => <code className="font-mono text-xs">{r.semesterCode}</code>,
+                render: (r) => <span className="font-mono text-xs text-slate-700">{r.semesterCode}</span>,
               },
               { key: "name", title: "Tên học kỳ", render: (r) => <span className="font-medium text-slate-800">{r.semesterName}</span> },
               { key: "year", title: "Năm học", render: (r) => r.academicYear },
@@ -1071,15 +1079,12 @@ export default function EvaluationPeriodListPage() {
                 key: "status",
                 title: "Trạng thái",
                 render: (r) => (
-                  <span
-                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
-                      r.isActive
-                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                        : "bg-slate-100 text-slate-600"
-                    }`}
-                  >
-                    {r.isActive ? "Đang kích hoạt" : "Chưa kích hoạt"}
-                  </span>
+                  <div className="inline-flex items-center gap-1.5 text-xs">
+                    <span className={`size-1.5 rounded-full shrink-0 ${r.isActive ? "bg-emerald-500" : "bg-slate-400"}`} />
+                    <span className={r.isActive ? "font-medium text-emerald-700" : "text-slate-500"}>
+                      {r.isActive ? "Đang kích hoạt" : "Chưa kích hoạt"}
+                    </span>
+                  </div>
                 ),
               },
               {

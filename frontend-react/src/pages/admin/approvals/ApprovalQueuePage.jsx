@@ -8,6 +8,7 @@ import {
   ConfirmButton,
   Modal,
   PageTitle,
+  Pagination,
   Table,
   Textarea,
 } from "../../../components/ui/Primitives"
@@ -29,6 +30,8 @@ export default function ApprovalQueuePage() {
   const [activeTab, setActiveTab] = useState("PENDING") // PENDING | ALL
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
   const [detail, setDetail] = useState(null)
   const [reason, setReason] = useState("")
   const [processing, setProcessing] = useState(false)
@@ -138,7 +141,7 @@ export default function ApprovalQueuePage() {
 
       <Table
         loading={loading}
-        rows={data}
+        rows={data.slice((page - 1) * pageSize, page * pageSize)}
         onRow={(r) => {
           setDetail(r)
           setReason("")
@@ -158,9 +161,9 @@ export default function ApprovalQueuePage() {
             key: "code",
             title: "Mã",
             render: (r) => (
-              <code className="text-xs bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded">
+              <span className="font-mono text-xs text-slate-700">
                 {r.code}
-              </code>
+              </span>
             ),
           },
           {
@@ -176,7 +179,7 @@ export default function ApprovalQueuePage() {
             key: "request",
             title: "Loại yêu cầu",
             render: (r) => (
-              <span className="text-xs text-slate-600 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">
+              <span className="text-xs text-slate-600">
                 {r.requestType}
               </span>
             ),
@@ -216,6 +219,16 @@ export default function ApprovalQueuePage() {
             ),
           },
         ]}
+      />
+
+      {/* Phân trang chuẩn hệ thống */}
+      <Pagination
+        currentPage={page}
+        pageSize={pageSize}
+        totalItems={data.length}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+        className="mt-4 rounded-xl border border-line"
       />
 
       {/* Modal chi tiết & phê duyệt */}
@@ -258,7 +271,7 @@ export default function ApprovalQueuePage() {
             </div>
             <div>
               <span className="text-slate-400 block text-[11px]">Mã định danh</span>
-              <code className="text-slate-800 font-mono mt-0.5 block">{detail?.code}</code>
+              <span className="text-slate-800 font-mono mt-0.5 block">{detail?.code}</span>
             </div>
             <div>
               <span className="text-slate-400 block text-[11px]">Tên / Tiêu đề</span>

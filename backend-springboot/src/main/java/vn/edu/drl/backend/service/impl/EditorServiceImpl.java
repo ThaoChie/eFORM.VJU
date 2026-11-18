@@ -1,8 +1,8 @@
 package vn.edu.drl.backend.service.impl;
 
-import vn.edu.drl.backend.service.*;
+import vn.edu.drl.backend.service.interfaces.*;
 
-import vn.edu.drl.backend.service.EditorService;
+import vn.edu.drl.backend.service.interfaces.EditorService;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -114,13 +114,15 @@ public class EditorServiceImpl implements EditorService {
                 if (criteriaList.isEmpty()) {
                     criteriaList = criteriaRepository.findAll();
                 }
+                List<ScoreFormDetail> batchDetails = new java.util.ArrayList<>(criteriaList.size());
                 for (Criteria c : criteriaList) {
                     ScoreFormDetail detail = new ScoreFormDetail();
                     detail.setScoreForm(form);
                     detail.setCriteria(c);
                     detail.setStudentScore(BigDecimal.ZERO);
-                    scoreFormDetailRepository.save(detail);
+                    batchDetails.add(detail);
                 }
+                scoreFormDetailRepository.saveAll(batchDetails);
             }
             return mapToEditorResponse(form);
         }
@@ -153,13 +155,15 @@ public class EditorServiceImpl implements EditorService {
         if (criteriaList.isEmpty()) {
             criteriaList = criteriaRepository.findAll();
         }
+        List<ScoreFormDetail> batchDetails = new java.util.ArrayList<>(criteriaList.size());
         for (Criteria c : criteriaList) {
             ScoreFormDetail detail = new ScoreFormDetail();
             detail.setScoreForm(savedForm);
             detail.setCriteria(c);
             detail.setStudentScore(BigDecimal.ZERO);
-            scoreFormDetailRepository.save(detail);
+            batchDetails.add(detail);
         }
+        scoreFormDetailRepository.saveAll(batchDetails);
 
         return mapToEditorResponse(savedForm);
     }
@@ -168,7 +172,7 @@ public class EditorServiceImpl implements EditorService {
     public void saveDraft(Long userId, SaveDraftRequest request) {
         ScoreForm form = getFormForEdit(userId, request.getSemesterId());
 
-        List<ScoreFormDetail> details = scoreFormDetailRepository.findByScoreFormId(form.getId());
+        List<ScoreFormDetail> details = scoreFormDetailRepository.findByScoreFormIdWithCriteria(form.getId());
         Map<Long, ScoreFormDetail> detailMapById = details.stream()
                 .collect(Collectors.toMap(d -> d.getCriteria().getId(), Function.identity(), (a, b) -> a));
         Map<String, ScoreFormDetail> detailMapByCode = details.stream()
@@ -222,7 +226,7 @@ public class EditorServiceImpl implements EditorService {
     public void submitAndSign(Long userId, SubmitFormRequest request, String ipAddress) {
         ScoreForm form = getFormForEdit(userId, request.getSemesterId());
 
-        List<ScoreFormDetail> details = scoreFormDetailRepository.findByScoreFormId(form.getId());
+        List<ScoreFormDetail> details = scoreFormDetailRepository.findByScoreFormIdWithCriteria(form.getId());
         BigDecimal total = BigDecimal.ZERO;
         for (ScoreFormDetail d : details) {
             BigDecimal score = d.getStudentScore() != null ? d.getStudentScore() : BigDecimal.ZERO;
@@ -343,7 +347,7 @@ public class EditorServiceImpl implements EditorService {
                 if (sl.getSigner() != null) {
                     response.setClassLeaderName(sl.getSigner().getFullName());
                 }
-            } else if (sl.getSignOrder() != null && sl.getSignOrder() == 3) {
+            } else if ((sl.getSignOrder() != null && sl.getSignOrder() == 3) || sl.getSignerRole() == Role.DEAN) {
                 String img = sl.getSignatureImgUrl();
                 if (img != null && !img.contains("CONFIRMED") && !img.contains("DIGITALLY") && !img.trim().isEmpty()) {
                     response.setDeanSignature(vn.edu.drl.backend.service.engine.ImageConversionUtils.ensureStandardWebImage(img));
@@ -355,6 +359,14 @@ public class EditorServiceImpl implements EditorService {
         }
         if ((response.getStudentSignature() == null || response.getStudentSignature().trim().isEmpty()) && form.getStudent() != null) {
             response.setStudentSignature(vn.edu.drl.backend.service.engine.ImageConversionUtils.ensureStandardWebImage(form.getStudent().getSignatureSpecimenUrl()));
+        }
+        if (form.getStatus() == ScoreFormStatus.DEAN_APPROVED && (response.getDeanSignature() == null || response.getDeanSignature().trim().isEmpty())) {
+            String dName = (response.getDeanName() != null && !response.getDeanName().trim().isEmpty()) ? response.getDeanName() : "Trưởng Khoa CNTT";
+            response.setDeanSignature(vn.edu.drl.backend.service.engine.ImageConversionUtils.generateSpecimenPngBase64(
+                dName,
+                "Trưởng Khoa",
+                new java.awt.Color(136, 19, 55)
+            ));
         }
 
         if (form.getStatus() == ScoreFormStatus.REJECTED) {
@@ -387,7 +399,7 @@ public class EditorServiceImpl implements EditorService {
             }
         }
 
-        List<ScoreFormDetail> details = scoreFormDetailRepository.findByScoreFormId(form.getId());
+        List<ScoreFormDetail> details = scoreFormDetailRepository.findByScoreFormIdWithCriteria(form.getId());
         List<EditorFormResponse.EditorFormDetailResponse> detailResponses = details.stream().map(d -> {
             EditorFormResponse.EditorFormDetailResponse dr = new EditorFormResponse.EditorFormDetailResponse();
             dr.setCriteriaId(d.getCriteria().getId());

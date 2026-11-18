@@ -1,5 +1,5 @@
-import { LogOut, Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react"
-import { useEffect, useState } from "react"
+import { KeyRound, LogOut, Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom"
 import { menus } from "../../common/permission-config"
 import { useAuthStore } from "../../stores/useAuthStore"
@@ -77,6 +77,20 @@ export default function AppLayout() {
   const logout = useAuthStore((state) => state.logout)
   const navigate = useNavigate()
   const location = useLocation()
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false)
+  const accountMenuRef = useRef(null)
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (accountMenuRef.current && !accountMenuRef.current.contains(event.target)) {
+        setAccountMenuOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  const isFirstLogin = Boolean(user?.isFirstLogin || user?.mustChangePassword)
   const groups = menus[user.role] ?? []
   const activeItem = groups
     .flatMap((group) => group.items)
@@ -84,8 +98,18 @@ export default function AppLayout() {
     .at(-1)
 
   const signOut = () => {
+    setAccountMenuOpen(false)
     logout()
     navigate("/login")
+  }
+
+  // Nếu đang ở trạng thái đăng nhập lần đầu bắt buộc đổi mật khẩu, ẩn hoàn toàn Sidebar & Header điều hướng
+  if (isFirstLogin) {
+    return (
+      <div className="min-h-screen bg-canvas">
+        <Outlet />
+      </div>
+    )
   }
 
   return (
@@ -129,7 +153,7 @@ export default function AppLayout() {
             /* Expanded mode: Logo + Tiêu đề + Nút thu gọn */
             <>
               <div className="flex items-center gap-2.5 min-w-0">
-                <img src="/logoVJU.png" alt="VJU Logo" className="h-[42px] object-contain shrink-0" />
+                <img src="/logoVJU.png" alt="VJU Logo" className="size-[42px] object-contain shrink-0" />
                 <span className="min-w-0 font-semibold text-xs leading-4 text-brand truncate">
                   E-Form Chấm Điểm
                   <br />
@@ -233,10 +257,19 @@ export default function AppLayout() {
           ))}
         </nav>
 
-        {/* Footer: Đăng xuất */}
+        {/* Footer: Đổi mật khẩu & Đăng xuất (ngăn cách bằng đường divider) */}
         <div className="p-2 border-t border-line">
           {!isMobile && !sidebarOpen ? (
-            <div className="flex justify-center">
+            <div className="flex flex-col items-center">
+              <IconButton
+                label="Đổi mật khẩu"
+                tooltipPlacement="right"
+                className="text-muted hover:text-brand hover:bg-brand-soft rounded-xl size-11 transition"
+                onClick={() => navigate("/change-password")}
+              >
+                <KeyRound className="size-5" />
+              </IconButton>
+              <div className="my-1.5 w-8 border-t border-line" role="separator" />
               <IconButton
                 label="Đăng xuất"
                 tooltipPlacement="right"
@@ -247,13 +280,28 @@ export default function AppLayout() {
               </IconButton>
             </div>
           ) : (
-            <button
-              onClick={signOut}
-              className="flex w-full h-11 items-center gap-3 rounded-lg px-4 text-muted hover:bg-canvas hover:text-ink transition"
-            >
-              <LogOut className="size-[18px] shrink-0" />
-              <span className="truncate">Đăng xuất</span>
-            </button>
+            <div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (isMobile) closeSidebar()
+                  navigate("/change-password")
+                }}
+                className="flex w-full h-11 items-center gap-3 rounded-lg px-4 text-muted hover:bg-canvas hover:text-ink transition"
+              >
+                <KeyRound className="size-[18px] shrink-0" />
+                <span className="truncate">Đổi mật khẩu</span>
+              </button>
+              <div className="my-1.5 border-t border-line" role="separator" />
+              <button
+                type="button"
+                onClick={signOut}
+                className="flex w-full h-11 items-center gap-3 rounded-lg px-4 text-muted hover:bg-canvas hover:text-ink transition"
+              >
+                <LogOut className="size-[18px] shrink-0" />
+                <span className="truncate">Đăng xuất</span>
+              </button>
+            </div>
           )}
         </div>
       </aside>
@@ -268,18 +316,18 @@ export default function AppLayout() {
             : "md:pl-[68px]"
         }`}
       >
-        <header className="sticky top-0 z-30 flex h-14 items-center border-b border-line bg-white px-4 md:px-6">
-          {/* Nút Hamburger chỉ hiển thị trên Mobile */}
+        <header className="sticky top-0 z-30 flex h-14 sm:h-16 items-center border-b border-line bg-white px-3 sm:px-4 md:px-6">
+          {/* Nút Hamburger chỉ hiển thị trên Mobile (Clickable area tối thiểu 44x44px) */}
           <button
             type="button"
             aria-label="Mở thanh bên"
-            className="mr-3 md:hidden rounded-lg p-1.5 text-muted hover:bg-canvas hover:text-ink"
+            className="mr-2 sm:mr-3 md:hidden min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded-lg text-muted hover:bg-canvas hover:text-ink active:scale-95 transition"
             onClick={openSidebar}
           >
-            <Menu className="size-5" />
+            <Menu className="size-6" />
           </button>
 
-          <span className="truncate font-semibold text-ink text-base">
+          <span className="truncate font-semibold text-ink text-sm sm:text-base">
             {activeItem?.label ?? ""}
           </span>
 
@@ -288,13 +336,52 @@ export default function AppLayout() {
               {user.facultyName || user.className || user.context || "Hệ thống"}
             </span>
             <NotificationBell />
-            <div className="flex items-center gap-2">
-              <span className="flex size-8 items-center justify-center rounded-full bg-night text-xs font-semibold text-white">
-                {(user.fullName || user.name || "U").split(" ").at(-1)[0]}
-              </span>
-              <span className="hidden max-w-36 truncate text-sm font-medium sm:block">
-                {user.fullName || user.name}
-              </span>
+            <div className="relative" ref={accountMenuRef}>
+              <button
+                type="button"
+                onClick={() => setAccountMenuOpen((prev) => !prev)}
+                className="flex items-center gap-2 rounded-lg px-1.5 py-1 hover:bg-canvas transition"
+              >
+                <span className="flex size-9 sm:size-8 items-center justify-center rounded-full bg-night text-xs font-semibold text-white shrink-0">
+                  {(user.fullName || user.name || "U").split(" ").at(-1)[0]}
+                </span>
+                <span className="hidden max-w-36 truncate text-sm font-medium sm:block">
+                  {user.fullName || user.name}
+                </span>
+              </button>
+
+              {accountMenuOpen && (
+                <div className="absolute right-0 mt-2 w-52 rounded-xl border border-line bg-white py-1.5 shadow-lg z-50">
+                  <div className="px-3.5 py-2 border-b border-line">
+                    <p className="text-sm font-semibold text-ink truncate">
+                      {user.fullName || user.name}
+                    </p>
+                    {user.email && (
+                      <p className="text-xs text-muted truncate">{user.email}</p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAccountMenuOpen(false)
+                      navigate("/change-password")
+                    }}
+                    className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-sm text-ink hover:bg-canvas transition"
+                  >
+                    <KeyRound className="size-4 text-muted shrink-0" />
+                    <span>Đổi mật khẩu</span>
+                  </button>
+                  <div className="my-1 border-t border-line" role="separator" />
+                  <button
+                    type="button"
+                    onClick={signOut}
+                    className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-sm text-brand hover:bg-brand-soft transition"
+                  >
+                    <LogOut className="size-4 shrink-0" />
+                    <span>Đăng xuất</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </header>
@@ -303,7 +390,7 @@ export default function AppLayout() {
           className={
             location.pathname.includes("/design")
               ? "h-[calc(100vh-3.5rem)] w-full max-w-none m-0 p-0 overflow-hidden"
-              : "mx-auto max-w-[1280px] p-4 md:p-6"
+              : "mx-auto max-w-[1280px] p-3 sm:p-4 md:p-6"
           }
         >
           <Outlet />

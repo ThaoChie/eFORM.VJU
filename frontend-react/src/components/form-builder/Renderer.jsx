@@ -72,7 +72,11 @@ export default function Renderer({
   const [copiedTab, setCopiedTab] = useState(null)
 
   const handleStudentScoreChange = (blockId, maxScore, val) => {
-    let num = Number(val);
+    if (val === "") {
+      setStudentScores((prev) => ({ ...prev, [blockId]: "" }));
+      return;
+    }
+    let num = parseInt(val, 10);
     if (isNaN(num)) num = 0;
     if (num < 0) num = 0;
     if (num > maxScore) num = maxScore;
@@ -80,7 +84,11 @@ export default function Renderer({
   };
 
   const handleClassScoreChange = (blockId, maxScore, val) => {
-    let num = Number(val);
+    if (val === "") {
+      setClassScores((prev) => ({ ...prev, [blockId]: "" }));
+      return;
+    }
+    let num = parseInt(val, 10);
     if (isNaN(num)) num = 0;
     if (num < 0) num = 0;
     if (num > maxScore) num = maxScore;
@@ -641,6 +649,12 @@ export default function Renderer({
                                 <div className="flex justify-center items-center">
                                   <input
                                     type="number"
+                                    step="1"
+                                    onKeyDown={(e) => {
+                                      if (["e", "E", "+", "-", ".", ","].includes(e.key)) {
+                                        e.preventDefault();
+                                      }
+                                    }}
                                     min="0"
                                     max={child.maxScore}
                                     placeholder="0"
@@ -703,6 +717,12 @@ export default function Renderer({
                                 <div className="flex justify-center items-center">
                                   <input
                                     type="number"
+                                    step="1"
+                                    onKeyDown={(e) => {
+                                      if (["e", "E", "+", "-", ".", ","].includes(e.key)) {
+                                        e.preventDefault();
+                                      }
+                                    }}
                                     min="0"
                                     max={child.maxScore}
                                     placeholder="0"
@@ -734,6 +754,12 @@ export default function Renderer({
                                 <div className="flex justify-center items-center">
                                   <input
                                     type="number"
+                                    step="1"
+                                    onKeyDown={(e) => {
+                                      if (["e", "E", "+", "-", ".", ","].includes(e.key)) {
+                                        e.preventDefault();
+                                      }
+                                    }}
                                     min="0"
                                     max={child.maxScore}
                                     placeholder="0"
@@ -750,6 +776,12 @@ export default function Renderer({
                                 <div className="flex justify-center items-center">
                                   <input
                                     type="number"
+                                    step="1"
+                                    onKeyDown={(e) => {
+                                      if (["e", "E", "+", "-", ".", ","].includes(e.key)) {
+                                        e.preventDefault();
+                                      }
+                                    }}
                                     min="0"
                                     max={child.maxScore}
                                     placeholder="0"
@@ -827,6 +859,12 @@ export default function Renderer({
                       <div className="flex justify-center items-center">
                         <input
                           type="number"
+                          step="1"
+                          onKeyDown={(e) => {
+                            if (["e", "E", "+", "-", ".", ","].includes(e.key)) {
+                              e.preventDefault();
+                            }
+                          }}
                           min="0"
                           max={block.maxScore}
                           placeholder="0"
@@ -869,6 +907,12 @@ export default function Renderer({
                       <div className="flex justify-center items-center">
                         <input
                           type="number"
+                          step="1"
+                          onKeyDown={(e) => {
+                            if (["e", "E", "+", "-", ".", ","].includes(e.key)) {
+                              e.preventDefault();
+                            }
+                          }}
                           min="0"
                           max={block.maxScore}
                           placeholder="0"
@@ -897,6 +941,12 @@ export default function Renderer({
                       <div className="flex justify-center items-center">
                         <input
                           type="number"
+                          step="1"
+                          onKeyDown={(e) => {
+                            if (["e", "E", "+", "-", ".", ","].includes(e.key)) {
+                              e.preventDefault();
+                            }
+                          }}
                           min="0"
                           max={block.maxScore}
                           placeholder="0"
@@ -911,6 +961,12 @@ export default function Renderer({
                       <div className="flex justify-center items-center">
                         <input
                           type="number"
+                          step="1"
+                          onKeyDown={(e) => {
+                            if (["e", "E", "+", "-", ".", ","].includes(e.key)) {
+                              e.preventDefault();
+                            }
+                          }}
                           min="0"
                           max={block.maxScore}
                           placeholder="0"

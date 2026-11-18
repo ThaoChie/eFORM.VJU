@@ -125,8 +125,8 @@ export default function FieldCodeDetailPage() {
         <span className="inline-flex items-center gap-1.5 font-mono font-semibold text-brand">
           v{v.version}
           {v.version === field.version && (
-            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">
-              Hiện tại
+            <span className="text-xs font-medium text-emerald-700">
+              (Hiện tại)
             </span>
           )}
         </span>
@@ -151,9 +151,12 @@ export default function FieldCodeDetailPage() {
       key: "status",
       title: "Trạng thái",
       render: (v) => (
-        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${v.isActive ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-          {v.isActive ? "Đang hiệu lực" : "Vô hiệu hóa"}
-        </span>
+        <div className="inline-flex items-center gap-1.5 text-xs">
+          <span className={`size-1.5 rounded-full shrink-0 ${v.isActive ? "bg-emerald-500" : "bg-rose-500"}`} />
+          <span className={v.isActive ? "font-medium text-emerald-700" : "font-medium text-rose-700"}>
+            {v.isActive ? "Đang hiệu lực" : "Vô hiệu hóa"}
+          </span>
+        </div>
       )
     },
     {

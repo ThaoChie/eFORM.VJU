@@ -1,6 +1,6 @@
 package vn.edu.drl.backend.service.impl;
 
-import vn.edu.drl.backend.service.DepartmentService;
+import vn.edu.drl.backend.service.interfaces.DepartmentService;
 import org.springframework.stereotype.Service;
 import vn.edu.drl.backend.dao.DepartmentRepository;
 import vn.edu.drl.backend.dao.ClassRepository;

@@ -85,7 +85,7 @@ export default function DeanDashboard() {
                 return (
                   <div
                     key={cls.classId || cls.classCode}
-                    className="grid grid-cols-[120px_1fr_50px] items-center gap-3 text-xs"
+                    className="grid grid-cols-1 sm:grid-cols-[120px_1fr_50px] items-center gap-1.5 sm:gap-3 text-xs"
                   >
                     <span className={slow ? "font-semibold text-brand truncate" : "truncate text-slate-700"} title={cls.classCode}>
                       {cls.classCode}

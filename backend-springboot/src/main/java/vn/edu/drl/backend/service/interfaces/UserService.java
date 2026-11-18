@@ -1,4 +1,4 @@
-package vn.edu.drl.backend.service;
+package vn.edu.drl.backend.service.interfaces;
 
 import org.springframework.web.multipart.MultipartFile;
 import vn.edu.drl.backend.dto.request.UserRequest;
@@ -18,4 +18,5 @@ public interface UserService {
     Map<String, Object> importFromExcel(MultipartFile file, boolean preview);
     byte[] exportToExcel(Long deptId, Long classId, String cohort, String role);
     String updateSignatureSpecimen(Long userId, String signatureUrl);
+    Map<String, Object> updateSignature(Long userId, String signatureUrl);
 }
