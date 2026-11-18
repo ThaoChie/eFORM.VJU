@@ -73,8 +73,15 @@ export default function SignatureUploader({ level = 1 }) {
       "image/heif",
     ].includes(file.type?.toLowerCase()) || ["png", "jpg", "jpeg", "webp", "heic", "heif"].includes(ext)
 
-    if (!isAcceptedFormat || file.size > 15 * 1024 * 1024) {
-      return setError("Chỉ nhận file ảnh PNG, JPG, JPEG hoặc WEBP với dung lượng tối đa 15 MB.")
+    if (!isAcceptedFormat) {
+      toast.error("Định dạng file không hợp lệ. Chỉ chấp nhận ảnh PNG, JPG, JPEG, WEBP hoặc HEIC.")
+      return setError("Chỉ nhận file ảnh PNG, JPG, JPEG, WEBP hoặc HEIC với dung lượng tối đa 2 MB.")
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(2)
+      toast.error(`Ảnh chữ ký (${sizeMB} MB) vượt quá dung lượng tối đa 2 MB.`)
+      return setError(`Dung lượng ảnh chữ ký (${sizeMB} MB) vượt quá giới hạn cho phép (tối đa 2 MB). Vui lòng chọn ảnh nhỏ hơn.`)
     }
     setError("")
 
@@ -91,6 +98,11 @@ export default function SignatureUploader({ level = 1 }) {
           quality: 0.95,
         })
         const convertedBlob = Array.isArray(conversionResult) ? conversionResult[0] : conversionResult
+        if (convertedBlob.size > 2 * 1024 * 1024) {
+          toast.dismiss("heic-convert")
+          const sizeMB = (convertedBlob.size / (1024 * 1024)).toFixed(2)
+          return setError(`Dung lượng ảnh sau khi chuyển đổi (${sizeMB} MB) vượt quá giới hạn cho phép (tối đa 2 MB). Vui lòng chọn ảnh nhỏ hơn.`)
+        }
         fileToProcess = new File([convertedBlob], (file.name || "signature").replace(/\.[^.]+$/, ".png"), {
           type: "image/png",
         })
@@ -141,6 +153,17 @@ export default function SignatureUploader({ level = 1 }) {
       let backendHash = null
       const cleanSig = await removePaperBackground(preview)
       let finalSignature = cleanSig
+
+      // Kiểm tra dung lượng ảnh chữ ký trước khi gửi lên API (chặn vượt quá 2MB)
+      if (cleanSig && cleanSig.startsWith("data:")) {
+        const base64Data = cleanSig.split(",")[1] || ""
+        const byteSize = Math.round(base64Data.length * 0.75)
+        if (byteSize > 2 * 1024 * 1024) {
+          setSaving(false)
+          return setError("Dung lượng ảnh chữ ký vượt quá giới hạn cho phép (tối đa 2 MB). Vui lòng chọn ảnh nhỏ hơn.")
+        }
+      }
+
       try {
         const res = await client.post("/users/signature", { signature: cleanSig })
         backendHash = res?.signatureHash || res?.data?.signatureHash || null
@@ -149,6 +172,9 @@ export default function SignatureUploader({ level = 1 }) {
         }
       } catch (apiErr) {
         console.warn("Backend signature sync warning:", apiErr)
+        if (apiErr?.response?.data?.message) {
+          throw new Error(apiErr.response.data.message)
+        }
       }
 
       // 2. Lưu vào local storage theo tài khoản hiện tại
@@ -353,7 +379,7 @@ export default function SignatureUploader({ level = 1 }) {
                       Bấm để chọn hoặc kéo thả ảnh chữ ký của bạn vào đây
                     </span>
                     <span className="mt-1 text-xs text-muted">
-                      Định dạng PNG, JPG, JPEG, WEBP (hệ thống tự động tách nền trong suốt), tối đa 15 MB
+                      Định dạng PNG, JPG, JPEG, WEBP (hệ thống tự động tách nền trong suốt), tối đa 2 MB
                     </span>
                   </>
                 )}
