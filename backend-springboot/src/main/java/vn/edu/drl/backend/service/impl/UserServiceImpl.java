@@ -528,8 +528,27 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("Vui lòng tải lên ảnh chữ ký hợp lệ.");
         }
 
+        // Chặn tải ảnh chữ ký có dung lượng vượt quá 2MB
+        if (signatureUrl.startsWith("data:")) {
+            int commaIdx = signatureUrl.indexOf(",");
+            String base64Payload = commaIdx >= 0 ? signatureUrl.substring(commaIdx + 1) : signatureUrl;
+            long estimatedBytes = (long) (base64Payload.length() * 0.75);
+            if (estimatedBytes > 2L * 1024 * 1024) {
+                throw new RuntimeException("Dung lượng ảnh chữ ký vượt quá giới hạn cho phép (tối đa 2 MB). Vui lòng chọn ảnh nhỏ hơn.");
+            }
+        }
+
         signatureUrl = vn.edu.drl.backend.service.engine.ImageConversionUtils.ensureStandardWebImage(signatureUrl);
         signatureUrl = vn.edu.drl.backend.service.engine.ImageConversionUtils.removeBackground(signatureUrl);
+
+        if (signatureUrl != null && signatureUrl.startsWith("data:")) {
+            int commaIdx = signatureUrl.indexOf(",");
+            String base64Payload = commaIdx >= 0 ? signatureUrl.substring(commaIdx + 1) : signatureUrl;
+            long estimatedBytes = (long) (base64Payload.length() * 0.75);
+            if (estimatedBytes > 2L * 1024 * 1024) {
+                throw new RuntimeException("Dung lượng ảnh chữ ký vượt quá giới hạn cho phép (tối đa 2 MB). Vui lòng chọn ảnh nhỏ hơn.");
+            }
+        }
 
         // 1. Compute cryptographic SHA-256 fingerprint of signature data
         String hashHex = "";
