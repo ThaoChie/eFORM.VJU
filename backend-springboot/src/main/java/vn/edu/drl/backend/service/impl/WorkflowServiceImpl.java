@@ -156,7 +156,7 @@ public class WorkflowServiceImpl implements WorkflowService {
                 if (sl.getSigner() != null) {
                     res.setClassLeaderName(sl.getSigner().getFullName());
                 }
-            } else if (sl.getSignOrder() != null && sl.getSignOrder() == 3) {
+            } else if ((sl.getSignOrder() != null && sl.getSignOrder() == 3) || sl.getSignerRole() == Role.DEAN) {
                 String img = sl.getSignatureImgUrl();
                 if (img != null && !img.contains("CONFIRMED") && !img.contains("DIGITALLY") && !img.trim().isEmpty()) {
                     res.setDeanSignature(vn.edu.drl.backend.service.engine.ImageConversionUtils.ensureStandardWebImage(img));
@@ -200,6 +200,14 @@ public class WorkflowServiceImpl implements WorkflowService {
                         res.setDeanName(dn.getFullName());
                     }
                 }
+            }
+            if (res.getDeanSignature() == null || res.getDeanSignature().trim().isEmpty()) {
+                String dName = (res.getDeanName() != null && !res.getDeanName().trim().isEmpty()) ? res.getDeanName() : "Trưởng Khoa CNTT";
+                res.setDeanSignature(vn.edu.drl.backend.service.engine.ImageConversionUtils.generateSpecimenPngBase64(
+                    dName,
+                    "Trưởng Khoa",
+                    new java.awt.Color(136, 19, 55)
+                ));
             }
         }
 

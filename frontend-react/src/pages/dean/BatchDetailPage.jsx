@@ -531,9 +531,11 @@ export default function BatchDetailPage() {
               classLeaderName={activeDetail?.classLeaderName || "Lớp trưởng"}
               deanSignature={
                 activeDetail?.deanSignature ||
-                (currentForm?.status === "DEAN_APPROVED" ? deanSig : null)
+                ((currentForm?.status === "DEAN_APPROVED" || activeDetail?.status === "DEAN_APPROVED")
+                  ? (deanSig || (activeDetail?.deanName || user?.fullName || "Trưởng Khoa CNTT"))
+                  : null)
               }
-              deanName={activeDetail?.deanName || user?.fullName || "Trưởng Khoa"}
+              deanName={activeDetail?.deanName || user?.fullName || "Trưởng Khoa CNTT"}
             />
           ) : (
             <div className="p-20 text-center text-muted bg-white border border-slate-200 rounded-xl shadow-sm">
