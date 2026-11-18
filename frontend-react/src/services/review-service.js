@@ -35,6 +35,38 @@ export const reviewService = {
     return res
   },
 
+  // Lấy danh sách phiếu của một lô lớp (cả chờ ký và đã ký)
+  async getBatchForms(classId, status = "ALL") {
+    try {
+      const res = await client.get(`/workflow/batches/${classId}/forms`, {
+        params: { status },
+      })
+      const rawList = res?.content || (Array.isArray(res) ? res : [])
+      return rawList.map((item, index) => ({
+        id: String(item.id),
+        key: String(item.id || index),
+        name: item.studentName || "Sinh viên",
+        code: item.studentCode || `SV${item.id}`,
+        className: item.className || "",
+        submitted: item.submittedAt
+          ? new Date(item.submittedAt).toLocaleDateString("vi-VN", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+            })
+          : "—",
+        score: item.studentTotal != null ? Number(item.studentTotal) : 0,
+        classScore: item.classTotal != null ? Number(item.classTotal) : null,
+        status: item.status || "CLASS_APPROVED",
+        draft: item.status === "DRAFT",
+        raw: item,
+      }))
+    } catch {
+      // Fallback nếu API mới gặp sự cố tạm thời
+      return this.list(0, 200)
+    }
+  },
+
   // Duyệt cấp lớp kèm chữ ký điện tử
   async classApprove(id, payload) {
     return await client.post(`/workflow/${id}/class/approve`, payload)

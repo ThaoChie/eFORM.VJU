@@ -495,4 +495,75 @@ public class WorkflowServiceImpl implements WorkflowService {
         }
         return batches;
     }
+
+    @Transactional(readOnly = true)
+    public List<WorkflowQueueItemResponse> getBatchForms(Long userId, String classIdStr, String statusFilter) {
+        User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
+        Long deptId = user.getDepartment() != null ? user.getDepartment().getId() : null;
+
+        List<ScoreForm> forms;
+        if ("all".equalsIgnoreCase(classIdStr)) {
+            if (deptId != null && user.getRole() == Role.DEAN) {
+                forms = scoreFormRepository.findByStudentDepartmentIdWithStudentAndClass(deptId);
+                if (forms.isEmpty()) {
+                    forms = scoreFormRepository.findByStudentDepartmentId(deptId);
+                }
+            } else {
+                forms = scoreFormRepository.findAll();
+            }
+        } else {
+            Long cId = null;
+            try {
+                cId = Long.parseLong(classIdStr);
+            } catch (Exception ignored) {}
+
+            if (cId != null) {
+                forms = scoreFormRepository.findByStudentClassEntityIdWithStudentAndClass(cId);
+                if (forms.isEmpty()) {
+                    forms = scoreFormRepository.findByStudentClassEntityId(cId);
+                }
+            } else {
+                Optional<ClassEntity> optClass = classRepository.findByClassCode(classIdStr);
+                if (optClass.isPresent()) {
+                    forms = scoreFormRepository.findByStudentClassEntityIdWithStudentAndClass(optClass.get().getId());
+                    if (forms.isEmpty()) {
+                        forms = scoreFormRepository.findByStudentClassEntityId(optClass.get().getId());
+                    }
+                } else {
+                    forms = Collections.emptyList();
+                }
+            }
+        }
+
+        java.util.stream.Stream<ScoreForm> stream = forms.stream()
+                .filter(f -> f.getStatus() == ScoreFormStatus.CLASS_APPROVED || f.getStatus() == ScoreFormStatus.DEAN_APPROVED);
+
+        if ("PENDING".equalsIgnoreCase(statusFilter)) {
+            stream = stream.filter(f -> f.getStatus() == ScoreFormStatus.CLASS_APPROVED);
+        } else if ("APPROVED".equalsIgnoreCase(statusFilter) || "DONE".equalsIgnoreCase(statusFilter)) {
+            stream = stream.filter(f -> f.getStatus() == ScoreFormStatus.DEAN_APPROVED);
+        }
+
+        return stream.map(f -> {
+            WorkflowQueueItemResponse dto = new WorkflowQueueItemResponse();
+            dto.setId(f.getId());
+            dto.setStudentId(f.getStudent() != null ? f.getStudent().getId() : null);
+            dto.setStudentCode(f.getStudent() != null ? f.getStudent().getUserCode() : "");
+            dto.setStudentName(f.getStudent() != null ? f.getStudent().getFullName() : "Sinh viên");
+            dto.setClassName(f.getStudent() != null && f.getStudent().getClassEntity() != null ? f.getStudent().getClassEntity().getClassName() : "");
+            dto.setStatus(f.getStatus());
+            dto.setStudentTotal(f.getStudentTotal());
+            dto.setClassTotal(f.getClassTotal());
+            dto.setSubmittedAt(f.getUpdatedAt() != null ? f.getUpdatedAt() : f.getCreatedAt());
+            return dto;
+        }).sorted((a, b) -> {
+            if (a.getStatus() != b.getStatus()) {
+                if (a.getStatus() == ScoreFormStatus.CLASS_APPROVED) return -1;
+                if (b.getStatus() == ScoreFormStatus.CLASS_APPROVED) return 1;
+            }
+            String codeA = a.getStudentCode() != null ? a.getStudentCode() : "";
+            String codeB = b.getStudentCode() != null ? b.getStudentCode() : "";
+            return codeA.compareToIgnoreCase(codeB);
+        }).collect(Collectors.toList());
+    }
 }

@@ -75,4 +75,13 @@ public class WorkflowController {
         String ipAddress = httpRequest.getRemoteAddr();
         return ApiResponse.success(workflowService.deanApproveBatch(userId, request, ipAddress));
     }
+
+    @GetMapping("/batches/{classId}/forms")
+    @PreAuthorize("hasAnyRole('DEAN', 'ADMIN')")
+    public ApiResponse<java.util.List<WorkflowQueueItemResponse>> getBatchForms(
+            @PathVariable String classId,
+            @RequestParam(required = false) String status) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        return ApiResponse.success(workflowService.getBatchForms(userId, classId, status));
+    }
 }
