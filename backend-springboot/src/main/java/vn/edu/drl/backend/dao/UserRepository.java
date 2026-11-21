@@ -28,4 +28,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @org.springframework.data.jpa.repository.Query("SELECT u.classEntity.id, COUNT(u) FROM User u WHERE u.role IN :roles AND u.classEntity.id IS NOT NULL GROUP BY u.classEntity.id")
     List<Object[]> countStudentsByClassGrouped(@org.springframework.data.repository.query.Param("roles") java.util.Collection<Role> roles);
+
+    @org.springframework.data.jpa.repository.Query("SELECT COUNT(u) > 0 FROM User u WHERE u.id <> :userId AND ((u.signatureHash IS NOT NULL AND u.signatureHash = :signatureHash) OR (u.signatureSpecimenUrl IS NOT NULL AND u.signatureSpecimenUrl = :signatureUrl))")
+    boolean existsSignatureByAnotherUser(
+        @org.springframework.data.repository.query.Param("userId") Long userId,
+        @org.springframework.data.repository.query.Param("signatureHash") String signatureHash,
+        @org.springframework.data.repository.query.Param("signatureUrl") String signatureUrl
+    );
 }

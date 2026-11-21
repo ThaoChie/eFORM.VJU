@@ -60,8 +60,51 @@ export default function SignatureUploader({ level = 1 }) {
     }
   }, [user?.signatureSpecimenUrl, user?.isSignatureLocked, registerSignature])
 
+  const MAX_SIGNATURE_SIZE_BYTES = 2 * 1024 * 1024 // 2MB
+  const MIN_SIGNATURE_WIDTH = 300
+  const MIN_SIGNATURE_HEIGHT = 100
+  const ERR_MAX_SIZE_MSG = "ERR-012: File vượt quá dung lượng tối đa 2MB."
+  const ERR_MIN_DIM_MSG = "ERR-013: Ảnh nhỏ hơn kích thước tối thiểu (300×100px)."
+  const ERR_DUPLICATE_SIG_MSG = "ERR-014: Ảnh đã được đăng ký bởi tài khoản khác."
+
+  const isDuplicateInLocalStorage = (sigData) => {
+    if (!sigData) return false
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key && key.startsWith("user_signature_") && key !== userStorageKey) {
+          const otherSig = localStorage.getItem(key)
+          if (otherSig && otherSig === sigData) {
+            return true
+          }
+        }
+      }
+    } catch {}
+    return false
+  }
+
+  const getImageDimensions = (dataUrl) =>
+    new Promise((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => {
+        resolve({
+          width: img.naturalWidth || img.width || 0,
+          height: img.naturalHeight || img.height || 0,
+        })
+      }
+      img.onerror = () => reject(new Error("Không thể đọc kích thước file ảnh"))
+      img.src = dataUrl
+    })
+
   const select = async (file) => {
     if (!file) return
+
+    if (!isLocked) {
+      setPreview(null)
+    }
+    if (inputRef.current) {
+      inputRef.current.value = ""
+    }
 
     const ext = file.name ? file.name.split(".").pop().toLowerCase() : ""
     const isAcceptedFormat = [
@@ -73,15 +116,16 @@ export default function SignatureUploader({ level = 1 }) {
       "image/heif",
     ].includes(file.type?.toLowerCase()) || ["png", "jpg", "jpeg", "webp", "heic", "heif"].includes(ext)
 
-    if (!isAcceptedFormat) {
-      toast.error("Định dạng file không hợp lệ. Chỉ chấp nhận ảnh PNG, JPG, JPEG, WEBP hoặc HEIC.")
-      return setError("Chỉ nhận file ảnh PNG, JPG, JPEG, WEBP hoặc HEIC với dung lượng tối đa 2 MB.")
+    if (file.size > MAX_SIGNATURE_SIZE_BYTES) {
+      setPreview(null)
+      toast.error(ERR_MAX_SIZE_MSG)
+      return setError(ERR_MAX_SIZE_MSG)
     }
 
-    if (file.size > 2 * 1024 * 1024) {
-      const sizeMB = (file.size / (1024 * 1024)).toFixed(2)
-      toast.error(`Ảnh chữ ký (${sizeMB} MB) vượt quá dung lượng tối đa 2 MB.`)
-      return setError(`Dung lượng ảnh chữ ký (${sizeMB} MB) vượt quá giới hạn cho phép (tối đa 2 MB). Vui lòng chọn ảnh nhỏ hơn.`)
+    if (!isAcceptedFormat) {
+      setPreview(null)
+      toast.error("Định dạng file không hợp lệ. Chỉ chấp nhận ảnh PNG, JPG, JPEG, WEBP hoặc HEIC.")
+      return setError("Chỉ nhận file ảnh PNG, JPG, JPEG, WEBP hoặc HEIC với dung lượng tối đa 2MB.")
     }
     setError("")
 
@@ -98,10 +142,11 @@ export default function SignatureUploader({ level = 1 }) {
           quality: 0.95,
         })
         const convertedBlob = Array.isArray(conversionResult) ? conversionResult[0] : conversionResult
-        if (convertedBlob.size > 2 * 1024 * 1024) {
+        if (convertedBlob.size > MAX_SIGNATURE_SIZE_BYTES) {
           toast.dismiss("heic-convert")
-          const sizeMB = (convertedBlob.size / (1024 * 1024)).toFixed(2)
-          return setError(`Dung lượng ảnh sau khi chuyển đổi (${sizeMB} MB) vượt quá giới hạn cho phép (tối đa 2 MB). Vui lòng chọn ảnh nhỏ hơn.`)
+          setPreview(null)
+          toast.error(ERR_MAX_SIZE_MSG)
+          return setError(ERR_MAX_SIZE_MSG)
         }
         fileToProcess = new File([convertedBlob], (file.name || "signature").replace(/\.[^.]+$/, ".png"), {
           type: "image/png",
@@ -110,6 +155,7 @@ export default function SignatureUploader({ level = 1 }) {
       } catch (heicErr) {
         toast.dismiss("heic-convert")
         console.warn("Lỗi chuyển đổi HEIC:", heicErr)
+        setPreview(null)
         return setError("File ảnh này chụp từ iPhone (định dạng HEIC ẩn dưới đuôi file). Trình duyệt không thể trực tiếp hiển thị. Bạn vui lòng chụp lại màn hình ảnh chữ ký hoặc xuất ảnh sang định dạng PNG/JPG chuẩn rồi tải lên lại nhé.")
       }
     }
@@ -127,6 +173,19 @@ export default function SignatureUploader({ level = 1 }) {
             safeUrl = safeUrl.replace(/^data:[^;]*;/, "data:" + mime + ";")
           }
           try {
+            const { width, height } = await getImageDimensions(safeUrl)
+            if (width < MIN_SIGNATURE_WIDTH || height < MIN_SIGNATURE_HEIGHT) {
+              setPreview(null)
+              toast.error(ERR_MIN_DIM_MSG)
+              setError(ERR_MIN_DIM_MSG)
+              return
+            }
+          } catch {
+            setPreview(null)
+            return setError("Không thể đọc kích thước ảnh chữ ký. Vui lòng chọn file ảnh hợp lệ.")
+          }
+
+          try {
             // Tự động tách nền loại bỏ màu giấy và crop viền nét chữ ký
             const transparentUrl = await removePaperBackground(safeUrl)
             setPreview(transparentUrl)
@@ -138,6 +197,31 @@ export default function SignatureUploader({ level = 1 }) {
       reader.readAsDataURL(fileToProcess)
     } catch (err) {
       setError(err.message || "Không thể xử lý ảnh chữ ký")
+    }
+  }
+
+  const handleInitiateSave = async () => {
+    if (!preview) {
+      return setError("Dữ liệu ảnh chưa sẵn sàng để lưu. Vui lòng chọn lại file ảnh.")
+    }
+    setSaving(true)
+    setError("")
+    try {
+      const cleanSig = await removePaperBackground(preview)
+      if (isDuplicateInLocalStorage(cleanSig) || isDuplicateInLocalStorage(preview)) {
+        toast.error(ERR_DUPLICATE_SIG_MSG)
+        setError(ERR_DUPLICATE_SIG_MSG)
+        return
+      }
+      await client.post("/users/signature/check", { signature: cleanSig })
+      setConfirmLockModalOpen(true)
+    } catch (err) {
+      const rawMsg = err?.response?.data?.message || err?.message || "Lỗi hệ thống"
+      const displayMsg = rawMsg.startsWith("ERR-") ? rawMsg : "Không thể lưu chữ ký: " + rawMsg
+      toast.error(displayMsg)
+      setError(displayMsg)
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -158,10 +242,18 @@ export default function SignatureUploader({ level = 1 }) {
       if (cleanSig && cleanSig.startsWith("data:")) {
         const base64Data = cleanSig.split(",")[1] || ""
         const byteSize = Math.round(base64Data.length * 0.75)
-        if (byteSize > 2 * 1024 * 1024) {
+        if (byteSize > MAX_SIGNATURE_SIZE_BYTES) {
           setSaving(false)
-          return setError("Dung lượng ảnh chữ ký vượt quá giới hạn cho phép (tối đa 2 MB). Vui lòng chọn ảnh nhỏ hơn.")
+          setConfirmLockModalOpen(false)
+          setPreview(null)
+          toast.error(ERR_MAX_SIZE_MSG)
+          return setError(ERR_MAX_SIZE_MSG)
         }
+      }
+
+      // Kiểm tra trùng lặp chữ ký với tài khoản khác (ERR-014)
+      if (isDuplicateInLocalStorage(cleanSig) || isDuplicateInLocalStorage(preview)) {
+        throw new Error(ERR_DUPLICATE_SIG_MSG)
       }
 
       try {
@@ -172,9 +264,7 @@ export default function SignatureUploader({ level = 1 }) {
         }
       } catch (apiErr) {
         console.warn("Backend signature sync warning:", apiErr)
-        if (apiErr?.response?.data?.message) {
-          throw new Error(apiErr.response.data.message)
-        }
+        throw new Error(apiErr?.response?.data?.message || apiErr?.message || "Không thể lưu chữ ký")
       }
 
       // 2. Lưu vào local storage theo tài khoản hiện tại
@@ -209,7 +299,11 @@ export default function SignatureUploader({ level = 1 }) {
       setConfirmLockModalOpen(false)
       toast.success("Đã tải lên và khóa chữ ký điện tử thành công! Chữ ký hiện ở trạng thái bất biến.")
     } catch (e) {
-      setError("Không thể lưu chữ ký: " + (e.message || "Lỗi hệ thống"))
+      setConfirmLockModalOpen(false)
+      const rawMsg = e?.response?.data?.message || e?.message || "Lỗi hệ thống"
+      const displayMsg = rawMsg.startsWith("ERR-") ? rawMsg : "Không thể lưu chữ ký: " + rawMsg
+      toast.error(displayMsg)
+      setError(displayMsg)
     } finally {
       setSaving(false)
     }
@@ -347,6 +441,10 @@ export default function SignatureUploader({ level = 1 }) {
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") inputRef.current?.click()
                 }}
+                onDragEnter={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                }}
                 onDragOver={(e) => {
                   e.preventDefault()
                   e.stopPropagation()
@@ -354,7 +452,7 @@ export default function SignatureUploader({ level = 1 }) {
                 onDrop={(e) => {
                   e.preventDefault()
                   e.stopPropagation()
-                  const file = e.dataTransfer.files?.[0]
+                  const file = e.dataTransfer?.files?.[0]
                   if (file) select(file)
                 }}
                 className="flex min-h-52 w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50/50 p-6 text-center hover:border-brand hover:bg-brand-soft/20 transition-all cursor-pointer"
@@ -425,7 +523,7 @@ export default function SignatureUploader({ level = 1 }) {
                   variant="primary"
                   disabled={!preview || saving}
                   loading={saving}
-                  onClick={() => setConfirmLockModalOpen(true)}
+                  onClick={handleInitiateSave}
                 >
                   <Lock className="size-4 mr-1.5" />
                   {isEditing ? "Cập nhật & Khóa chữ ký mới" : "Xác nhận & Khóa chữ ký"}

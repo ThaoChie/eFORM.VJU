@@ -78,4 +78,14 @@ public class UserController {
         }
         return ApiResponse.success(service.updateSignature(currentUserId, body.get("signature")));
     }
+
+    @PostMapping("/signature/check")
+    public ApiResponse<Map<String, Object>> checkSignature(@RequestBody Map<String, String> body) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        if (currentUserId == null) {
+            throw new RuntimeException("UNAUTHORIZED");
+        }
+        service.validateSignatureNotDuplicate(currentUserId, body.get("signature"));
+        return ApiResponse.success(Map.of("valid", true));
+    }
 }
