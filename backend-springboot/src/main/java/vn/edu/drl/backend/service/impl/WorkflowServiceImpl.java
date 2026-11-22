@@ -266,9 +266,12 @@ public class WorkflowServiceImpl implements WorkflowService {
 
     @Transactional
     public void classApprove(Long userId, Long formId, ClassApproveRequest request, String ipAddress) {
-        User user = userRepository.findById(userId).orElseThrow();
+        if (userId == null) {
+            throw new org.springframework.security.access.AccessDeniedException("Không đủ quyền truy cập");
+        }
+        User user = userRepository.findById(userId).orElseThrow(() -> new org.springframework.security.access.AccessDeniedException("Không đủ quyền truy cập"));
         if (user.getRole() != Role.CLASS_LEADER && user.getRole() != Role.CLASS_DEPUTY && user.getRole() != Role.ADMIN) {
-            throw new RuntimeException("403 Forbidden");
+            throw new org.springframework.security.access.AccessDeniedException("Không đủ quyền truy cập. Yêu cầu vai trò Cán bộ lớp.");
         }
         ScoreForm form = scoreFormRepository.findById(formId).orElseThrow();
         if (form.getIsLocked()) throw new RuntimeException("409 FORM_LOCKED");
@@ -401,6 +404,15 @@ public class WorkflowServiceImpl implements WorkflowService {
     }
 
     public DeanApproveBatchResponse deanApproveBatch(Long userId, DeanApproveBatchRequest request, String ipAddress) {
+        if (userId == null) {
+            throw new org.springframework.security.access.AccessDeniedException("Không đủ quyền truy cập. Yêu cầu vai trò Trưởng Khoa (DEAN).");
+        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new org.springframework.security.access.AccessDeniedException("Không đủ quyền truy cập. Yêu cầu vai trò Trưởng Khoa (DEAN)."));
+        if (user.getRole() != Role.DEAN) {
+            throw new org.springframework.security.access.AccessDeniedException("Không đủ quyền truy cập. Chỉ Trưởng Khoa (DEAN) mới được phép ký duyệt lô.");
+        }
+
         DeanApproveBatchResponse response = new DeanApproveBatchResponse();
         response.setTotal(request.getIds().size());
         List<DeanApproveBatchResponse.BatchResult> results = new ArrayList<>();
@@ -430,7 +442,13 @@ public class WorkflowServiceImpl implements WorkflowService {
 
     @Transactional(readOnly = true)
     public List<vn.edu.drl.backend.dto.response.DeanBatchResponse> getDeanBatches(Long userId) {
+        if (userId == null) {
+            throw new org.springframework.security.access.AccessDeniedException("Không đủ quyền truy cập. Yêu cầu vai trò Trưởng Khoa (DEAN).");
+        }
         User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
+        if (user.getRole() != Role.DEAN && user.getRole() != Role.ADMIN) {
+            throw new org.springframework.security.access.AccessDeniedException("Không đủ quyền truy cập danh sách lô duyệt cấp Khoa.");
+        }
         Long deptId = user.getDepartment() != null ? user.getDepartment().getId() : null;
 
         List<ClassEntity> classes;
@@ -506,7 +524,13 @@ public class WorkflowServiceImpl implements WorkflowService {
 
     @Transactional(readOnly = true)
     public List<WorkflowQueueItemResponse> getBatchForms(Long userId, String classIdStr, String statusFilter) {
+        if (userId == null) {
+            throw new org.springframework.security.access.AccessDeniedException("Không đủ quyền truy cập. Yêu cầu vai trò Trưởng Khoa (DEAN).");
+        }
         User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
+        if (user.getRole() != Role.DEAN && user.getRole() != Role.ADMIN) {
+            throw new org.springframework.security.access.AccessDeniedException("Không đủ quyền truy cập danh sách phiếu duyệt cấp Khoa.");
+        }
         Long deptId = user.getDepartment() != null ? user.getDepartment().getId() : null;
 
         List<ScoreForm> forms;

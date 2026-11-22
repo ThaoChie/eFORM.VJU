@@ -222,4 +222,172 @@ public class ImageConversionUtils {
             g2.dispose();
         }
     }
+
+    /**
+     * So sánh 2 ảnh chữ ký (DataURL/Base64) dựa trên mặt nạ nét mực đã chuẩn hóa khung bao (tight ink bounding-box).
+     * Giúp phát hiện chính xác cùng 1 ảnh chữ ký dù đã qua tách nền ở Frontend (Canvas) hay Backend (ImageIO) với padding khác nhau.
+     */
+    public static boolean areSignaturesVisuallyIdentical(String dataUrl1, String dataUrl2) {
+        if (dataUrl1 == null || dataUrl2 == null) return false;
+        String s1 = dataUrl1.trim();
+        String s2 = dataUrl2.trim();
+        if (s1.isEmpty() || s2.isEmpty()) return false;
+        if (s1.equals(s2)) return true;
+        if (s1.startsWith("data:image/svg+xml") || s2.startsWith("data:image/svg+xml")) {
+            return s1.equals(s2);
+        }
+        try {
+            InkSignatureProfile p1 = extractInkProfile(s1);
+            InkSignatureProfile p2 = extractInkProfile(s2);
+            if (p1 == null || p2 == null) return false;
+
+            double maxAr = Math.max(p1.aspectRatio, p2.aspectRatio);
+            if (maxAr > 0 && Math.abs(p1.aspectRatio - p2.aspectRatio) / maxAr > 0.22) {
+                return false;
+            }
+
+            if (p1.rgbaFallback != null && p2.rgbaFallback != null) {
+                long diffSum = 0;
+                for (int i = 0; i < p1.rgbaFallback.length; i++) {
+                    diffSum += Math.abs(p1.rgbaFallback[i] - p2.rgbaFallback[i]);
+                }
+                return ((double) diffSum / p1.rgbaFallback.length) <= 4.0;
+            }
+            if (p1.grid == null || p2.grid == null) return false;
+
+            int totalCells = p1.grid.length;
+            int sameCells = 0;
+            int intersection = 0;
+            int union = 0;
+            for (int i = 0; i < totalCells; i++) {
+                boolean b1 = p1.grid[i];
+                boolean b2 = p2.grid[i];
+                if (b1 == b2) sameCells++;
+                if (b1 && b2) intersection++;
+                if (b1 || b2) union++;
+            }
+            if (union == 0) return false;
+            double hammingSimilarity = (double) sameCells / totalCells;
+            double jaccardSimilarity = (double) intersection / union;
+            return hammingSimilarity >= 0.90 && jaccardSimilarity >= 0.75;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private static class InkSignatureProfile {
+        final boolean[] grid;
+        final int[] rgbaFallback;
+        final double aspectRatio;
+
+        InkSignatureProfile(boolean[] grid, int[] rgbaFallback, double aspectRatio) {
+            this.grid = grid;
+            this.rgbaFallback = rgbaFallback;
+            this.aspectRatio = aspectRatio;
+        }
+    }
+
+    private static InkSignatureProfile extractInkProfile(String dataUrlOrBase64) {
+        try {
+            String raw = dataUrlOrBase64.contains(",") ? dataUrlOrBase64.split(",")[1].trim() : dataUrlOrBase64.trim();
+            byte[] imageBytes = Base64.getDecoder().decode(raw);
+            BufferedImage img = ImageIO.read(new ByteArrayInputStream(imageBytes));
+            if (img == null) return null;
+
+            int width = img.getWidth();
+            int height = img.getHeight();
+            if (width <= 0 || height <= 0) return null;
+
+            int cornerPixels = 0;
+            long totalBrightness = 0;
+            int transparentCornerCount = 0;
+            for (int y = 0; y < Math.min(20, height); y++) {
+                for (int x = 0; x < Math.min(20, width); x++) {
+                    int rgb = img.getRGB(x, y);
+                    int a = (rgb >> 24) & 0xFF;
+                    if (a < 50) {
+                        transparentCornerCount++;
+                    } else {
+                        int r = (rgb >> 16) & 0xFF;
+                        int g = (rgb >> 8) & 0xFF;
+                        int b = rgb & 0xFF;
+                        totalBrightness += (int) (0.299 * r + 0.587 * g + 0.114 * b);
+                        cornerPixels++;
+                    }
+                }
+            }
+            boolean hasTransparency = transparentCornerCount > 5;
+            double bgBrightness = cornerPixels > 0 ? (double) totalBrightness / cornerPixels : 230.0;
+            double paperThreshold = hasTransparency ? 225.0 : Math.max(80.0, bgBrightness - 15.0);
+
+            boolean[][] inkMask = new boolean[height][width];
+            int minX = width, minY = height, maxX = -1, maxY = -1;
+            int totalInkPixels = 0;
+
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    int rgb = img.getRGB(x, y);
+                    int a = (rgb >> 24) & 0xFF;
+                    if (a < 45) continue;
+                    int r = (rgb >> 16) & 0xFF;
+                    int g = (rgb >> 8) & 0xFF;
+                    int b = rgb & 0xFF;
+                    double lum = 0.299 * r + 0.587 * g + 0.114 * b;
+                    if (lum < paperThreshold) {
+                        inkMask[y][x] = true;
+                        totalInkPixels++;
+                        if (x < minX) minX = x;
+                        if (y < minY) minY = y;
+                        if (x > maxX) maxX = x;
+                        if (y > maxY) maxY = y;
+                    }
+                }
+            }
+
+            if (totalInkPixels < 10 || maxX <= minX || maxY <= minY) {
+                int[] rgba = new int[16 * 16 * 4];
+                int idx = 0;
+                for (int gy = 0; gy < 16; gy++) {
+                    int sy = Math.min(height - 1, (gy * height) / 16);
+                    for (int gx = 0; gx < 16; gx++) {
+                        int sx = Math.min(width - 1, (gx * width) / 16);
+                        int pixel = img.getRGB(sx, sy);
+                        rgba[idx++] = (pixel >> 16) & 0xFF;
+                        rgba[idx++] = (pixel >> 8) & 0xFF;
+                        rgba[idx++] = pixel & 0xFF;
+                        rgba[idx++] = (pixel >> 24) & 0xFF;
+                    }
+                }
+                return new InkSignatureProfile(null, rgba, (double) width / height);
+            }
+
+            int boxW = maxX - minX + 1;
+            int boxH = maxY - minY + 1;
+            int gridW = 32;
+            int gridH = 16;
+            boolean[] grid = new boolean[gridW * gridH];
+
+            for (int gy = 0; gy < gridH; gy++) {
+                int y0 = minY + (gy * boxH) / gridH;
+                int y1 = Math.max(y0 + 1, minY + ((gy + 1) * boxH) / gridH);
+                for (int gx = 0; gx < gridW; gx++) {
+                    int x0 = minX + (gx * boxW) / gridW;
+                    int x1 = Math.max(x0 + 1, minX + ((gx + 1) * boxW) / gridW);
+                    int inkCount = 0;
+                    int cellArea = 0;
+                    for (int y = y0; y < Math.min(height, y1); y++) {
+                        for (int x = x0; x < Math.min(width, x1); x++) {
+                            cellArea++;
+                            if (inkMask[y][x]) inkCount++;
+                        }
+                    }
+                    grid[gy * gridW + gx] = cellArea > 0 && ((double) inkCount / cellArea) >= 0.05;
+                }
+            }
+
+            return new InkSignatureProfile(grid, null, (double) boxW / boxH);
+        } catch (Exception e) {
+            return null;
+        }
+    }
 }

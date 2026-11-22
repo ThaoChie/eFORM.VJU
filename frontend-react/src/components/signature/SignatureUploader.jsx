@@ -1,4 +1,4 @@
-import { ImagePlus, ShieldCheck, Upload, Check, Lock, AlertCircle, FileCheck, Info } from "lucide-react"
+import { ImagePlus, ShieldCheck, Upload, Check, Lock, AlertCircle, FileCheck, Info, RotateCw, RotateCcw, Crop, Scissors, RefreshCw } from "lucide-react"
 import { useRef, useState, useEffect } from "react"
 import { toast } from "react-hot-toast"
 import { useSubmissionStore } from "../../stores/useSubmissionStore"
@@ -6,7 +6,14 @@ import { useAuthStore } from "../../stores/useAuthStore"
 import { client } from "../../lib/axios/client"
 import { Button, Card, Modal } from "../ui/Primitives"
 import { isValidSignatureImage } from "../ui/PdfViewer"
-import { removePaperBackground } from "../../lib/image-processing"
+import {
+  removePaperBackground,
+  computeStringSha256,
+  areSignaturesVisuallyIdentical,
+  rotateSignatureImage90,
+  detectTightSignatureCropBox,
+  cropSignatureImage,
+} from "../../lib/image-processing"
 
 async function isHeicFile(file) {
   try {
@@ -49,6 +56,14 @@ export default function SignatureUploader({ level = 1 }) {
     }
     return null
   })
+  const [rawPreview, setRawPreview] = useState(null)
+  const [originalUploadUrl, setOriginalUploadUrl] = useState(null)
+  const [imgDims, setImgDims] = useState({ width: 0, height: 0 })
+  const [rotationAngle, setRotationAngle] = useState(0)
+  const [isCropMode, setIsCropMode] = useState(false)
+  const [cropRect, setCropRect] = useState({ x: 0, y: 0, width: 300, height: 100 })
+  const cropImgRef = useRef(null)
+  const dragStateRef = useRef(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [confirmLockModalOpen, setConfirmLockModalOpen] = useState(false)
@@ -67,16 +82,60 @@ export default function SignatureUploader({ level = 1 }) {
   const ERR_MIN_DIM_MSG = "ERR-013: Ảnh nhỏ hơn kích thước tối thiểu (300×100px)."
   const ERR_DUPLICATE_SIG_MSG = "ERR-014: Ảnh đã được đăng ký bởi tài khoản khác."
 
-  const isDuplicateInLocalStorage = (sigData) => {
-    if (!sigData) return false
+  const isDuplicateInLocalStorage = async (...candidates) => {
+    const validCandidates = candidates.filter(Boolean)
+    if (validCandidates.length === 0) return false
+    const currentIdStr = user?.id ? String(user.id) : null
     try {
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i)
-        if (key && key.startsWith("user_signature_") && key !== userStorageKey) {
-          const otherSig = localStorage.getItem(key)
-          if (otherSig && otherSig === sigData) {
+        if (!key) continue
+        const isSigKey = key.startsWith("user_signature_")
+        if (!isSigKey) continue
+        if (key === userStorageKey) continue
+        if (currentIdStr && (key === `user_signature_${currentIdStr}` || key === `user_signature_raw_${currentIdStr}`)) {
+          continue
+        }
+        const otherSig = localStorage.getItem(key)
+        if (!otherSig) continue
+        if (validCandidates.includes(otherSig)) {
+          return true
+        }
+        for (const c of validCandidates) {
+          if (await areSignaturesVisuallyIdentical(c, otherSig)) {
             return true
           }
+        }
+      }
+    } catch {}
+    return false
+  }
+
+  const checkDuplicateSignatureOnServerUsers = async (cleanSig, rawSig) => {
+    try {
+      const res = await client.get("/users")
+      const usersList = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : []
+      if (!usersList.length) return false
+
+      const cleanHash = await computeStringSha256(cleanSig)
+      const rawHash = rawSig && rawSig !== cleanSig ? await computeStringSha256(rawSig) : cleanHash
+
+      for (const u of usersList) {
+        if (!u || String(u.id) === String(user?.id)) continue
+        const otherSig = u.signatureSpecimenUrl
+        const otherHash = u.signatureHash
+        if (otherHash && (otherHash.toLowerCase() === cleanHash.toLowerCase() || otherHash.toLowerCase() === rawHash.toLowerCase())) {
+          return true
+        }
+        if (!otherSig || typeof otherSig !== "string" || otherSig.length < 100) continue
+        if (otherSig === cleanSig || (rawSig && otherSig === rawSig)) {
+          return true
+        }
+        if (await areSignaturesVisuallyIdentical(cleanSig, otherSig)) {
+          return true
+        }
+        if (rawSig && rawSig !== cleanSig && (await areSignaturesVisuallyIdentical(rawSig, otherSig))) {
+          return true
         }
       }
     } catch {}
@@ -95,6 +154,41 @@ export default function SignatureUploader({ level = 1 }) {
       img.onerror = () => reject(new Error("Không thể đọc kích thước file ảnh"))
       img.src = dataUrl
     })
+
+  const getFilePixelDimensions = async (fileObj) => {
+    try {
+      const headerSlice = fileObj.slice(0, 32)
+      const buf = await headerSlice.arrayBuffer()
+      const bytes = new Uint8Array(buf)
+      // PNG signature: 89 50 4E 47 0D 0A 1A 0A, IHDR width at offset 16..19, height at 20..23
+      if (
+        bytes.length >= 24 &&
+        bytes[0] === 0x89 &&
+        bytes[1] === 0x50 &&
+        bytes[2] === 0x4e &&
+        bytes[3] === 0x47
+      ) {
+        const view = new DataView(buf)
+        const w = view.getUint32(16, false)
+        const h = view.getUint32(20, false)
+        if (w > 0 && h > 0) {
+          return { width: w, height: h }
+        }
+      }
+    } catch {}
+
+    if (typeof createImageBitmap === "function") {
+      try {
+        const bmp = await createImageBitmap(fileObj)
+        const dims = { width: bmp.width || 0, height: bmp.height || 0 }
+        if (typeof bmp.close === "function") bmp.close()
+        if (dims.width > 0 && dims.height > 0) {
+          return dims
+        }
+      } catch {}
+    }
+    return null
+  }
 
   const select = async (file) => {
     if (!file) return
@@ -160,6 +254,14 @@ export default function SignatureUploader({ level = 1 }) {
       }
     }
 
+    const binaryDims = await getFilePixelDimensions(fileToProcess)
+    if (binaryDims && (binaryDims.width < MIN_SIGNATURE_WIDTH || binaryDims.height < MIN_SIGNATURE_HEIGHT)) {
+      setPreview(null)
+      setRawPreview(null)
+      toast.error(ERR_MIN_DIM_MSG)
+      return setError(ERR_MIN_DIM_MSG)
+    }
+
     try {
       const reader = new FileReader()
       reader.onerror = () => setError("Không thể đọc file ảnh từ thiết bị")
@@ -172,24 +274,44 @@ export default function SignatureUploader({ level = 1 }) {
             const mime = (detectedExt === "jpg" || detectedExt === "jpeg") ? "image/jpeg" : detectedExt === "webp" ? "image/webp" : "image/png"
             safeUrl = safeUrl.replace(/^data:[^;]*;/, "data:" + mime + ";")
           }
+          let loadedW = 0
+          let loadedH = 0
           try {
             const { width, height } = await getImageDimensions(safeUrl)
+            loadedW = width
+            loadedH = height
             if (width < MIN_SIGNATURE_WIDTH || height < MIN_SIGNATURE_HEIGHT) {
               setPreview(null)
+              setRawPreview(null)
               toast.error(ERR_MIN_DIM_MSG)
               setError(ERR_MIN_DIM_MSG)
               return
             }
           } catch {
             setPreview(null)
+            setRawPreview(null)
             return setError("Không thể đọc kích thước ảnh chữ ký. Vui lòng chọn file ảnh hợp lệ.")
           }
 
+          setRawPreview(safeUrl)
+          setOriginalUploadUrl(safeUrl)
+          setRotationAngle(0)
+          setIsCropMode(false)
           try {
-            // Tự động tách nền loại bỏ màu giấy và crop viền nét chữ ký
-            const transparentUrl = await removePaperBackground(safeUrl)
+            // Tách nền giấy nhưng giữ nguyên kích thước ảnh để người dùng có thể Xoay 90° và Cắt sát lề
+            const transparentUrl = await removePaperBackground(safeUrl, { autoTrim: false })
+            const dims = await getImageDimensions(transparentUrl).catch(() => ({ width: loadedW, height: loadedH }))
+            setImgDims(dims)
+            setCropRect({
+              x: 0,
+              y: 0,
+              width: dims.width || loadedW,
+              height: dims.height || loadedH,
+            })
             setPreview(transparentUrl)
           } catch {
+            setImgDims({ width: loadedW, height: loadedH })
+            setCropRect({ x: 0, y: 0, width: loadedW, height: loadedH })
             setPreview(safeUrl)
           }
         }
@@ -200,6 +322,173 @@ export default function SignatureUploader({ level = 1 }) {
     }
   }
 
+  // Công cụ Xoay 90° (theo chiều kim đồng hồ hoặc ngược chiều)
+  const handleRotate90 = async (direction = 1) => {
+    if (!preview) return
+    try {
+      setError("")
+      const rotated = await rotateSignatureImage90(preview, direction, MIN_SIGNATURE_WIDTH, MIN_SIGNATURE_HEIGHT)
+      setPreview(rotated.dataUrl)
+      setRawPreview(rotated.dataUrl)
+      setImgDims({ width: rotated.width, height: rotated.height })
+      setRotationAngle((prev) => (prev + (direction >= 0 ? 90 : 270)) % 360)
+      if (isCropMode) {
+        const tight = await detectTightSignatureCropBox(rotated.dataUrl, MIN_SIGNATURE_WIDTH, MIN_SIGNATURE_HEIGHT)
+        if (tight) {
+          setCropRect({ x: tight.x, y: tight.y, width: tight.width, height: tight.height })
+        } else {
+          setCropRect({ x: 0, y: 0, width: rotated.width, height: rotated.height })
+        }
+      } else {
+        setCropRect({ x: 0, y: 0, width: rotated.width, height: rotated.height })
+      }
+      toast.success(`Đã xoay ảnh 90° (${rotated.width}×${rotated.height}px)`)
+    } catch (err) {
+      toast.error(err?.message || "Không thể xoay ảnh chữ ký")
+    }
+  }
+
+  // Mở chế độ tùy chỉnh khung cắt (hoặc tự động khoanh vùng sát lề >= 300×100px)
+  const handleToggleCropMode = async () => {
+    if (!preview) return
+    if (isCropMode) {
+      setIsCropMode(false)
+      return
+    }
+    setError("")
+    const tight = await detectTightSignatureCropBox(preview, MIN_SIGNATURE_WIDTH, MIN_SIGNATURE_HEIGHT)
+    if (tight) {
+      setImgDims({ width: tight.imgWidth, height: tight.imgHeight })
+      setCropRect({ x: tight.x, y: tight.y, width: tight.width, height: tight.height })
+    } else if (imgDims.width > 0 && imgDims.height > 0) {
+      setCropRect({
+        x: 0,
+        y: 0,
+        width: Math.max(MIN_SIGNATURE_WIDTH, imgDims.width),
+        height: Math.max(MIN_SIGNATURE_HEIGHT, imgDims.height),
+      })
+    }
+    setIsCropMode(true)
+  }
+
+  // Cắt sát lề chữ ký tự động (vẫn đảm bảo kích thước ảnh sau cắt >= 300×100px)
+  const handleTightAutoCrop = async () => {
+    if (!preview) return
+    try {
+      setError("")
+      const tight = await detectTightSignatureCropBox(preview, MIN_SIGNATURE_WIDTH, MIN_SIGNATURE_HEIGHT)
+      const rectToUse = tight
+        ? { x: tight.x, y: tight.y, width: tight.width, height: tight.height }
+        : cropRect
+      const cropped = await cropSignatureImage(preview, rectToUse, MIN_SIGNATURE_WIDTH, MIN_SIGNATURE_HEIGHT)
+      setPreview(cropped.dataUrl)
+      setRawPreview(cropped.dataUrl)
+      setImgDims({ width: cropped.width, height: cropped.height })
+      setCropRect({ x: 0, y: 0, width: cropped.width, height: cropped.height })
+      setIsCropMode(false)
+      toast.success(`Đã cắt sát lề chữ ký (${cropped.width}×${cropped.height}px ≥ 300×100px)`)
+    } catch (err) {
+      toast.error(err?.message || "Không thể cắt ảnh chữ ký")
+    }
+  }
+
+  // Áp dụng vùng cắt đang chọn
+  const handleApplyCrop = async () => {
+    if (!preview) return
+    try {
+      setError("")
+      const cropped = await cropSignatureImage(preview, cropRect, MIN_SIGNATURE_WIDTH, MIN_SIGNATURE_HEIGHT)
+      setPreview(cropped.dataUrl)
+      setRawPreview(cropped.dataUrl)
+      setImgDims({ width: cropped.width, height: cropped.height })
+      setCropRect({ x: 0, y: 0, width: cropped.width, height: cropped.height })
+      setIsCropMode(false)
+      toast.success(`Đã cắt ảnh chữ ký (${cropped.width}×${cropped.height}px ≥ 300×100px)`)
+    } catch (err) {
+      toast.error(err?.message || "Không thể áp dụng vùng cắt")
+    }
+  }
+
+  // Khôi phục ảnh gốc vừa tải lên
+  const handleResetOriginal = async () => {
+    if (!originalUploadUrl) return
+    try {
+      setError("")
+      const transparentUrl = await removePaperBackground(originalUploadUrl, { autoTrim: false })
+      const dims = await getImageDimensions(transparentUrl)
+      setPreview(transparentUrl)
+      setRawPreview(originalUploadUrl)
+      setImgDims(dims)
+      setRotationAngle(0)
+      setIsCropMode(false)
+      setCropRect({ x: 0, y: 0, width: dims.width, height: dims.height })
+      toast.success("Đã khôi phục về ảnh gốc ban đầu")
+    } catch {}
+  }
+
+  // Xử lý kéo thả khung cắt trực quan trên ảnh xem trước
+  const handleCropMouseDown = (e, mode) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const imgEl = cropImgRef.current
+    if (!imgEl || !imgDims.width || !imgDims.height) return
+    const bounds = imgEl.getBoundingClientRect()
+    if (!bounds.width || !bounds.height) return
+
+    dragStateRef.current = {
+      mode,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      startRect: { ...cropRect },
+      scaleX: imgDims.width / bounds.width,
+      scaleY: imgDims.height / bounds.height,
+    }
+
+    const handleMouseMove = (moveEvent) => {
+      const st = dragStateRef.current
+      if (!st) return
+      const dx = Math.round((moveEvent.clientX - st.startClientX) * st.scaleX)
+      const dy = Math.round((moveEvent.clientY - st.startClientY) * st.scaleY)
+      const minW = Math.min(imgDims.width, MIN_SIGNATURE_WIDTH)
+      const minH = Math.min(imgDims.height, MIN_SIGNATURE_HEIGHT)
+      let { x, y, width, height } = st.startRect
+
+      if (st.mode === "move") {
+        x = Math.max(0, Math.min(imgDims.width - width, x + dx))
+        y = Math.max(0, Math.min(imgDims.height - height, y + dy))
+      } else {
+        if (st.mode.includes("e")) {
+          width = Math.max(minW, Math.min(imgDims.width - x, width + dx))
+        }
+        if (st.mode.includes("s")) {
+          height = Math.max(minH, Math.min(imgDims.height - y, height + dy))
+        }
+        if (st.mode.includes("w")) {
+          const maxLeftShift = width - minW
+          const actualDx = Math.max(-x, Math.min(maxLeftShift, dx))
+          x += actualDx
+          width -= actualDx
+        }
+        if (st.mode.includes("n")) {
+          const maxTopShift = height - minH
+          const actualDy = Math.max(-y, Math.min(maxTopShift, dy))
+          y += actualDy
+          height -= actualDy
+        }
+      }
+      setCropRect({ x, y, width, height })
+    }
+
+    const handleMouseUp = () => {
+      dragStateRef.current = null
+      window.removeEventListener("mousemove", handleMouseMove)
+      window.removeEventListener("mouseup", handleMouseUp)
+    }
+
+    window.addEventListener("mousemove", handleMouseMove)
+    window.addEventListener("mouseup", handleMouseUp)
+  }
+
   const handleInitiateSave = async () => {
     if (!preview) {
       return setError("Dữ liệu ảnh chưa sẵn sàng để lưu. Vui lòng chọn lại file ảnh.")
@@ -207,17 +496,50 @@ export default function SignatureUploader({ level = 1 }) {
     setSaving(true)
     setError("")
     try {
-      const cleanSig = await removePaperBackground(preview)
-      if (isDuplicateInLocalStorage(cleanSig) || isDuplicateInLocalStorage(preview)) {
+      let activePreview = preview
+      if (isCropMode) {
+        const cropped = await cropSignatureImage(preview, cropRect, MIN_SIGNATURE_WIDTH, MIN_SIGNATURE_HEIGHT)
+        activePreview = cropped.dataUrl
+        setPreview(cropped.dataUrl)
+        setRawPreview(cropped.dataUrl)
+        setImgDims({ width: cropped.width, height: cropped.height })
+        setIsCropMode(false)
+      }
+      const cleanSig = await removePaperBackground(activePreview, { autoTrim: false })
+      const trimmedCandidate = await removePaperBackground(rawPreview || activePreview, { autoTrim: true })
+      if (
+        (await isDuplicateInLocalStorage(cleanSig, trimmedCandidate, activePreview, rawPreview)) ||
+        (await checkDuplicateSignatureOnServerUsers(cleanSig, rawPreview || activePreview))
+      ) {
+        if (!isLocked) {
+          setPreview(null)
+          setRawPreview(null)
+        }
         toast.error(ERR_DUPLICATE_SIG_MSG)
         setError(ERR_DUPLICATE_SIG_MSG)
         return
       }
-      await client.post("/users/signature/check", { signature: cleanSig })
+      try {
+        await client.post("/users/signature/check", {
+          signature: cleanSig,
+          rawSignature: rawPreview || activePreview,
+        })
+      } catch (checkErr) {
+        const status = checkErr?.response?.status
+        const msg = checkErr?.response?.data?.message || checkErr?.message || ""
+        // Nếu endpoint /users/signature/check trả về ERR-xxx hoặc lỗi 400 cụ thể, ném lỗi ngay; nếu 404 trên server cũ thì bỏ qua vì đã kiểm tra qua /users
+        if (status !== 404 || msg.startsWith("ERR-")) {
+          throw checkErr
+        }
+      }
       setConfirmLockModalOpen(true)
     } catch (err) {
       const rawMsg = err?.response?.data?.message || err?.message || "Lỗi hệ thống"
       const displayMsg = rawMsg.startsWith("ERR-") ? rawMsg : "Không thể lưu chữ ký: " + rawMsg
+      if (displayMsg.startsWith("ERR-014") && !isLocked) {
+        setPreview(null)
+        setRawPreview(null)
+      }
       toast.error(displayMsg)
       setError(displayMsg)
     } finally {
@@ -235,7 +557,8 @@ export default function SignatureUploader({ level = 1 }) {
     try {
       // 1. Tách nền giấy và gửi lên backend API để tính băm SHA-256 và khóa vĩnh viễn
       let backendHash = null
-      const cleanSig = await removePaperBackground(preview)
+      const cleanSig = await removePaperBackground(preview, { autoTrim: false })
+      const trimmedCandidate = await removePaperBackground(rawPreview || preview, { autoTrim: true })
       let finalSignature = cleanSig
 
       // Kiểm tra dung lượng ảnh chữ ký trước khi gửi lên API (chặn vượt quá 2MB)
@@ -246,18 +569,25 @@ export default function SignatureUploader({ level = 1 }) {
           setSaving(false)
           setConfirmLockModalOpen(false)
           setPreview(null)
+          setRawPreview(null)
           toast.error(ERR_MAX_SIZE_MSG)
           return setError(ERR_MAX_SIZE_MSG)
         }
       }
 
       // Kiểm tra trùng lặp chữ ký với tài khoản khác (ERR-014)
-      if (isDuplicateInLocalStorage(cleanSig) || isDuplicateInLocalStorage(preview)) {
+      if (
+        (await isDuplicateInLocalStorage(cleanSig, trimmedCandidate, preview, rawPreview)) ||
+        (await checkDuplicateSignatureOnServerUsers(cleanSig, rawPreview || preview))
+      ) {
         throw new Error(ERR_DUPLICATE_SIG_MSG)
       }
 
       try {
-        const res = await client.post("/users/signature", { signature: cleanSig })
+        const res = await client.post("/users/signature", {
+          signature: cleanSig,
+          rawSignature: rawPreview || preview,
+        })
         backendHash = res?.signatureHash || res?.data?.signatureHash || null
         if (res?.signature || res?.data?.signature) {
           finalSignature = res?.signature || res?.data?.signature
@@ -274,6 +604,9 @@ export default function SignatureUploader({ level = 1 }) {
         }
         if (user?.id) {
           localStorage.setItem(`user_signature_${user.id}`, finalSignature)
+          if (rawPreview) {
+            localStorage.setItem(`user_signature_raw_${user.id}`, rawPreview)
+          }
         }
       } catch (storageErr) {
         console.warn("Storage quota warning:", storageErr)
@@ -302,6 +635,10 @@ export default function SignatureUploader({ level = 1 }) {
       setConfirmLockModalOpen(false)
       const rawMsg = e?.response?.data?.message || e?.message || "Lỗi hệ thống"
       const displayMsg = rawMsg.startsWith("ERR-") ? rawMsg : "Không thể lưu chữ ký: " + rawMsg
+      if (displayMsg.startsWith("ERR-014") && !isLocked) {
+        setPreview(null)
+        setRawPreview(null)
+      }
       toast.error(displayMsg)
       setError(displayMsg)
     } finally {
@@ -432,14 +769,16 @@ export default function SignatureUploader({ level = 1 }) {
               </div>
             </div>
           ) : (
-            /* TRẠNG THÁI TẢI LÊN / ĐỔI ẢNH CHỮ KÝ */
+            /* TRẠNG THÁI TẢI LÊN / CHỈNH SỬA (XOAY 90° & CẮT ẢNH) TRƯỚC KHI LƯU */
             <div className="space-y-4">
               <div
                 role="button"
                 tabIndex={0}
-                onClick={() => inputRef.current?.click()}
+                onClick={() => {
+                  if (!preview) inputRef.current?.click()
+                }}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") inputRef.current?.click()
+                  if (!preview && (e.key === "Enter" || e.key === " ")) inputRef.current?.click()
                 }}
                 onDragEnter={(e) => {
                   e.preventDefault()
@@ -455,18 +794,171 @@ export default function SignatureUploader({ level = 1 }) {
                   const file = e.dataTransfer?.files?.[0]
                   if (file) select(file)
                 }}
-                className="flex min-h-52 w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50/50 p-6 text-center hover:border-brand hover:bg-brand-soft/20 transition-all cursor-pointer"
+                className={`flex min-h-52 w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50/50 p-5 text-center transition-all ${
+                  preview ? "cursor-default" : "hover:border-brand hover:bg-brand-soft/20 cursor-pointer"
+                }`}
               >
                 {preview ? (
-                  <div className="space-y-2">
-                    <img
-                      src={preview}
-                      alt="Xem trước chữ ký"
-                      className="max-h-24 max-w-[280px] object-contain mx-auto drop-shadow-xs"
-                    />
-                    <span className="text-xs text-brand font-medium block">
-                      Bấm vào đây nếu muốn chọn file ảnh khác từ máy tính
-                    </span>
+                  <div className="w-full space-y-3" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center justify-between text-xs text-slate-600 px-1">
+                      <span className="font-medium text-slate-700">
+                        Bản xem trước chữ ký {rotationAngle > 0 ? `(Đã xoay ${rotationAngle}°)` : ""}
+                      </span>
+                      {imgDims.width > 0 && imgDims.height > 0 && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 font-mono">
+                          <Check className="size-3" />
+                          {isCropMode
+                            ? `Vùng cắt: ${cropRect.width}×${cropRect.height}px`
+                            : `Kích thước: ${imgDims.width}×${imgDims.height}px`}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Khung hiển thị ảnh & Vùng cắt trực quan */}
+                    <div className="relative inline-block mx-auto rounded-lg border border-slate-200 bg-white p-2 shadow-2xs select-none overflow-hidden">
+                      <div className="relative inline-block">
+                        <img
+                          ref={cropImgRef}
+                          src={preview}
+                          alt="Xem trước chữ ký"
+                          draggable={false}
+                          className="max-h-56 max-w-full object-contain block mx-auto"
+                        />
+
+                        {isCropMode && imgDims.width > 0 && imgDims.height > 0 && (
+                          <div
+                            onMouseDown={(e) => handleCropMouseDown(e, "move")}
+                            style={{
+                              left: `${(cropRect.x / imgDims.width) * 100}%`,
+                              top: `${(cropRect.y / imgDims.height) * 100}%`,
+                              width: `${(cropRect.width / imgDims.width) * 100}%`,
+                              height: `${(cropRect.height / imgDims.height) * 100}%`,
+                            }}
+                            className="absolute border-2 border-brand bg-brand/10 cursor-move shadow-[0_0_0_9999px_rgba(15,23,42,0.42)]"
+                          >
+                            {/* 4 góc kéo điều chỉnh vùng cắt */}
+                            <div
+                              onMouseDown={(e) => handleCropMouseDown(e, "nw")}
+                              className="absolute -top-1.5 -left-1.5 size-3.5 rounded-xs bg-brand border border-white cursor-nwse-resize"
+                            />
+                            <div
+                              onMouseDown={(e) => handleCropMouseDown(e, "ne")}
+                              className="absolute -top-1.5 -right-1.5 size-3.5 rounded-xs bg-brand border border-white cursor-nesw-resize"
+                            />
+                            <div
+                              onMouseDown={(e) => handleCropMouseDown(e, "sw")}
+                              className="absolute -bottom-1.5 -left-1.5 size-3.5 rounded-xs bg-brand border border-white cursor-nesw-resize"
+                            />
+                            <div
+                              onMouseDown={(e) => handleCropMouseDown(e, "se")}
+                              className="absolute -bottom-1.5 -right-1.5 size-3.5 rounded-xs bg-brand border border-white cursor-nwse-resize"
+                            />
+                            {/* 4 cạnh kéo điều chỉnh vùng cắt */}
+                            <div
+                              onMouseDown={(e) => handleCropMouseDown(e, "n")}
+                              className="absolute -top-1 left-1/2 -translate-x-1/2 h-2 w-6 rounded-xs bg-brand border border-white cursor-ns-resize"
+                            />
+                            <div
+                              onMouseDown={(e) => handleCropMouseDown(e, "s")}
+                              className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-2 w-6 rounded-xs bg-brand border border-white cursor-ns-resize"
+                            />
+                            <div
+                              onMouseDown={(e) => handleCropMouseDown(e, "w")}
+                              className="absolute top-1/2 -left-1 -translate-y-1/2 h-6 w-2 rounded-xs bg-brand border border-white cursor-ew-resize"
+                            />
+                            <div
+                              onMouseDown={(e) => handleCropMouseDown(e, "e")}
+                              className="absolute top-1/2 -right-1 -translate-y-1/2 h-6 w-2 rounded-xs bg-brand border border-white cursor-ew-resize"
+                            />
+                            <span className="absolute bottom-1 right-1 rounded bg-slate-900/80 px-1.5 py-0.5 text-[10px] font-mono text-white pointer-events-none">
+                              {Math.max(MIN_SIGNATURE_WIDTH, cropRect.width)}×{Math.max(MIN_SIGNATURE_HEIGHT, cropRect.height)}px
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Thanh công cụ Xoay 90° & Cắt ảnh trước khi lưu */}
+                    <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => handleRotate90(1)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-brand hover:text-brand transition shadow-2xs cursor-pointer"
+                      >
+                        <RotateCw className="size-3.5" />
+                        Xoay 90°
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleRotate90(-1)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:border-brand hover:text-brand transition shadow-2xs cursor-pointer"
+                        title="Xoay ngược chiều kim đồng hồ 90°"
+                      >
+                        <RotateCcw className="size-3.5" />
+                        Xoay -90°
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleToggleCropMode}
+                        className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition shadow-2xs cursor-pointer ${
+                          isCropMode
+                            ? "border-brand bg-brand-soft text-brand"
+                            : "border-slate-200 bg-white text-slate-700 hover:border-brand hover:text-brand"
+                        }`}
+                      >
+                        <Crop className="size-3.5" />
+                        {isCropMode ? "Đang chọn vùng cắt" : "Cắt ảnh"}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleTightAutoCrop}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-brand hover:text-brand transition shadow-2xs cursor-pointer"
+                      >
+                        <Scissors className="size-3.5" />
+                        Cắt sát lề
+                      </button>
+
+                      {isCropMode && (
+                        <button
+                          type="button"
+                          onClick={handleApplyCrop}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-dark transition shadow-2xs cursor-pointer"
+                        >
+                          <Check className="size-3.5" />
+                          Áp dụng cắt
+                        </button>
+                      )}
+
+                      {originalUploadUrl && (
+                        <button
+                          type="button"
+                          onClick={handleResetOriginal}
+                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-500 hover:text-slate-800 transition cursor-pointer"
+                          title="Khôi phục ảnh gốc ban đầu"
+                        >
+                          <RefreshCw className="size-3" />
+                          Khôi phục
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => inputRef.current?.click()}
+                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-brand font-medium hover:bg-brand-soft/30 transition cursor-pointer"
+                      >
+                        <ImagePlus className="size-3.5" />
+                        Chọn ảnh khác
+                      </button>
+                    </div>
+
+                    {isCropMode && (
+                      <p className="text-[11px] text-slate-500">
+                        Kéo khung viền trên ảnh để chọn vùng cắt hoặc nhấn <b>"Cắt sát lề"</b> / <b>"Áp dụng cắt"</b> (kích thước sau cắt luôn đảm bảo ≥ 300×100px).
+                      </p>
+                    )}
                   </div>
                 ) : (
                   <>
@@ -477,7 +969,7 @@ export default function SignatureUploader({ level = 1 }) {
                       Bấm để chọn hoặc kéo thả ảnh chữ ký của bạn vào đây
                     </span>
                     <span className="mt-1 text-xs text-muted">
-                      Định dạng PNG, JPG, JPEG, WEBP (hệ thống tự động tách nền trong suốt), tối đa 2 MB
+                      Định dạng PNG, JPG, JPEG, WEBP (tối thiểu 300×100px, tối đa 2 MB)
                     </span>
                   </>
                 )}
@@ -515,7 +1007,9 @@ export default function SignatureUploader({ level = 1 }) {
                   </Button>
                 ) : (
                   <span className="text-xs text-slate-500">
-                    {preview ? "Đã chọn file ảnh chữ ký" : "Chưa chọn file"}
+                    {preview
+                      ? `Sẵn sàng lưu (${imgDims.width || MIN_SIGNATURE_WIDTH}×${imgDims.height || MIN_SIGNATURE_HEIGHT}px)`
+                      : "Chưa chọn file"}
                   </span>
                 )}
 
@@ -526,7 +1020,7 @@ export default function SignatureUploader({ level = 1 }) {
                   onClick={handleInitiateSave}
                 >
                   <Lock className="size-4 mr-1.5" />
-                  {isEditing ? "Cập nhật & Khóa chữ ký mới" : "Xác nhận & Khóa chữ ký"}
+                  {isEditing ? "Cập nhật & Lưu chữ ký" : "Lưu chữ ký"}
                 </Button>
               </div>
             </div>

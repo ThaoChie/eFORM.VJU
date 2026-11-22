@@ -48,6 +48,9 @@ export const useAuthStore = create((set) => ({
       user.role = normalizeRole(user.role);
       try {
         localStorage.setItem('user', JSON.stringify(user));
+        if (user?.id && user?.signatureSpecimenUrl) {
+          localStorage.setItem(`user_signature_${user.id}`, user.signatureSpecimenUrl);
+        }
       } catch {}
       
       set({ user, token, loading: false })
@@ -65,6 +68,9 @@ export const useAuthStore = create((set) => ({
         user.role = normalizeRole(user.role);
         try {
           localStorage.setItem('user', JSON.stringify(user));
+          if (user?.id && user?.signatureSpecimenUrl) {
+            localStorage.setItem(`user_signature_${user.id}`, user.signatureSpecimenUrl);
+          }
         } catch {}
         set({ user, token });
       } catch (e) {
@@ -78,12 +84,12 @@ export const useAuthStore = create((set) => ({
     localStorage.removeItem('user')
     localStorage.removeItem('user_signature')
 
-    // Xóa sạch bộ nhớ tạm draft và chữ ký để phân tách tuyệt đối giữa các tài khoản
+    // Xóa bộ nhớ tạm draft khi đăng xuất (giữ lại user_signature_<id> để đối chiếu chống trùng lặp chữ ký ERR-014 giữa các tài khoản)
     try {
       const keysToRemove = []
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i)
-        if (k && (k.startsWith('drl_compose_draft') || k.startsWith('user_signature'))) {
+        if (k && k.startsWith('drl_compose_draft')) {
           keysToRemove.push(k)
         }
       }

@@ -76,6 +76,10 @@ public class UserController {
         if (currentUserId == null) {
             throw new RuntimeException("UNAUTHORIZED");
         }
+        String rawSignature = body.get("rawSignature");
+        if (rawSignature != null && !rawSignature.trim().isEmpty()) {
+            service.validateSignatureNotDuplicate(currentUserId, rawSignature);
+        }
         return ApiResponse.success(service.updateSignature(currentUserId, body.get("signature")));
     }
 
@@ -84,6 +88,10 @@ public class UserController {
         Long currentUserId = SecurityUtils.getCurrentUserId();
         if (currentUserId == null) {
             throw new RuntimeException("UNAUTHORIZED");
+        }
+        String rawSignature = body.get("rawSignature");
+        if (rawSignature != null && !rawSignature.trim().isEmpty()) {
+            service.validateSignatureNotDuplicate(currentUserId, rawSignature);
         }
         service.validateSignatureNotDuplicate(currentUserId, body.get("signature"));
         return ApiResponse.success(Map.of("valid", true));

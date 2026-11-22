@@ -26,7 +26,10 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiResponse<Void>> handleAccessDeniedException(AccessDeniedException ex) {
-        return new ResponseEntity<>(ApiResponse.error("FORBIDDEN", "Không đủ quyền truy cập"), HttpStatus.FORBIDDEN);
+        String msg = (ex.getMessage() != null && !ex.getMessage().isBlank() && !"Access Denied".equalsIgnoreCase(ex.getMessage()))
+                ? ex.getMessage()
+                : "Không đủ quyền truy cập. Yêu cầu vai trò phù hợp để thực hiện thao tác này.";
+        return new ResponseEntity<>(ApiResponse.error("FORBIDDEN", msg), HttpStatus.FORBIDDEN);
     }
 
     @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
@@ -50,6 +53,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({RuntimeException.class, vn.edu.drl.backend.exception.BusinessException.class})
     public ResponseEntity<ApiResponse<Void>> handleBusinessException(RuntimeException ex) {
         String msg = ex.getMessage();
+        if (msg != null && (msg.contains("403") || msg.contains("FORBIDDEN") || msg.contains("Forbidden"))) {
+            return new ResponseEntity<>(ApiResponse.error("FORBIDDEN", msg.replace("403 Forbidden: ", "").replace("403: ", "")), HttpStatus.FORBIDDEN);
+        }
         if (msg != null && msg.contains("409")) {
             return new ResponseEntity<>(ApiResponse.error("CONFLICT", msg.replace("409 CONFLICT: ", "")), HttpStatus.CONFLICT);
         }

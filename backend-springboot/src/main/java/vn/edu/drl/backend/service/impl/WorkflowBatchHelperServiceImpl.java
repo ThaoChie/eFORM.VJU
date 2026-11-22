@@ -38,6 +38,15 @@ public class WorkflowBatchHelperServiceImpl implements WorkflowBatchHelperServic
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void processSingleForm(Long userId, Long formId, String signatureBase64, String ipAddress) {
+        if (userId == null) {
+            throw new org.springframework.security.access.AccessDeniedException("Không đủ quyền truy cập. Yêu cầu vai trò Trưởng Khoa (DEAN).");
+        }
+        User deanUser = userRepository.findById(userId)
+                .orElseThrow(() -> new org.springframework.security.access.AccessDeniedException("Không đủ quyền truy cập. Yêu cầu vai trò Trưởng Khoa (DEAN)."));
+        if (deanUser.getRole() != vn.edu.drl.backend.enu.Role.DEAN) {
+            throw new org.springframework.security.access.AccessDeniedException("Không đủ quyền truy cập. Chỉ Trưởng Khoa (DEAN) mới được phép ký duyệt lô.");
+        }
+
         ScoreForm form = scoreFormRepository.findById(formId).orElseThrow(() -> new RuntimeException("Form not found"));
         if (form.getIsLocked()) throw new RuntimeException("409 FORM_LOCKED");
         if (form.getStatus() != ScoreFormStatus.CLASS_APPROVED) throw new RuntimeException("422 INVALID_TRANSITION");
@@ -83,7 +92,6 @@ public class WorkflowBatchHelperServiceImpl implements WorkflowBatchHelperServic
             pdfBytes = signatureEngine.insertSignatureImage(pdfBytes, classLeaderSignature, 300, 100);
         }
 
-        User deanUser = userRepository.findById(userId).orElse(null);
         String deanSigImg = deanUser != null ? deanUser.getSignatureSpecimenUrl() : null;
         if (deanSigImg == null || deanSigImg.trim().isEmpty()) {
             deanSigImg = signatureBase64;

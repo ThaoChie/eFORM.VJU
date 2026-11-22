@@ -48,4 +48,16 @@ class ImageConversionUtilsTest {
         int cornerAlpha = (resultImg.getRGB(0, 0) >> 24) & 0xFF;
         assertEquals(0, cornerAlpha, "Màu nền giấy phải được tách thành trong suốt hoàn toàn");
     }
+
+    @Test
+    void testAreSignaturesVisuallyIdenticalAcrossDifferentCroppingAndBackgrounds() {
+        String sigB1 = ImageConversionUtils.generateSpecimenPngBase64("Nguyen Van B", "Sinh Vien", new Color(20, 40, 160));
+        String sigB2 = ImageConversionUtils.removeBackground(sigB1);
+        String sigA = ImageConversionUtils.generateSpecimenPngBase64("Tran Thi A", "Sinh Vien", new Color(20, 40, 160));
+
+        assertTrue(ImageConversionUtils.areSignaturesVisuallyIdentical(sigB1, sigB2),
+                "Cùng một ảnh chữ ký trước và sau khi tách nền/crop phải được nhận diện là trùng lặp");
+        assertFalse(ImageConversionUtils.areSignaturesVisuallyIdentical(sigB1, sigA),
+                "Hai chữ ký của hai người khác nhau không được báo trùng lặp");
+    }
 }

@@ -528,50 +528,27 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("Vui lòng tải lên ảnh chữ ký hợp lệ.");
         }
 
-        // Chặn tải ảnh chữ ký có dung lượng vượt quá 2MB
-        if (signatureUrl.startsWith("data:")) {
-            int commaIdx = signatureUrl.indexOf(",");
-            String base64Payload = commaIdx >= 0 ? signatureUrl.substring(commaIdx + 1) : signatureUrl;
-            long estimatedBytes = (long) (base64Payload.length() * 0.75);
-            if (estimatedBytes > 2L * 1024 * 1024) {
-                throw new RuntimeException("ERR-012: File vượt quá dung lượng tối đa 2MB.");
-            }
-        }
+        String rawInputSig = signatureUrl;
+        String rawHashHex = computeSha256Hex(rawInputSig);
 
         signatureUrl = vn.edu.drl.backend.service.engine.ImageConversionUtils.ensureStandardWebImage(signatureUrl);
-
-        // Chặn ảnh chữ ký gốc nhỏ hơn kích thước tối thiểu 300x100px (nếu ảnh chưa qua bước auto-trim tách nền trên Frontend)
-        if (signatureUrl != null && signatureUrl.startsWith("data:image/") && !signatureUrl.startsWith("data:image/svg+xml")) {
-            try {
-                int commaIdx = signatureUrl.indexOf(",");
-                String base64Payload = commaIdx >= 0 ? signatureUrl.substring(commaIdx + 1).trim() : signatureUrl.trim();
-                byte[] imgBytes = java.util.Base64.getDecoder().decode(base64Payload);
-                java.awt.image.BufferedImage bufferedImage = javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(imgBytes));
-                if (bufferedImage != null) {
-                    int w = bufferedImage.getWidth();
-                    int h = bufferedImage.getHeight();
-                    int transparentCount = 0;
-                    for (int y = 0; y < Math.min(10, h); y++) {
-                        for (int x = 0; x < Math.min(10, w); x++) {
-                            if (((bufferedImage.getRGB(x, y) >> 24) & 0xFF) < 50) {
-                                transparentCount++;
-                            }
-                        }
-                    }
-                    boolean alreadyAutoTrimmed = transparentCount > 5;
-                    if (!alreadyAutoTrimmed && (w < 300 || h < 100)) {
-                        throw new IllegalArgumentException("ERR-013: Ảnh nhỏ hơn kích thước tối thiểu (300×100px).");
-                    }
-                }
-            } catch (IllegalArgumentException ex) {
-                throw new RuntimeException(ex.getMessage());
-            } catch (Exception ignored) {}
-        }
-
-        String rawHashHex = computeSha256Hex(signatureUrl);
+        String convertedSig = signatureUrl;
+        String convertedHashHex = computeSha256Hex(convertedSig);
 
         signatureUrl = vn.edu.drl.backend.service.engine.ImageConversionUtils.removeBackground(signatureUrl);
 
+        // 1. Compute cryptographic SHA-256 fingerprint of signature data
+        String hashHex = computeSha256Hex(signatureUrl);
+
+        // Ưu tiên kiểm tra trùng lặp chữ ký với tài khoản khác trước (ERR-014)
+        ensureSignatureNotRegisteredByAnotherUser(userId, rawInputSig, signatureUrl, rawHashHex, hashHex);
+        if (!convertedSig.equals(rawInputSig) && !convertedSig.equals(signatureUrl)) {
+            ensureSignatureNotRegisteredByAnotherUser(userId, convertedSig, signatureUrl, convertedHashHex, hashHex);
+        }
+
+        // Chặn tải ảnh chữ ký có dung lượng vượt quá 2MB (ERR-012) và ảnh gốc nhỏ hơn 300x100px (ERR-013)
+        validateSignatureSizeAndDimensions(rawInputSig, false);
+        validateSignatureSizeAndDimensions(convertedSig, false);
         if (signatureUrl != null && signatureUrl.startsWith("data:")) {
             int commaIdx = signatureUrl.indexOf(",");
             String base64Payload = commaIdx >= 0 ? signatureUrl.substring(commaIdx + 1) : signatureUrl;
@@ -579,15 +556,6 @@ public class UserServiceImpl implements UserService {
             if (estimatedBytes > 2L * 1024 * 1024) {
                 throw new RuntimeException("ERR-012: File vượt quá dung lượng tối đa 2MB.");
             }
-        }
-
-        // 1. Compute cryptographic SHA-256 fingerprint of signature data
-        String hashHex = computeSha256Hex(signatureUrl);
-
-        // Chặn sử dụng ảnh chữ ký đã được đăng ký bởi tài khoản khác (ERR-014)
-        if (repository.existsSignatureByAnotherUser(userId, hashHex, signatureUrl)
-                || (!rawHashHex.equals(hashHex) && repository.existsSignatureByAnotherUser(userId, rawHashHex, signatureUrl))) {
-            throw new RuntimeException("ERR-014: Ảnh đã được đăng ký bởi tài khoản khác.");
         }
 
         // 2. Persist signature and permanently lock it to prevent modifications
@@ -634,10 +602,113 @@ public class UserServiceImpl implements UserService {
         String processed = vn.edu.drl.backend.service.engine.ImageConversionUtils.removeBackground(converted);
         String processedHash = computeSha256Hex(processed);
 
-        if (repository.existsSignatureByAnotherUser(userId, processedHash, processed)
-                || repository.existsSignatureByAnotherUser(userId, rawHash, signatureUrl)) {
+        ensureSignatureNotRegisteredByAnotherUser(userId, signatureUrl, processed, rawHash, processedHash);
+    }
+
+    private void validateSignatureSizeAndDimensions(String signatureUrl, boolean forceDimensionCheck) {
+        if (signatureUrl == null) return;
+        if (signatureUrl.startsWith("data:")) {
+            int commaIdx = signatureUrl.indexOf(",");
+            String base64Payload = commaIdx >= 0 ? signatureUrl.substring(commaIdx + 1) : signatureUrl;
+            long estimatedBytes = (long) (base64Payload.length() * 0.75);
+            if (estimatedBytes > 2L * 1024 * 1024) {
+                throw new RuntimeException("ERR-012: File vượt quá dung lượng tối đa 2MB.");
+            }
+        }
+        if (signatureUrl.startsWith("data:image/") && !signatureUrl.startsWith("data:image/svg+xml")) {
+            try {
+                int commaIdx = signatureUrl.indexOf(",");
+                String base64Payload = commaIdx >= 0 ? signatureUrl.substring(commaIdx + 1).trim() : signatureUrl.trim();
+                byte[] imgBytes = java.util.Base64.getDecoder().decode(base64Payload);
+                java.awt.image.BufferedImage bufferedImage = javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(imgBytes));
+                if (bufferedImage != null) {
+                    int w = bufferedImage.getWidth();
+                    int h = bufferedImage.getHeight();
+                    int transparentCount = 0;
+                    for (int y = 0; y < Math.min(10, h); y++) {
+                        for (int x = 0; x < Math.min(10, w); x++) {
+                            if (((bufferedImage.getRGB(x, y) >> 24) & 0xFF) < 50) {
+                                transparentCount++;
+                            }
+                        }
+                    }
+                    boolean alreadyAutoTrimmed = transparentCount > 5;
+                    if ((forceDimensionCheck || !alreadyAutoTrimmed) && (w < 300 || h < 100)) {
+                        throw new IllegalArgumentException("ERR-013: Ảnh nhỏ hơn kích thước tối thiểu (300×100px).");
+                    }
+                }
+            } catch (IllegalArgumentException ex) {
+                throw new RuntimeException(ex.getMessage());
+            } catch (Exception ignored) {}
+        }
+    }
+
+    private void ensureSignatureNotRegisteredByAnotherUser(Long userId, String rawSig, String processedSig, String rawHash, String processedHash) {
+        if (repository.existsSignatureByAnotherUser(userId, processedHash, processedSig)
+                || repository.existsSignatureByAnotherUser(userId, rawHash, rawSig)) {
             throw new RuntimeException("ERR-014: Ảnh đã được đăng ký bởi tài khoản khác.");
         }
+
+        List<User> allUsers = repository.findAll();
+        for (User other : allUsers) {
+            if (other == null || other.getId() == null || other.getId().equals(userId)) {
+                continue;
+            }
+            String otherSig = other.getSignatureSpecimenUrl();
+            String otherHash = other.getSignatureHash();
+            if (otherHash != null && !otherHash.trim().isEmpty()) {
+                if (otherHash.equalsIgnoreCase(processedHash) || otherHash.equalsIgnoreCase(rawHash)) {
+                    throw new RuntimeException("ERR-014: Ảnh đã được đăng ký bởi tài khoản khác.");
+                }
+            }
+            if (otherSig == null || otherSig.trim().isEmpty()
+                    || otherSig.contains("AAAAEAAAAB")
+                    || otherSig.contains("DIGITALLY")
+                    || otherSig.length() < 100) {
+                continue;
+            }
+            if (otherSig.equals(processedSig) || otherSig.equals(rawSig)) {
+                throw new RuntimeException("ERR-014: Ảnh đã được đăng ký bởi tài khoản khác.");
+            }
+            if (vn.edu.drl.backend.service.engine.ImageConversionUtils.areSignaturesVisuallyIdentical(processedSig, otherSig)
+                    || (!rawSig.equals(processedSig) && vn.edu.drl.backend.service.engine.ImageConversionUtils.areSignaturesVisuallyIdentical(rawSig, otherSig))) {
+                throw new RuntimeException("ERR-014: Ảnh đã được đăng ký bởi tài khoản khác.");
+            }
+        }
+
+        try {
+            List<vn.edu.drl.backend.model.SignatureLog> allLogs = signatureLogRepository.findAll();
+            for (vn.edu.drl.backend.model.SignatureLog log : allLogs) {
+                if (log == null || log.getSigner() == null || log.getSigner().getId() == null || log.getSigner().getId().equals(userId)) {
+                    continue;
+                }
+                String logHash = log.getSha256Hash();
+                if (logHash != null && !logHash.trim().isEmpty()) {
+                    if (logHash.equalsIgnoreCase(processedHash) || logHash.equalsIgnoreCase(rawHash)) {
+                        throw new RuntimeException("ERR-014: Ảnh đã được đăng ký bởi tài khoản khác.");
+                    }
+                }
+                String logSig = log.getSignatureImgUrl();
+                if (logSig == null || logSig.trim().isEmpty()
+                        || logSig.contains("AAAAEAAAAB")
+                        || logSig.contains("DIGITALLY")
+                        || logSig.contains("CONFIRMED")
+                        || logSig.length() < 100) {
+                    continue;
+                }
+                if (logSig.equals(processedSig) || logSig.equals(rawSig)) {
+                    throw new RuntimeException("ERR-014: Ảnh đã được đăng ký bởi tài khoản khác.");
+                }
+                if (vn.edu.drl.backend.service.engine.ImageConversionUtils.areSignaturesVisuallyIdentical(processedSig, logSig)
+                        || (!rawSig.equals(processedSig) && vn.edu.drl.backend.service.engine.ImageConversionUtils.areSignaturesVisuallyIdentical(rawSig, logSig))) {
+                    throw new RuntimeException("ERR-014: Ảnh đã được đăng ký bởi tài khoản khác.");
+                }
+            }
+        } catch (RuntimeException re) {
+            if (re.getMessage() != null && re.getMessage().startsWith("ERR-014")) {
+                throw re;
+            }
+        } catch (Exception ignored) {}
     }
 
     private String computeSha256Hex(String input) {
