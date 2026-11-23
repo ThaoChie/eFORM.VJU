@@ -27,25 +27,16 @@ public class AuthServiceImpl implements AuthService {
     }
 
     public AuthResponse login(LoginRequest request) {
-        System.out.println("Login attempt for email: " + request.getEmail());
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> {
-                    System.out.println("User not found!");
-                    return new RuntimeException("UNAUTHORIZED");
-                });
-        
-        System.out.println("User found: " + user.getEmail());
+                .orElseThrow(() -> new RuntimeException("UNAUTHORIZED"));
         
         boolean isUserDisabled = (user.getStatus() != null && user.getStatus() == 0)
                 || Boolean.FALSE.equals(user.getIsActive());
         if (isUserDisabled) {
-            System.out.println("User is deactivated/disabled: " + user.getEmail());
             throw new RuntimeException("ACCOUNT_DISABLED: Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.");
         }
 
-        System.out.println("Checking password. Request pwd: " + request.getPassword() + ", DB hash: " + user.getPasswordHash());
-        if (!"123456".equals(request.getPassword()) && !passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
-            System.out.println("Password mismatch!");
+        if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             throw new RuntimeException("UNAUTHORIZED");
         }
 
@@ -53,7 +44,10 @@ public class AuthServiceImpl implements AuthService {
         Long classId = user.getClassEntity() != null ? user.getClassEntity().getId() : null;
         
         String token = jwtUtil.generateToken(user.getId(), user.getRole().name(), deptId, classId);
-        boolean firstLogin = Boolean.TRUE.equals(user.getIsFirstLogin()) || Boolean.TRUE.equals(user.getMustChangePassword());
+        boolean isDefaultPassword = passwordEncoder.matches("123456", user.getPasswordHash());
+        boolean firstLogin = Boolean.TRUE.equals(user.getIsFirstLogin()) 
+                || Boolean.TRUE.equals(user.getMustChangePassword()) 
+                || isDefaultPassword;
         return new AuthResponse(token, user.getRole().name(), firstLogin, firstLogin);
     }
 
@@ -99,7 +93,7 @@ public class AuthServiceImpl implements AuthService {
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         user.setIsFirstLogin(false);
         user.setMustChangePassword(false);
-        userRepository.save(user);
+        userRepository.saveAndFlush(user);
     }
 
     public vn.edu.drl.backend.dto.response.AuthUserResponse me(Long userId) {
@@ -136,7 +130,10 @@ public class AuthServiceImpl implements AuthService {
         String effectiveFaculty = deptName != null ? deptName : (user.getRole() == vn.edu.drl.backend.enu.Role.DEAN ? "Khoa Công nghệ Thông tin" : null);
         String effectiveDepartment = deptName != null ? deptName : (user.getRole() == vn.edu.drl.backend.enu.Role.ADMIN ? "Phòng Đào tạo & CTSV" : (user.getRole() == vn.edu.drl.backend.enu.Role.DEAN ? "Khoa Công nghệ Thông tin" : null));
 
-        boolean firstLogin = Boolean.TRUE.equals(user.getIsFirstLogin()) || Boolean.TRUE.equals(user.getMustChangePassword());
+        boolean isDefaultPassword = passwordEncoder.matches("123456", user.getPasswordHash());
+        boolean firstLogin = Boolean.TRUE.equals(user.getIsFirstLogin()) 
+                || Boolean.TRUE.equals(user.getMustChangePassword()) 
+                || isDefaultPassword;
 
         return vn.edu.drl.backend.dto.response.AuthUserResponse.builder()
             .id(user.getId())

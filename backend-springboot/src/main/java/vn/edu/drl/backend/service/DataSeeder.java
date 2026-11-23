@@ -73,6 +73,8 @@ public class DataSeeder implements CommandLineRunner {
             admin.setFullName("Quản trị viên");
             admin.setPasswordHash(defaultPassword);
             admin.setRole(Role.ADMIN);
+            admin.setIsFirstLogin(true);
+            admin.setMustChangePassword(true);
             userRepository.save(admin);
 
             User dean = new User();
@@ -81,6 +83,8 @@ public class DataSeeder implements CommandLineRunner {
             dean.setPasswordHash(defaultPassword);
             dean.setRole(Role.DEAN);
             dean.setDepartment(dept);
+            dean.setIsFirstLogin(true);
+            dean.setMustChangePassword(true);
             userRepository.save(dean);
 
             User classLeader = new User();
@@ -90,6 +94,8 @@ public class DataSeeder implements CommandLineRunner {
             classLeader.setRole(Role.CLASS_LEADER);
             classLeader.setDepartment(dept);
             classLeader.setClassEntity(cls);
+            classLeader.setIsFirstLogin(true);
+            classLeader.setMustChangePassword(true);
             userRepository.save(classLeader);
 
             User student = new User();
@@ -104,6 +110,8 @@ public class DataSeeder implements CommandLineRunner {
             student.setAcademicCohort(cls.getAcademicCohort());
             student.setSignatureSpecimenUrl(null);
             student.setIsSignatureLocked(false);
+            student.setIsFirstLogin(true);
+            student.setMustChangePassword(true);
             userRepository.save(student);
         }
 
@@ -188,6 +196,13 @@ public class DataSeeder implements CommandLineRunner {
                     }
                     if (uc.getDepartment() != null && (u.getDepartment() == null || !u.getDepartment().getId().equals(uc.getDepartment().getId()))) {
                         u.setDepartment(uc.getDepartment());
+                        changed = true;
+                    }
+                }
+                if (u.getPasswordHash() != null && passwordEncoder.matches("123456", u.getPasswordHash())) {
+                    if (!Boolean.TRUE.equals(u.getIsFirstLogin()) || !Boolean.TRUE.equals(u.getMustChangePassword())) {
+                        u.setIsFirstLogin(true);
+                        u.setMustChangePassword(true);
                         changed = true;
                     }
                 }
