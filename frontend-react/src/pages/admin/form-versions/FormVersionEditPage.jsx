@@ -23,7 +23,7 @@ import {
   Calendar,
   Clock
 } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { toast } from "react-hot-toast"
 import {
@@ -301,8 +301,18 @@ export default function FormVersionEditPage() {
 
   const activeLayoutJson = customLayoutJson || generatedLayoutJson;
 
+  const formattedLayoutJson = useMemo(() => {
+    if (!activeLayoutJson) return "";
+    try {
+      const parsed = typeof activeLayoutJson === "string" ? JSON.parse(activeLayoutJson) : activeLayoutJson;
+      return JSON.stringify(parsed, null, 2);
+    } catch {
+      return activeLayoutJson;
+    }
+  }, [activeLayoutJson]);
+
   const handleCopyLayoutJson = () => {
-    navigator.clipboard.writeText(activeLayoutJson);
+    navigator.clipboard.writeText(formattedLayoutJson || activeLayoutJson);
     toast.success("Đã sao chép cấu hình form vào clipboard!");
   };
 
@@ -983,7 +993,7 @@ export default function FormVersionEditPage() {
 
           <div className="grid gap-5 lg:grid-cols-2">
             {/* Dữ liệu mẫu */}
-            <div className="space-y-2">
+            <div className="space-y-2 flex flex-col">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-700">
                   Dữ liệu mẫu (Sample JSON)
@@ -1010,16 +1020,27 @@ export default function FormVersionEditPage() {
                     setJsonError(err.message);
                   }
                 }}
-                rows={9}
-                className={`w-full rounded-lg border font-mono text-xs p-3 outline-none focus:ring-2 focus:ring-brand-soft ${
+                className={`h-[300px] w-full resize-none rounded-lg border font-mono text-xs p-3 outline-none focus:ring-2 focus:ring-brand-soft overflow-auto ${
                   jsonError ? "border-red-400 bg-red-50" : "border-line bg-white"
                 }`}
                 placeholder="Nhập JSON mẫu dạng key = Field Code..."
               />
+
+              {jsonError ? (
+                <div className="flex items-center gap-1.5 text-xs text-red-600">
+                  <AlertTriangle className="size-3.5 shrink-0" />
+                  <span>Lỗi cú pháp JSON: {jsonError}</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 text-xs text-green-600">
+                  <Check className="size-3.5 shrink-0" />
+                  <span>JSON hợp lệ</span>
+                </div>
+              )}
             </div>
 
             {/* Cấu hình form */}
-            <div className="space-y-2">
+            <div className="space-y-2 flex flex-col">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-700">
                   Cấu hình form (jsonForm)
@@ -1034,9 +1055,14 @@ export default function FormVersionEditPage() {
                 </Button>
               </div>
 
-              <pre className="max-h-[200px] overflow-auto rounded-lg border border-line bg-slate-900 p-3 font-mono text-xs text-slate-200">
-                {activeLayoutJson}
+              <pre className="h-[300px] w-full overflow-auto rounded-lg border border-line bg-slate-900 p-3 font-mono text-xs text-slate-200">
+                {formattedLayoutJson || activeLayoutJson}
               </pre>
+
+              <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                <Check className="size-3.5 shrink-0 text-brand" />
+                <span>Cấu trúc JSON layout đồng bộ theo cây tiêu chí</span>
+              </div>
             </div>
           </div>
         </Card>

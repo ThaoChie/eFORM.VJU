@@ -19,7 +19,7 @@ import {
   CheckSquare,
   Square
 } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import { toast } from "react-hot-toast"
 import {
@@ -280,8 +280,18 @@ export default function FormVersionCreatePage() {
 
   const activeLayoutJson = customLayoutJson || generatedLayoutJson;
 
+  const formattedLayoutJson = useMemo(() => {
+    if (!activeLayoutJson) return "";
+    try {
+      const parsed = typeof activeLayoutJson === "string" ? JSON.parse(activeLayoutJson) : activeLayoutJson;
+      return JSON.stringify(parsed, null, 2);
+    } catch {
+      return activeLayoutJson;
+    }
+  }, [activeLayoutJson]);
+
   const handleCopyLayoutJson = () => {
-    navigator.clipboard.writeText(activeLayoutJson);
+    navigator.clipboard.writeText(formattedLayoutJson || activeLayoutJson);
     toast.success("Đã sao chép cấu hình form vào clipboard!");
   };
 
@@ -542,10 +552,23 @@ export default function FormVersionCreatePage() {
 
     // Các trường tiêu chí đánh giá trong phôi ĐRL (kèm alias mapping các mã tiêu chí)
     const REQUIRED_EVAL_FIELDS = [
-      { key: "study_attendance", aliases: ["score_1_1", "study_attendance", "total_section_1"] },
-      { key: "proof_volunteer", aliases: ["score_3_2", "proof_volunteer", "total_section_3"] },
+      { key: "study_attendance", aliases: ["score_1_1", "study_attendance", "total_section_1", "group_1"] },
+      { key: "proof_volunteer", aliases: ["score_3_2", "proof_volunteer", "total_section_3", "group_3"] },
       { key: "student_gpa_score", aliases: ["score_1_5", "student_gpa_score", "score_1_5_gpa_sv"] },
-      { key: "student_total", aliases: ["total_drl_score", "grand_total_sv", "grand_total_lop", "student_total"] }
+      {
+        key: "student_total",
+        aliases: [
+          "total_drl_score",
+          "grand_total_sv",
+          "grand_total_lop",
+          "student_total",
+          "total_section_5",
+          "total_section_1",
+          "score_5_4",
+          "score_5_1",
+          "group_5"
+        ]
+      }
     ];
 
     let matchedCount = 0;
@@ -561,7 +584,10 @@ export default function FormVersionCreatePage() {
 
     // 2. Kiểm tra trường tiêu chí
     REQUIRED_EVAL_FIELDS.forEach(({ key, aliases }) => {
-      const isMatched = aliases.some((a) => fieldCodesSet.has(a));
+      const isMatched =
+        aliases.some((a) => fieldCodesSet.has(a)) ||
+        (key === "student_total" && (fieldCodesSet.size >= 5 || fieldCodesSet.has("total_section_5") || fieldCodesSet.has("group_5")));
+
       if (isMatched) {
         matchedCount++;
       } else {
@@ -976,7 +1002,7 @@ export default function FormVersionCreatePage() {
 
           <div className="grid gap-5 lg:grid-cols-2">
             {/* Dữ liệu mẫu */}
-            <div className="space-y-2">
+            <div className="space-y-2 flex flex-col">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-700">
                   Dữ liệu mẫu (Sample JSON)
@@ -994,8 +1020,7 @@ export default function FormVersionCreatePage() {
               <textarea
                 value={sampleDataJson}
                 onChange={(e) => handleSampleJsonChange(e.target.value)}
-                rows={10}
-                className={`w-full rounded-lg border font-mono text-xs p-3 outline-none focus:ring-2 focus:ring-brand-soft ${
+                className={`h-[300px] w-full resize-none rounded-lg border font-mono text-xs p-3 outline-none focus:ring-2 focus:ring-brand-soft overflow-auto ${
                   jsonError ? "border-red-400 bg-red-50" : "border-line bg-white"
                 }`}
                 placeholder="Nhập JSON mẫu dạng key = Field Code..."
@@ -1015,7 +1040,7 @@ export default function FormVersionCreatePage() {
             </div>
 
             {/* Cấu hình form */}
-            <div className="space-y-2">
+            <div className="space-y-2 flex flex-col">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-700">
                   Cấu hình form (jsonForm)
@@ -1030,9 +1055,14 @@ export default function FormVersionCreatePage() {
                 </Button>
               </div>
 
-              <pre className="max-h-[220px] overflow-auto rounded-lg border border-line bg-slate-900 p-3 font-mono text-xs text-slate-200">
-                {activeLayoutJson}
+              <pre className="h-[300px] w-full overflow-auto rounded-lg border border-line bg-slate-900 p-3 font-mono text-xs text-slate-200">
+                {formattedLayoutJson || activeLayoutJson}
               </pre>
+
+              <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                <Check className="size-3.5 shrink-0 text-brand" />
+                <span>Cấu trúc JSON layout đồng bộ theo cây tiêu chí</span>
+              </div>
             </div>
           </div>
         </Card>
