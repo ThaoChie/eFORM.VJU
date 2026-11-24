@@ -26,15 +26,15 @@ export function Button({
   ...props
 }) {
   const styles = {
-    primary: "border-brand bg-brand text-white hover:bg-brand-dark active:bg-brand-dark",
-    secondary: "border-line bg-white text-ink hover:bg-canvas active:bg-canvas",
-    danger: "border-brand bg-white text-brand hover:bg-brand-soft active:bg-brand-soft",
+    primary: "border-brand bg-brand text-white hover:bg-brand-dark active:bg-brand-dark shadow-xs",
+    secondary: "border-line bg-white text-ink hover:bg-canvas active:bg-canvas shadow-xs",
+    danger: "border-brand bg-white text-brand hover:bg-brand-soft active:bg-brand-soft shadow-xs",
     ghost:
       "border-transparent bg-transparent text-muted hover:bg-canvas hover:text-ink",
   }
   return (
     <button
-      className={`inline-flex min-h-[44px] sm:min-h-10 h-11 sm:h-10 items-center justify-center gap-2 rounded-lg border px-4 text-sm font-medium transition disabled:opacity-45 select-none active:scale-[0.98] ${styles[variant]} ${className}`}
+      className={`inline-flex min-h-[40px] sm:min-h-9 h-10 sm:h-9 items-center justify-center gap-2 rounded-lg border px-3.5 text-xs sm:text-sm font-medium transition disabled:opacity-45 select-none active:scale-[0.98] whitespace-nowrap shrink-0 cursor-pointer ${styles[variant]} ${className}`}
       {...props}
     >
       {loading && <LoaderCircle className="size-4 animate-spin shrink-0" />}
@@ -515,11 +515,17 @@ export function Modal({
 export function Table({
   columns = [],
   rows = [],
+  dataSource,
+  data,
   onRow,
   loading = false,
   emptyMessage = "Không có dữ liệu",
+  emptyText,
   stickyFirstColumns = true,
 }) {
+  const actualRows = Array.isArray(rows) && rows.length > 0 ? rows : (Array.isArray(dataSource) ? dataSource : (Array.isArray(data) ? data : []));
+  const actualEmptyMessage = emptyText || emptyMessage;
+
   const isSttFirst =
     columns[0]?.key?.toLowerCase() === "stt" ||
     columns[0]?.title?.trim()?.toUpperCase() === "STT";
@@ -660,17 +666,17 @@ export function Table({
                 </div>
               </td>
             </tr>
-          ) : rows.length === 0 ? (
+          ) : actualRows.length === 0 ? (
             <tr>
               <td
                 colSpan={columns.length}
                 className="h-32 text-center text-sm text-slate-500 py-8 bg-white"
               >
-                {emptyMessage}
+                {actualEmptyMessage}
               </td>
             </tr>
           ) : (
-            rows.map((row, index) => (
+            actualRows.map((row, index) => (
               <tr
                 key={row.id ?? index}
                 onClick={() => onRow?.(row)}

@@ -833,26 +833,30 @@ export default function EvaluationPeriodListPage() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold text-ink">Quản lý Kỳ chấm ĐRL (UC-ADM-05)</h1>
-          <p className="text-sm text-muted mt-1">
+          <p className="text-xs sm:text-sm text-muted mt-1 max-w-2xl">
             Quản lý vòng đời toàn trình kỳ chấm ĐRL: cấu hình 3 mốc thời hạn tuần tự, kích hoạt mở đợt, gia hạn ngoại lệ và khóa sổ đồng bộ SIS/Core.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5 shrink-0">
           <Button
             variant="secondary"
             onClick={() => {
               loadSemesters()
               setSemesterManagerOpen(true)
             }}
+            className="h-10 px-4 text-xs sm:text-sm font-medium whitespace-nowrap shrink-0 shadow-xs"
           >
-            <School className="size-4 mr-1.5" />
-            Danh mục Học kỳ
+            <School className="size-4 text-slate-500 shrink-0" />
+            <span>Danh mục Học kỳ</span>
           </Button>
-          <CreateButton onClick={handleOpenCreateModal}>
+          <CreateButton
+            onClick={handleOpenCreateModal}
+            className="h-10 px-4 text-xs sm:text-sm font-medium whitespace-nowrap shrink-0 shadow-xs"
+          >
             Thêm mới kỳ chấm
           </CreateButton>
         </div>
@@ -914,6 +918,7 @@ export default function EvaluationPeriodListPage() {
       <div className="rounded-xl border border-line bg-white overflow-hidden shadow-xs">
         <Table
           columns={columns}
+          rows={periods}
           dataSource={periods}
           loading={loading}
           emptyText="Chưa có kỳ chấm ĐRL nào phù hợp."
