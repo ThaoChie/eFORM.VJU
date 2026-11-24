@@ -362,7 +362,23 @@ export const useSubmissionStore = create((set, get) => ({
       return formRes
     } catch (err) {
       console.error("fetchFormData error:", err)
-      set({ error: err.message || "Lỗi tải biểu mẫu", loading: false })
+      const msg = err.response?.data?.message || err.message || ""
+      if (
+        msg.includes("chưa có đợt") ||
+        msg.includes("chưa mở") ||
+        msg.includes("đã kết thúc") ||
+        msg.includes("vô hiệu hóa")
+      ) {
+        set({
+          loading: false,
+          noActiveSemester: true,
+          semester: null,
+          scoreFormId: null,
+          error: msg,
+        })
+        return null
+      }
+      set({ error: msg || "Lỗi tải biểu mẫu", loading: false })
       throw err
     }
   },

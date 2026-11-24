@@ -15,6 +15,10 @@ public interface EvaluationPeriodRepository extends JpaRepository<EvaluationPeri
     
     Optional<EvaluationPeriod> findFirstByStatusOrderByCreatedAtDesc(EvaluationPeriodStatus status);
 
+    Optional<EvaluationPeriod> findTopByOrderByCreatedAtDesc();
+
+    Optional<EvaluationPeriod> findFirstBySemesterIdOrderByCreatedAtDesc(Long semesterId);
+
     boolean existsByPeriodCode(String periodCode);
 
     boolean existsByPeriodCodeAndIdNot(String periodCode, Long id);

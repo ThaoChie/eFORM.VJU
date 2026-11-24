@@ -1,4 +1,4 @@
-import { ArrowRight, CalendarDays, FileCheck2, PenLine } from "lucide-react"
+import { ArrowRight, CalendarDays, FileCheck2, PenLine, Lock, Ban, AlertTriangle, Clock } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { useEffect, useState } from "react"
 import { toast } from "react-hot-toast"
@@ -41,6 +41,7 @@ export default function StudentDashboard() {
   const semester = data?.semester || null
   const formVersion = data?.formVersion || ""
   const myForm = data?.myForm || null
+  const canCompose = data?.canCompose ?? (semester?.periodStatus === "DANG_MO" && !semester?.isExpired && !semester?.isLocked)
 
   const notifications = data?.notifications || []
 
@@ -50,6 +51,16 @@ export default function StudentDashboard() {
         title={`Xin chào, ${(data?.studentName || user?.fullName || user?.name || "Bạn").split(" ").at(-1)}`}
         description="Theo dõi tiến độ và hoàn thành phiếu điểm rèn luyện của bạn."
       />
+
+      {data?.periodNotice && (
+        <div className="mb-4 flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50/80 p-3.5 text-xs text-amber-900 shadow-xs">
+          <AlertTriangle className="size-4 text-amber-600 shrink-0" />
+          <div className="flex-1">
+            <span className="font-semibold">Thông báo kỳ đánh giá: </span>
+            {data.periodNotice}
+          </div>
+        </div>
+      )}
 
       {isLeader && pendingLeaderReviews > 0 && (
         <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-brand-line bg-brand-soft p-4">
@@ -82,12 +93,36 @@ export default function StudentDashboard() {
       )}
 
       <div className="grid gap-4 lg:grid-cols-[.8fr_1.2fr]">
-        {!semester || !semester.name ? (
-          <Card className="flex flex-col justify-center items-center text-center p-6">
+        {!semester || !semester.name || semester.periodStatus === "CHUA_MO" ? (
+          <Card className="flex flex-col justify-center items-center text-center p-6 bg-slate-50 border-line">
             <CalendarDays className="size-10 text-amber-500 mb-2" />
             <h2 className="text-base font-bold text-slate-800">Hiện chưa có kỳ chấm ĐRL nào đang mở</h2>
             <p className="mt-1 text-xs text-muted max-w-sm">
-              Nhà trường hoặc Khoa hiện chưa kích hoạt đợt đánh giá rèn luyện cho sinh viên. Vui lòng quay lại sau.
+              Nhà trường hoặc Khoa hiện chưa kích hoạt đợt đánh giá rèn luyện cho sinh viên. Vui lòng quay lại sau khi có thông báo chính thức.
+            </p>
+          </Card>
+        ) : semester.periodStatus === "DA_DONG" || semester.isLocked ? (
+          <Card className="flex flex-col justify-center items-center text-center p-6 bg-slate-50 border-line">
+            <Lock className="size-10 text-slate-400 mb-2" />
+            <h2 className="text-base font-bold text-slate-800">Kỳ đánh giá ĐRL đã khóa sổ</h2>
+            <p className="mt-1 text-xs text-muted max-w-sm">
+              {semester.name} - Năm học {semester.academicYear} đã kết thúc đánh giá. Cổng tự đánh giá đã đóng và kết quả đang được niêm phong.
+            </p>
+          </Card>
+        ) : semester.periodStatus === "VO_HIEU_HOA" ? (
+          <Card className="flex flex-col justify-center items-center text-center p-6 bg-rose-50/40 border-rose-200">
+            <Ban className="size-10 text-rose-500 mb-2" />
+            <h2 className="text-base font-bold text-slate-800">Kỳ đánh giá ĐRL đang tạm dừng</h2>
+            <p className="mt-1 text-xs text-rose-700 max-w-sm">
+              Kỳ đánh giá {semester.name} hiện đang tạm dừng hoặc bị vô hiệu hóa. Vui lòng theo dõi thông báo từ Nhà trường.
+            </p>
+          </Card>
+        ) : semester.isExpired ? (
+          <Card className="flex flex-col justify-center items-center text-center p-6 bg-amber-50/40 border-amber-200">
+            <Clock className="size-10 text-amber-500 mb-2" />
+            <h2 className="text-base font-bold text-slate-800">Đã hết hạn tự đánh giá</h2>
+            <p className="mt-1 text-xs text-amber-800 max-w-sm">
+              Thời hạn nộp phiếu của sinh viên đã kết thúc vào ngày {semester.deadline}. Cổng tự đánh giá đã đóng.
             </p>
           </Card>
         ) : (
@@ -100,7 +135,7 @@ export default function StudentDashboard() {
             <p className="mt-2 text-sm text-muted">{formVersion}</p>
             <div className="mt-5 grid grid-cols-2 border-t border-line pt-4">
               <div>
-                <span className="text-xs text-muted">Hạn nộp</span>
+                <span className="text-xs text-muted">Hạn nộp sinh viên</span>
                 <p className="mt-1 font-medium text-slate-800">{semester.deadline || "–"}</p>
               </div>
               <div>
@@ -119,8 +154,8 @@ export default function StudentDashboard() {
           <div className="my-7">
             <ProgressStepper current={myForm?.currentStep ?? 0} />
           </div>
-          {!myForm ? (
-            semester ? (
+          {canCompose ? (
+            !myForm ? (
               <Button
                 variant="primary"
                 className="w-full sm:w-auto"
@@ -130,19 +165,32 @@ export default function StudentDashboard() {
                 <ArrowRight className="size-4" />
               </Button>
             ) : (
-              <p className="text-xs text-muted italic">Chưa mở kỳ chấm để tạo phiếu mới.</p>
+              <Button
+                variant={myForm.status === "Soạn thảo" || myForm.status === "Chưa nộp" || myForm.status === "DRAFT" || myForm.status === "REJECTED" || myForm.status === "Đã chuyển trả" ? "primary" : "secondary"}
+                className="w-full sm:w-auto"
+                onClick={() => navigate(`/student/compose/${myForm.formId || ""}`)}
+              >
+                {myForm.status === "Soạn thảo" || myForm.status === "Chưa nộp" || myForm.status === "DRAFT" || myForm.status === "REJECTED" || myForm.status === "Đã chuyển trả"
+                  ? "Soạn thảo mẫu biểu"
+                  : "Xem phiếu rèn luyện"}
+                <ArrowRight className="size-4" />
+              </Button>
             )
           ) : (
-            <Button
-              variant="primary"
-              className="w-full sm:w-auto"
-              onClick={() => navigate(`/student/compose/${myForm.formId || ""}`)}
-            >
-              {myForm.status === "Soạn thảo" || myForm.status === "Chưa nộp" || myForm.status === "DRAFT" || myForm.status === "REJECTED"
-                ? "Soạn thảo mẫu biểu"
-                : "Xem phiếu rèn luyện"}
-              <ArrowRight className="size-4" />
-            </Button>
+            <div>
+              {myForm ? (
+                <Button
+                  variant="secondary"
+                  className="w-full sm:w-auto"
+                  onClick={() => navigate(`/student/compose/${myForm.formId || ""}`)}
+                >
+                  Xem phiếu rèn luyện
+                  <ArrowRight className="size-4" />
+                </Button>
+              ) : (
+                <p className="text-xs text-muted italic">Cổng tự đánh giá đang đóng, chưa thể tạo phiếu mới.</p>
+              )}
+            </div>
           )}
         </Card>
       </div>

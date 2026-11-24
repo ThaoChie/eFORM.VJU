@@ -436,8 +436,54 @@ public class EditorServiceImpl implements EditorService {
         response.setClassTotal(form.getClassTotal());
         response.setIsLocked(Boolean.TRUE.equals(form.getIsLocked()));
         response.setIsExpired(form.getStatus() == ScoreFormStatus.EXPIRED);
+
+        // Kiểm tra kỳ đánh giá điểm rèn luyện liên kết
+        EvaluationPeriod period = form.getEvaluationPeriod();
+        if (period == null && form.getSemester() != null) {
+            period = evaluationPeriodRepository.findFirstBySemesterIdOrderByCreatedAtDesc(form.getSemester().getId()).orElse(null);
+        }
+
+        if (period != null) {
+            LocalDate deadline = period.getStudentDeadline() != null ? period.getStudentDeadline() : period.getSubmissionDeadline();
+            response.setStudentDeadline(deadline);
+
+            if (period.getStatus() == EvaluationPeriodStatus.DA_DONG || Boolean.TRUE.equals(period.getIsLocked())) {
+                response.setIsReadOnly(true);
+                response.setIsLocked(true);
+                response.setReadOnlyReason("Kỳ đánh giá điểm rèn luyện đã kết thúc và khóa sổ. Cổng tự đánh giá đã đóng và phiếu chỉ ở chế độ xem.");
+            } else if (period.getStatus() == EvaluationPeriodStatus.VO_HIEU_HOA) {
+                response.setIsReadOnly(true);
+                response.setIsLocked(true);
+                response.setReadOnlyReason("Kỳ đánh giá điểm rèn luyện này hiện đang bị vô hiệu hóa. Cổng tự đánh giá tạm thời ngừng nhận thao tác.");
+            } else if (period.getStatus() == EvaluationPeriodStatus.CHUA_MO) {
+                response.setIsReadOnly(true);
+                response.setReadOnlyReason("Kỳ đánh giá điểm rèn luyện này chưa được kích hoạt mở.");
+            } else if (period.getStatus() == EvaluationPeriodStatus.DANG_MO) {
+                if (deadline != null && LocalDate.now().isAfter(deadline)) {
+                    boolean hasExc = hasValidException(form.getStudent(), period);
+                    if (!hasExc) {
+                        response.setIsReadOnly(true);
+                        response.setIsExpired(true);
+                        response.setReadOnlyReason("Đã hết thời hạn sinh viên tự đánh giá (Hạn chót: " + deadline.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + "). Cổng tự đánh giá đã đóng.");
+                    }
+                }
+            }
+        } else {
+            response.setIsReadOnly(true);
+            response.setReadOnlyReason("Hiện tại không có kỳ đánh giá điểm rèn luyện nào đang mở cho học kỳ này.");
+        }
+
         if (Boolean.TRUE.equals(form.getIsLocked()) || form.getStatus() == ScoreFormStatus.EXPIRED || (form.getStatus() != ScoreFormStatus.DRAFT && form.getStatus() != ScoreFormStatus.REJECTED)) {
             response.setIsReadOnly(true);
+            if (response.getReadOnlyReason() == null) {
+                if (form.getStatus() == ScoreFormStatus.EXPIRED) {
+                    response.setReadOnlyReason("Phiếu rèn luyện đã hết hạn do kỳ chấm đã khóa sổ.");
+                } else if (Boolean.TRUE.equals(form.getIsLocked())) {
+                    response.setReadOnlyReason("Kỳ đánh giá điểm rèn luyện đã khóa sổ.");
+                } else if (form.getStatus() != ScoreFormStatus.DRAFT && form.getStatus() != ScoreFormStatus.REJECTED) {
+                    response.setReadOnlyReason("Phiếu đã được nộp và chuyển lên cấp thẩm định, không thể chỉnh sửa.");
+                }
+            }
         }
 
         User st = form.getStudent();
