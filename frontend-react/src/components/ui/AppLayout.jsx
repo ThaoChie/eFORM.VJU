@@ -5,6 +5,7 @@ import { menus } from "../../common/permission-config"
 import { useAuthStore } from "../../stores/useAuthStore"
 import { Button, IconButton, Modal } from "./Primitives"
 import NotificationBell from "./NotificationBell"
+import UserProfileModal from "../profile/UserProfileModal"
 
 const getUserInitials = (name) => {
   if (!name) return "U"
@@ -454,81 +455,11 @@ export default function AppLayout() {
         </main>
       </div>
 
-      {/* MODAL HỒ SƠ CÁ NHÂN */}
-      <Modal
+      {/* MODAL HỒ SƠ CÁ NHÂN & CÀI ĐẶT THÔNG BÁO BREVO */}
+      <UserProfileModal
         open={profileModalOpen}
-        title="Hồ sơ cá nhân"
         onClose={() => setProfileModalOpen(false)}
-        size="md"
-        className="max-w-md"
-        footer={
-          <div className="flex w-full items-center justify-between">
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setProfileModalOpen(false)
-                navigate("/change-password")
-              }}
-            >
-              <KeyRound className="size-4 mr-1 text-slate-500" />
-              Đổi mật khẩu
-            </Button>
-            <Button variant="primary" onClick={() => setProfileModalOpen(false)}>
-              Đóng
-            </Button>
-          </div>
-        }
-      >
-        <div className="space-y-4">
-          <div className="flex items-center gap-3.5 pb-4 border-b border-slate-100">
-            <span className="flex size-14 items-center justify-center rounded-full bg-slate-900 text-lg font-bold text-white shrink-0">
-              {getUserInitials(user.fullName || user.name)}
-            </span>
-            <div className="min-w-0 flex-1">
-              <h3 className="text-base font-bold text-slate-800 truncate">
-                {user.fullName || user.name || "Người dùng"}
-              </h3>
-              <p className="text-xs text-slate-500 truncate mt-0.5">
-                {user.email || user.username || "Chưa có email"}
-              </p>
-              <span className="inline-block mt-1.5 px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700">
-                {roleLabelMap[user.role] || user.role}
-              </span>
-            </div>
-          </div>
-
-          <div className="space-y-2.5 text-xs">
-            <div className="flex items-center justify-between py-1.5 border-b border-slate-50">
-              <span className="text-slate-500">Mã định danh / Tên đăng nhập:</span>
-              <span className="font-mono font-semibold text-slate-800">
-                {user.username || user.code || user.id || "N/A"}
-              </span>
-            </div>
-            <div className="flex items-center justify-between py-1.5 border-b border-slate-50">
-              <span className="text-slate-500">Email:</span>
-              <span className="font-medium text-slate-800">{user.email || "N/A"}</span>
-            </div>
-            <div className="flex items-center justify-between py-1.5 border-b border-slate-50">
-              <span className="text-slate-500">Đơn vị / Khoa:</span>
-              <span className="font-medium text-slate-800">
-                {user.facultyName || user.departmentName || user.context || "Trường Đại học Việt Nhật (VJU)"}
-              </span>
-            </div>
-            {user.className && (
-              <div className="flex items-center justify-between py-1.5 border-b border-slate-50">
-                <span className="text-slate-500">Lớp sinh hoạt:</span>
-                <span className="font-medium text-slate-800">{user.className}</span>
-              </div>
-            )}
-            <div className="flex items-center justify-between py-1.5">
-              <span className="text-slate-500">Chữ ký số cá nhân:</span>
-              <span className="font-medium text-emerald-700">
-                {user.signatureSpecimenUrl ? "Đã thiết lập chữ ký" : "Chưa tải mẫu chữ ký"}
-              </span>
-            </div>
-          </div>
-        </div>
-      </Modal>
+      />
     </div>
   )
 }

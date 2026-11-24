@@ -43,6 +43,7 @@ public class WorkflowServiceImpl implements WorkflowService {
     private final StorageService storageService;
     private final WorkflowBatchHelperService batchHelperService;
     private final ClassRepository classRepository;
+    private final vn.edu.drl.backend.service.interfaces.EmailService emailService;
 
     @Transactional(readOnly = true)
     public Page<WorkflowQueueItemResponse> getPendingQueue(Long userId, Pageable pageable) {
@@ -402,6 +403,34 @@ public class WorkflowServiceImpl implements WorkflowService {
             NotificationType.SYSTEM, 
             "/student/compose/" + form.getId()
         );
+
+        // Luồng 2.2: Gửi email cho Sinh viên chủ phiếu
+        String levelTitle = (user.getRole() == Role.DEAN || "CLASS_APPROVED".equals(oldStatus))
+                ? "Ban Chủ nhiệm Khoa"
+                : "Cán bộ lớp";
+        try {
+            emailService.sendFormRejectedEmail(form, levelTitle, reason);
+        } catch (Exception ignored) {}
+
+        // Luồng 3.2: Nếu Khoa trả lại phiếu đã duyệt của Lớp, gửi email cho Cán bộ lớp rút kinh nghiệm
+        if (user.getRole() == Role.DEAN || "CLASS_APPROVED".equals(oldStatus)) {
+            if (form.getStudent() != null && form.getStudent().getClassEntity() != null) {
+                Long clsId = form.getStudent().getClassEntity().getId();
+                String className = form.getStudent().getClassEntity().getClassName();
+                List<User> leaders = userRepository.findByClassEntityIdAndRole(clsId, Role.CLASS_LEADER);
+                for (User leader : leaders) {
+                    try {
+                        emailService.sendClassLeaderFormRejectedNotice(
+                                leader,
+                                className,
+                                form.getStudent().getFullName(),
+                                form.getStudent().getUserCode(),
+                                reason
+                        );
+                    } catch (Exception ignored) {}
+                }
+            }
+        }
     }
 
     public DeanApproveBatchResponse deanApproveBatch(Long userId, DeanApproveBatchRequest request, String ipAddress) {
@@ -577,5 +606,47 @@ public class WorkflowServiceImpl implements WorkflowService {
             String codeB = b.getStudentCode() != null ? b.getStudentCode() : "";
             return codeA.compareToIgnoreCase(codeB);
         }).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, Object> triggerClassLeaderReminders() {
+        List<ClassEntity> classes = classRepository.findAll();
+        int sentCount = 0;
+        for (ClassEntity cls : classes) {
+            List<ScoreForm> submittedForms = scoreFormRepository.findByStudentClassEntityIdAndStatus(cls.getId(), ScoreFormStatus.SUBMITTED);
+            if (!submittedForms.isEmpty()) {
+                List<String> studentNames = submittedForms.stream()
+                        .map(f -> f.getStudent() != null ? f.getStudent().getFullName() + " (" + f.getStudent().getUserCode() + ")" : "Sinh viên")
+                        .collect(Collectors.toList());
+                List<User> leaders = userRepository.findByClassEntityIdAndRole(cls.getId(), Role.CLASS_LEADER);
+                for (User leader : leaders) {
+                    try {
+                        emailService.sendClassLeaderDeadlineReminder(leader, cls.getClassName(), studentNames);
+                        sentCount++;
+                    } catch (Exception ignored) {}
+                }
+            }
+        }
+        return Map.of("sentCount", sentCount, "message", "Đã gửi email nhắc nhở hạn chót hoàn thành chấm điểm cấp Lớp (" + sentCount + " cán bộ lớp).");
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, Object> triggerDeanReminders() {
+        List<User> deans = userRepository.findAll().stream()
+                .filter(u -> u.getRole() == Role.DEAN && u.getDepartment() != null)
+                .collect(Collectors.toList());
+        int sentCount = 0;
+        for (User dean : deans) {
+            List<ScoreForm> pending = scoreFormRepository.findByStudentDepartmentIdAndStatus(dean.getDepartment().getId(), ScoreFormStatus.CLASS_APPROVED);
+            if (!pending.isEmpty()) {
+                try {
+                    emailService.sendDeanDeadlineReminder(dean, dean.getDepartment().getDeptName(), pending.size());
+                    sentCount++;
+                } catch (Exception ignored) {}
+            }
+        }
+        return Map.of("sentCount", sentCount, "message", "Đã gửi email nhắc nhở hạn chót hoàn thành chấm điểm cấp Khoa (" + sentCount + " khoa/trưởng khoa).");
     }
 }

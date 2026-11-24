@@ -51,3 +51,11 @@ pades:
     name: ${PADES_SIGNER_NAME:Trường Đại học Việt Nhật (VJU) - ĐHQGHN}
     reason: ${PADES_SIGNER_REASON:Chứng thực số Bảng Điểm Rèn Luyện Sinh Viên (E-Form VJU)}
     location: ${PADES_SIGNER_LOCATION:Hà Nội, Việt Nam}
+
+brevo:
+  api-key: ${BREVO_API_KEY:}
+  sender-email: ${BREVO_SENDER_EMAIL:no-reply@vju.ac.vn}
+  sender-name: ${BREVO_SENDER_NAME:Trường Đại học Việt Nhật (VJU) - Hệ thống ĐRL}
+  api-url: ${BREVO_API_URL:https://api.brevo.com/v3/smtp/email}
+  app-base-url: ${APP_BASE_URL:https://e-form-vju-staging.vercel.app}
+  enabled: ${BREVO_ENABLED:true}

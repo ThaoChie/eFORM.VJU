@@ -34,6 +34,7 @@ public class EvaluationPeriodServiceImpl implements EvaluationPeriodService {
     private final UserRepository userRepository;
     private final AuditLogRepository auditLogRepository;
     private final NotificationService notificationService;
+    private final vn.edu.drl.backend.service.interfaces.EmailService emailService;
 
     private static final List<String> STANDARD_SCOPES = List.of(
             "Toàn trường",
@@ -190,6 +191,11 @@ public class EvaluationPeriodServiceImpl implements EvaluationPeriodService {
                     NotificationType.SYSTEM,
                     "/student/compose"
             );
+            try {
+                emailService.sendNewEvaluationPeriodEmail(students, period);
+            } catch (Exception ex) {
+                log.warn("Lỗi khi gửi email mở kỳ ĐRL: {}", ex.getMessage());
+            }
         } catch (Exception e) {
             // 8a: Không có sinh viên nhận được thông báo do lỗi hệ thống: kỳ vẫn Đang mở; lỗi được ghi nhận
             log.error("Lỗi khi gửi thông báo mở kỳ chấm ĐRL tới sinh viên: {}", e.getMessage(), e);

@@ -35,6 +35,7 @@ public class WorkflowBatchHelperServiceImpl implements WorkflowBatchHelperServic
     private final PdfHashEngine hashEngine;
     private final StorageService storageService;
     private final PadesSignatureEngine padesSignatureEngine;
+    private final vn.edu.drl.backend.service.interfaces.EmailService emailService;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void processSingleForm(Long userId, Long formId, String signatureBase64, String ipAddress) {
@@ -188,5 +189,12 @@ public class WorkflowBatchHelperServiceImpl implements WorkflowBatchHelperServic
             NotificationType.SYSTEM, 
             "/student/history"
         );
+
+        // Luồng 2.3: Công bố kết quả chính thức và đính kèm tệp PDF chính thức đã ký 3 cấp (DocMDP P=1)
+        try {
+            emailService.sendOfficialResultEmail(form, pdfBytes, hash);
+        } catch (Exception ex) {
+            // Non-blocking
+        }
     }
 }

@@ -82,6 +82,15 @@ public class User {
     @Column(name = "must_change_password")
     private Boolean mustChangePassword = false;
 
+    @Column(name = "email_reminders_enabled")
+    private Boolean emailRemindersEnabled = true;
+
+    @Column(name = "email_class_updates_enabled")
+    private Boolean emailClassUpdatesEnabled = true;
+
+    @Column(name = "signature_unlocked_until")
+    private Instant signatureUnlockedUntil;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private Instant createdAt;
 }

@@ -19,11 +19,19 @@ public class AuthServiceImpl implements AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final vn.edu.drl.backend.dao.PasswordResetTokenRepository passwordResetTokenRepository;
+    private final vn.edu.drl.backend.service.interfaces.EmailService emailService;
 
-    public AuthServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtUtil jwtUtil) {
+    public AuthServiceImpl(UserRepository userRepository, 
+                           PasswordEncoder passwordEncoder, 
+                           JwtUtil jwtUtil,
+                           vn.edu.drl.backend.dao.PasswordResetTokenRepository passwordResetTokenRepository,
+                           vn.edu.drl.backend.service.interfaces.EmailService emailService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
+        this.passwordResetTokenRepository = passwordResetTokenRepository;
+        this.emailService = emailService;
     }
 
     public AuthResponse login(LoginRequest request) {
@@ -158,6 +166,95 @@ public class AuthServiceImpl implements AuthService {
             .isSignatureLocked(Boolean.TRUE.equals(user.getIsSignatureLocked()))
             .isFirstLogin(firstLogin)
             .mustChangePassword(firstLogin)
+            .emailRemindersEnabled(!Boolean.FALSE.equals(user.getEmailRemindersEnabled()))
+            .emailClassUpdatesEnabled(!Boolean.FALSE.equals(user.getEmailClassUpdatesEnabled()))
+            .signatureUnlockedUntil(user.getSignatureUnlockedUntil())
             .build();
+    }
+
+    @Override
+    public void forgotPassword(String email) {
+        if (email == null || email.trim().isEmpty()) {
+            throw new vn.edu.drl.backend.exception.BusinessException("Email không được để trống");
+        }
+        String normalizedEmail = email.trim().toLowerCase();
+        java.util.Optional<User> userOpt = userRepository.findByEmail(normalizedEmail);
+        if (userOpt.isEmpty()) {
+            // Bảo mật: không báo lỗi người dùng không tồn tại để tránh enumeration attack
+            return;
+        }
+
+        User user = userOpt.get();
+        if (user.getStatus() != null && user.getStatus() == 0) {
+            throw new vn.edu.drl.backend.exception.BusinessException("Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.");
+        }
+
+        String token = java.util.UUID.randomUUID().toString().replace("-", "");
+        String otp = String.format("%06d", new java.security.SecureRandom().nextInt(1000000));
+        java.time.Instant expiresAt = java.time.Instant.now().plus(15, java.time.temporal.ChronoUnit.MINUTES);
+
+        vn.edu.drl.backend.model.PasswordResetToken resetToken = vn.edu.drl.backend.model.PasswordResetToken.builder()
+                .user(user)
+                .token(token)
+                .otp(otp)
+                .expiresAt(expiresAt)
+                .isUsed(false)
+                .build();
+        passwordResetTokenRepository.save(resetToken);
+
+        emailService.sendPasswordResetEmail(user, otp, token);
+    }
+
+    @Override
+    public void resetPassword(vn.edu.drl.backend.dto.request.ResetPasswordRequest request) {
+        if (request == null || request.getNewPassword() == null || request.getNewPassword().trim().length() < 6) {
+            throw new vn.edu.drl.backend.exception.BusinessException("Mật khẩu mới phải có tối thiểu 6 ký tự");
+        }
+
+        vn.edu.drl.backend.model.PasswordResetToken resetToken = null;
+
+        // 1. Thử tìm bằng token từ link
+        if (request.getToken() != null && !request.getToken().trim().isEmpty()) {
+            resetToken = passwordResetTokenRepository.findByTokenAndIsUsedFalse(request.getToken().trim()).orElse(null);
+        }
+
+        // 2. Thử tìm bằng email + OTP
+        if (resetToken == null && request.getEmail() != null && request.getOtp() != null) {
+            User user = userRepository.findByEmail(request.getEmail().trim().toLowerCase()).orElse(null);
+            if (user != null) {
+                resetToken = passwordResetTokenRepository.findByUserIdAndOtpAndIsUsedFalse(user.getId(), request.getOtp().trim()).orElse(null);
+            }
+        }
+
+        if (resetToken == null) {
+            throw new vn.edu.drl.backend.exception.BusinessException("Mã xác thực hoặc đường dẫn đặt lại mật khẩu không hợp lệ");
+        }
+
+        if (resetToken.getExpiresAt().isBefore(java.time.Instant.now())) {
+            throw new vn.edu.drl.backend.exception.BusinessException("Yêu cầu đặt lại mật khẩu đã hết hạn (chỉ có hiệu lực trong 15 phút). Vui lòng yêu cầu lại.");
+        }
+
+        User user = resetToken.getUser();
+        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword().trim()));
+        user.setMustChangePassword(false);
+        user.setIsFirstLogin(false);
+        userRepository.save(user);
+
+        resetToken.setIsUsed(true);
+        passwordResetTokenRepository.save(resetToken);
+    }
+
+    @Override
+    public void updateNotificationPreferences(Long userId, vn.edu.drl.backend.dto.request.NotificationPreferencesRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new vn.edu.drl.backend.exception.BusinessException("Không tìm thấy người dùng"));
+
+        if (request.getEmailRemindersEnabled() != null) {
+            user.setEmailRemindersEnabled(request.getEmailRemindersEnabled());
+        }
+        if (request.getEmailClassUpdatesEnabled() != null) {
+            user.setEmailClassUpdatesEnabled(request.getEmailClassUpdatesEnabled());
+        }
+        userRepository.save(user);
     }
 }

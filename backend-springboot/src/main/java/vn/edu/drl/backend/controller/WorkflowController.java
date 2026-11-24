@@ -84,4 +84,16 @@ public class WorkflowController {
         Long userId = SecurityUtils.getCurrentUserId();
         return ApiResponse.success(workflowService.getBatchForms(userId, classId, status));
     }
+
+    @PostMapping("/reminders/class-deadline")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DEAN')")
+    public ApiResponse<java.util.Map<String, Object>> triggerClassLeaderReminders() {
+        return ApiResponse.success(workflowService.triggerClassLeaderReminders());
+    }
+
+    @PostMapping("/reminders/dean-deadline")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<java.util.Map<String, Object>> triggerDeanReminders() {
+        return ApiResponse.success(workflowService.triggerDeanReminders());
+    }
 }
