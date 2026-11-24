@@ -60,7 +60,7 @@ export default function EvaluationPeriodListPage() {
   // Modal states
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [editModalOpen, setEditModalOpen] = useState(false)
-  const [deleteConfirmModalOpen, setDeleteConfirmModalOpen] = useState(false)
+  const [deactivateConfirmModalOpen, setDeactivateConfirmModalOpen] = useState(false)
   const [detailModalOpen, setDetailModalOpen] = useState(false)
   const [extendModalOpen, setExtendModalOpen] = useState(false)
   const [openConfirmModalOpen, setOpenConfirmModalOpen] = useState(false)
@@ -101,7 +101,7 @@ export default function EvaluationPeriodListPage() {
   })
   const [editErrors, setEditErrors] = useState({})
   const [updating, setUpdating] = useState(false)
-  const [deleting, setDeleting] = useState(false)
+  const [deactivating, setDeactivating] = useState(false)
 
   // Extend & Exception form state
   const [extendForm, setExtendForm] = useState({
@@ -468,26 +468,26 @@ export default function EvaluationPeriodListPage() {
     }
   }
 
-  // Open Delete Modal
-  const handleOpenDeleteModal = (period) => {
+  // Open Deactivate Modal
+  const handleOpenDeactivateModal = (period) => {
     setSelectedPeriod(period)
-    setDeleteConfirmModalOpen(true)
+    setDeactivateConfirmModalOpen(true)
   }
 
-  // Handle Delete Period
-  const handleConfirmDeletePeriod = async () => {
+  // Handle Deactivate Period
+  const handleConfirmDeactivatePeriod = async () => {
     if (!selectedPeriod) return
-    setDeleting(true)
+    setDeactivating(true)
     try {
-      await evaluationPeriodService.deletePeriod(selectedPeriod.id)
-      toast.success(`Đã xóa kỳ chấm "${selectedPeriod.periodCode}" thành công!`)
-      setDeleteConfirmModalOpen(false)
+      await evaluationPeriodService.deactivatePeriod(selectedPeriod.id)
+      toast.success(`Đã vô hiệu hóa kỳ chấm "${selectedPeriod.periodCode}" thành công!`)
+      setDeactivateConfirmModalOpen(false)
       setSelectedPeriod(null)
       fetchPeriods()
     } catch (err) {
-      toast.error(err.response?.data?.message || err.message || "Lỗi xóa kỳ chấm")
+      toast.error(err.response?.data?.message || err.message || "Lỗi vô hiệu hóa kỳ chấm")
     } finally {
-      setDeleting(false)
+      setDeactivating(false)
     }
   }
 
@@ -506,18 +506,18 @@ export default function EvaluationPeriodListPage() {
     }
   }
 
-  // Confirm Open Period
+  // Confirm Open / Activate Period
   const handleConfirmOpenPeriod = async () => {
     if (!selectedPeriod) return
     setActionLoading(true)
     try {
-      await evaluationPeriodService.openPeriod(selectedPeriod.id)
+      await evaluationPeriodService.activatePeriod(selectedPeriod.id)
       toast.success("Kích hoạt mở đợt đánh giá thành công! Đã gửi thông báo tới sinh viên và cán bộ liên quan.")
       setOpenConfirmModalOpen(false)
       setSelectedPeriod(null)
       fetchPeriods()
     } catch (err) {
-      toast.error(err.response?.data?.message || err.message || "Lỗi mở đợt đánh giá")
+      toast.error(err.response?.data?.message || err.message || "Lỗi kích hoạt đợt đánh giá")
     } finally {
       setActionLoading(false)
     }
@@ -651,6 +651,14 @@ export default function EvaluationPeriodListPage() {
   }
 
   const renderStatusBadge = (status, isLocked) => {
+    if (status === "VO_HIEU_HOA") {
+      return (
+        <span className="inline-flex items-center gap-1.5 text-xs text-rose-600 font-medium">
+          <Ban className="size-3 text-rose-500" />
+          Vô hiệu hóa
+        </span>
+      )
+    }
     if (isLocked || status === "DA_DONG") {
       return (
         <span className="inline-flex items-center gap-1.5 text-xs text-slate-500 font-medium">
@@ -799,11 +807,11 @@ export default function EvaluationPeriodListPage() {
                 <Pencil className="size-4" />
               </IconButton>
               <IconButton
-                label="Xóa đợt đánh giá"
-                onClick={() => handleOpenDeleteModal(item)}
+                label="Vô hiệu hóa đợt đánh giá"
+                onClick={() => handleOpenDeactivateModal(item)}
                 className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
               >
-                <Trash2 className="size-4" />
+                <Ban className="size-4" />
               </IconButton>
             </>
           )}
@@ -817,11 +825,39 @@ export default function EvaluationPeriodListPage() {
                 <CalendarClock className="size-4" />
               </IconButton>
               <IconButton
-                label="Khóa sổ & Kết thúc đợt"
-                onClick={() => handleOpenClosePeriodModal(item)}
+                label="Vô hiệu hóa đợt đánh giá"
+                onClick={() => handleOpenDeactivateModal(item)}
                 className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
               >
+                <Ban className="size-4" />
+              </IconButton>
+              <IconButton
+                label="Khóa sổ & Kết thúc đợt"
+                onClick={() => handleOpenClosePeriodModal(item)}
+                className="text-slate-600 hover:bg-slate-100 hover:text-slate-800"
+              >
                 <Lock className="size-4" />
+              </IconButton>
+            </>
+          )}
+          {item.status === "VO_HIEU_HOA" && (
+            <>
+              <IconButton
+                label="Kích hoạt lại đợt đánh giá"
+                onClick={() => {
+                  setSelectedPeriod(item)
+                  setOpenConfirmModalOpen(true)
+                }}
+                className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
+              >
+                <Play className="size-4" />
+              </IconButton>
+              <IconButton
+                label="Chỉnh sửa đợt đánh giá"
+                onClick={() => handleOpenEditModal(item)}
+                className="text-brand hover:bg-brand-soft hover:text-brand-dark"
+              >
+                <Pencil className="size-4" />
               </IconButton>
             </>
           )}
@@ -908,6 +944,7 @@ export default function EvaluationPeriodListPage() {
               <option value="">Tất cả trạng thái</option>
               <option value="CHUA_MO">Chưa mở</option>
               <option value="DANG_MO">Đang mở</option>
+              <option value="VO_HIEU_HOA">Vô hiệu hóa</option>
               <option value="DA_DONG">Đã đóng / Khóa sổ</option>
             </select>
           </div>
@@ -1722,12 +1759,12 @@ export default function EvaluationPeriodListPage() {
       </Modal>
 
       {/* ========================================================================= */}
-      {/* 4. Modal: Xác nhận Mở kỳ */}
+      {/* 4. Modal: Xác nhận Mở / Kích hoạt kỳ */}
       {/* ========================================================================= */}
       <Modal
         open={openConfirmModalOpen}
         onClose={() => setOpenConfirmModalOpen(false)}
-        title="Kích hoạt mở đợt đánh giá điểm rèn luyện"
+        title={selectedPeriod?.status === "VO_HIEU_HOA" ? "Kích hoạt lại đợt đánh giá điểm rèn luyện" : "Kích hoạt mở đợt đánh giá điểm rèn luyện"}
         wide={false}
         footer={
           <>
@@ -1738,14 +1775,14 @@ export default function EvaluationPeriodListPage() {
               loading={actionLoading}
               onClick={handleConfirmOpenPeriod}
             >
-              Xác nhận mở đợt
+              {selectedPeriod?.status === "VO_HIEU_HOA" ? "Xác nhận kích hoạt lại" : "Xác nhận mở đợt"}
             </ConfirmButton>
           </>
         }
       >
         <div className="space-y-3 text-sm text-slate-700">
           <p>
-            Bạn có chắc chắn muốn kích hoạt mở đợt đánh giá{" "}
+            Bạn có chắc chắn muốn {selectedPeriod?.status === "VO_HIEU_HOA" ? "kích hoạt lại" : "kích hoạt mở"} đợt đánh giá{" "}
             <span className="font-semibold text-slate-900">{selectedPeriod?.periodCode}</span> (Học kỳ: {selectedPeriod?.semesterName})?
           </p>
           <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 space-y-1">
@@ -1834,41 +1871,43 @@ export default function EvaluationPeriodListPage() {
       </Modal>
 
       {/* ========================================================================= */}
-      {/* 5.1. Modal: Xác nhận Xóa kỳ chấm (khi ở trạng thái Chưa mở) */}
+      {/* 5.1. Modal: Xác nhận Vô hiệu hóa kỳ đánh giá */}
       {/* ========================================================================= */}
       <Modal
-        open={deleteConfirmModalOpen}
-        onClose={() => setDeleteConfirmModalOpen(false)}
-        title="Xác nhận xóa kỳ chấm ĐRL"
+        open={deactivateConfirmModalOpen}
+        onClose={() => setDeactivateConfirmModalOpen(false)}
+        title="Xác nhận vô hiệu hóa kỳ đánh giá"
         wide={false}
         footer={
           <>
-            <CancelButton onClick={() => setDeleteConfirmModalOpen(false)}>
+            <CancelButton onClick={() => setDeactivateConfirmModalOpen(false)}>
               Hủy
             </CancelButton>
             <Button
               variant="danger"
-              loading={deleting}
-              onClick={handleConfirmDeletePeriod}
+              loading={deactivating}
+              onClick={handleConfirmDeactivatePeriod}
             >
-              Xác nhận xóa
+              <Ban className="size-4 mr-1.5" />
+              Xác nhận vô hiệu hóa
             </Button>
           </>
         }
       >
         <div className="space-y-3 text-sm text-slate-700">
           <p>
-            Bạn có chắc chắn muốn xóa kỳ chấm{" "}
+            Bạn có chắc chắn muốn vô hiệu hóa kỳ đánh giá{" "}
             <span className="font-semibold text-slate-900">{selectedPeriod?.periodCode}</span>?
           </p>
-          <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-700 space-y-1">
-            <div className="flex items-center gap-1.5 font-medium text-rose-800">
-              <AlertCircle className="size-3.5 text-rose-600" />
+          <div className="p-3.5 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-800 space-y-1.5">
+            <div className="flex items-center gap-1.5 font-semibold text-rose-900">
+              <AlertCircle className="size-4 text-rose-600 shrink-0" />
               Lưu ý quan trọng:
             </div>
-            <ul className="list-disc pl-5 space-y-0.5 text-rose-600">
-              <li>Thao tác này chỉ thực hiện được khi kỳ chấm còn ở trạng thái <strong>Chưa mở</strong>.</li>
-              <li>Toàn bộ thông tin thiết lập kỳ chấm và nhật ký liên quan sẽ bị xóa vĩnh viễn.</li>
+            <ul className="list-disc pl-5 space-y-1 text-rose-700">
+              <li>Hệ thống lưu trữ toàn vẹn lịch sử đánh giá và hồ sơ sinh viên, <strong>tuyệt đối không xóa bỏ dữ liệu</strong>.</li>
+              <li>Sinh viên và các cấp đánh giá sẽ tạm thời không thể thao tác trên kỳ đánh giá này.</li>
+              <li>Bạn có thể <strong>kích hoạt lại</strong> kỳ đánh giá bất kỳ lúc nào khi cần tiếp tục triển khai.</li>
             </ul>
           </div>
         </div>

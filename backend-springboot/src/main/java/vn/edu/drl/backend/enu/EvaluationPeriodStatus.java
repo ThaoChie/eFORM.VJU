@@ -3,6 +3,7 @@ package vn.edu.drl.backend.enu;
 public enum EvaluationPeriodStatus {
     CHUA_MO("Chưa mở"),
     DANG_MO("Đang mở"),
+    VO_HIEU_HOA("Vô hiệu hóa"),
     DA_DONG("Đã đóng");
 
     private final String displayName;

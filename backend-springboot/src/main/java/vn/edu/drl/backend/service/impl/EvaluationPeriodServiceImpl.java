@@ -177,8 +177,8 @@ public class EvaluationPeriodServiceImpl implements EvaluationPeriodService {
         EvaluationPeriod period = evaluationPeriodRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy kỳ chấm ĐRL với ID: " + id));
 
-        if (period.getStatus() != EvaluationPeriodStatus.CHUA_MO) {
-            throw new RuntimeException("Chỉ được chỉnh sửa kỳ chấm ĐRL khi đang ở trạng thái Chưa mở");
+        if (period.getStatus() != EvaluationPeriodStatus.CHUA_MO && period.getStatus() != EvaluationPeriodStatus.VO_HIEU_HOA) {
+            throw new RuntimeException("Chỉ được chỉnh sửa kỳ chấm ĐRL khi đang ở trạng thái Chưa mở hoặc Vô hiệu hóa");
         }
 
         // 1. Kiểm tra mã đợt chấm duy nhất
@@ -246,15 +246,46 @@ public class EvaluationPeriodServiceImpl implements EvaluationPeriodService {
     @Override
     @Transactional
     public void deletePeriod(Long adminUserId, Long id) {
+        // Tuyệt đối không xóa cứng theo yêu cầu quản lý dữ liệu đào tạo: chuyển sang Vô hiệu hóa
+        deactivatePeriod(adminUserId, id);
+    }
+
+    @Override
+    @Transactional
+    public EvaluationPeriodResponse deactivatePeriod(Long adminUserId, Long id) {
+        User admin = userRepository.findById(adminUserId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy thông tin quản trị viên"));
+
         EvaluationPeriod period = evaluationPeriodRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy kỳ chấm ĐRL với ID: " + id));
 
-        if (period.getStatus() != EvaluationPeriodStatus.CHUA_MO) {
-            throw new RuntimeException("Chỉ được xóa kỳ chấm ĐRL khi đang ở trạng thái Chưa mở");
+        if (period.getStatus() == EvaluationPeriodStatus.VO_HIEU_HOA) {
+            throw new RuntimeException("Kỳ chấm ĐRL này hiện đã ở trạng thái Vô hiệu hóa");
+        }
+        if (period.getStatus() == EvaluationPeriodStatus.DA_DONG) {
+            throw new RuntimeException("Kỳ chấm ĐRL này đã được khóa sổ, không thể vô hiệu hóa");
         }
 
-        auditLogRepository.deleteByEvaluationPeriodId(id);
-        evaluationPeriodRepository.delete(period);
+        EvaluationPeriodStatus oldStatus = period.getStatus();
+        period.setStatus(EvaluationPeriodStatus.VO_HIEU_HOA);
+        EvaluationPeriod saved = evaluationPeriodRepository.save(period);
+
+        AuditLog audit = new AuditLog();
+        audit.setEvaluationPeriod(period);
+        audit.setUser(admin);
+        audit.setAction("DEACTIVATE_PERIOD");
+        audit.setFromStatus(oldStatus.name());
+        audit.setToStatus(EvaluationPeriodStatus.VO_HIEU_HOA.name());
+        audit.setNote("Vô hiệu hóa kỳ chấm ĐRL " + period.getPeriodCode());
+        auditLogRepository.save(audit);
+
+        return mapToResponseWithoutHistory(saved);
+    }
+
+    @Override
+    @Transactional
+    public EvaluationPeriodResponse activatePeriod(Long adminUserId, Long id) {
+        return openPeriod(adminUserId, id);
     }
 
     @Override
@@ -305,10 +336,12 @@ public class EvaluationPeriodServiceImpl implements EvaluationPeriodService {
         AuditLog audit = new AuditLog();
         audit.setEvaluationPeriod(period);
         audit.setUser(admin);
-        audit.setAction("OPEN_PERIOD");
+        audit.setAction(oldStatus == EvaluationPeriodStatus.VO_HIEU_HOA ? "ACTIVATE_PERIOD" : "OPEN_PERIOD");
         audit.setFromStatus(oldStatus.name());
         audit.setToStatus(EvaluationPeriodStatus.DANG_MO.name());
-        audit.setNote("Kích hoạt mở đợt chấm ĐRL " + period.getPeriodCode() + " toàn trường (is_active = TRUE)");
+        audit.setNote(oldStatus == EvaluationPeriodStatus.VO_HIEU_HOA
+                ? "Kích hoạt lại kỳ chấm ĐRL " + period.getPeriodCode()
+                : "Kích hoạt mở đợt chấm ĐRL " + period.getPeriodCode() + " toàn trường");
         auditLogRepository.save(audit);
 
         // 3. Phát thông báo tự động (In-app & Brevo Email) tới Sinh viên, Cán bộ Lớp và Lãnh đạo Khoa
@@ -655,8 +688,8 @@ public class EvaluationPeriodServiceImpl implements EvaluationPeriodService {
         Long draftSubmissions = 0L;
         Long rejectedSubmissions = 0L;
 
-        if (p.getStatus() == EvaluationPeriodStatus.CHUA_MO) {
-            // Đợt chấm chưa mở: Tiến độ bằng 0, không lấy dữ liệu của các đợt khác
+        if (p.getStatus() == EvaluationPeriodStatus.CHUA_MO || p.getStatus() == EvaluationPeriodStatus.VO_HIEU_HOA) {
+            // Đợt chấm chưa mở hoặc vô hiệu hóa: Tiến độ bằng 0
             totalSubmissions = 0L;
             completedSubmissions = 0L;
             pendingSubmissions = 0L;
@@ -761,6 +794,8 @@ public class EvaluationPeriodServiceImpl implements EvaluationPeriodService {
             case "CREATE_PERIOD" -> "Tạo mới kỳ chấm";
             case "UPDATE_PERIOD" -> "Chỉnh sửa kỳ chấm";
             case "OPEN_PERIOD" -> "Kích hoạt mở đợt chấm";
+            case "ACTIVATE_PERIOD" -> "Kích hoạt lại đợt chấm";
+            case "DEACTIVATE_PERIOD" -> "Vô hiệu hóa kỳ chấm";
             case "EXTEND_DEADLINE" -> "Gia hạn hạn nộp toàn trường";
             case "EXTEND_EXCEPTION" -> "Cấp quyền mở lẻ ngoại lệ";
             case "CLOSE_PERIOD" -> "Khóa sổ đợt chấm (Đóng kỳ)";
