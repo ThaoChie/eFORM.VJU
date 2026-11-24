@@ -189,10 +189,10 @@ export default function ClassConfigModal({
       open={open}
       title={
         <div className="flex items-center gap-2">
-          <Sliders className="size-5 text-brand" />
+          <Sliders className="size-5 text-slate-700" />
           <span>
             Cấu hình lớp:{" "}
-            <span className="font-mono text-brand">
+            <span className="font-mono text-slate-900 font-bold">
               {classNode.fieldCode}
             </span>{" "}
             ({isArray ? "Lớp lặp Array" : "Lớp Object"})
@@ -200,7 +200,8 @@ export default function ClassConfigModal({
         </div>
       }
       onClose={onClose}
-      className="max-w-3xl"
+      size="3xl"
+      className="max-w-4xl xl:max-w-5xl"
       footer={
         <div className="flex w-full items-center justify-between">
           <Button variant="secondary" onClick={onClose}>
@@ -290,9 +291,9 @@ export default function ClassConfigModal({
 
         {/* ROW 3: Khi là Lớp lặp ARRAY (Kiểu dữ liệu 1 phần tử, Min, Max) */}
         {isArray && (
-          <div className="bg-indigo-50/60 p-3 rounded-lg border border-indigo-200 space-y-3">
-            <div className="text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
-              <Layers className="size-4 text-indigo-600" />
+          <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-3">
+            <div className="text-xs font-semibold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+              <Layers className="size-4 text-slate-500" />
               Cấu hình Lớp lặp (Array)
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -416,8 +417,8 @@ export default function ClassConfigModal({
                         className="rounded-lg border border-slate-200 bg-white p-3 shadow-xs space-y-3 relative"
                       >
                         <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                          <span className="font-bold text-xs text-brand">
-                            Rule #{idx + 1}
+                          <span className="font-semibold text-xs text-slate-800">
+                            Quy tắc #{idx + 1}
                           </span>
                           <button
                             type="button"

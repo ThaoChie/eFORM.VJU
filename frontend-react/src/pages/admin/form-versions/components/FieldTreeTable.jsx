@@ -13,10 +13,7 @@ import {
   Copy,
   ClipboardPaste,
   XCircle,
-  Calendar,
-  Layers,
-  CheckCircle2,
-  AlertCircle
+  Layers
 } from "lucide-react"
 import { Button, IconButton } from "../../../../components/ui/Primitives"
 
@@ -75,23 +72,23 @@ export default function FieldTreeTable({
     return (
       <React.Fragment key={nodeId}>
         <tr
-          className={`hover:bg-slate-50 transition border-b border-line ${
+          className={`hover:bg-slate-50 transition-colors border-b border-slate-100 ${
             clipboardNode && clipboardNode.fieldCode === node.fieldCode
               ? "bg-amber-50/50"
               : isClass
-              ? "bg-slate-50/40 font-medium"
+              ? "bg-slate-50/60 font-medium"
               : ""
           }`}
         >
           {/* STT */}
-          <td className="px-3 py-3 text-xs text-muted w-12 text-center">
+          <td className="px-4 py-3 text-xs text-slate-500 w-12 text-center">
             {depth === 0 ? index + 1 : `${depth}.${index + 1}`}
           </td>
 
           {/* MÃ TRƯỜNG / LỚP (CÂY PHÂN CẤP) */}
-          <td className="px-3 py-3">
+          <td className="px-4 py-3 min-w-[260px]">
             <div
-              className="flex items-center gap-1.5"
+              className="flex items-center gap-2"
               style={{ paddingLeft: `${depth * 20}px` }}
             >
               {isClass ? (
@@ -112,20 +109,20 @@ export default function FieldTreeTable({
 
               {isClass ? (
                 isArray ? (
-                  <ListTree className="size-4 text-indigo-600 shrink-0" />
+                  <ListTree className="size-4 text-slate-500 shrink-0" />
                 ) : (
-                  <FolderKanban className="size-4 text-purple-600 shrink-0" />
+                  <FolderKanban className="size-4 text-slate-500 shrink-0" />
                 )
               ) : (
                 <FileText className="size-4 text-slate-400 shrink-0" />
               )}
 
-              <span className="font-mono text-xs font-bold text-brand">
+              <span className="font-mono text-xs font-semibold text-slate-800">
                 {node.fieldCode}
               </span>
 
               {isClass && (
-                <span className="ml-1 text-[11px] text-muted">
+                <span className="ml-1 text-[11px] text-slate-500">
                   ({node.children ? node.children.length : 0} con)
                 </span>
               )}
@@ -133,70 +130,70 @@ export default function FieldTreeTable({
           </td>
 
           {/* TÊN HIỂN THỊ */}
-          <td className="px-3 py-3 text-xs text-slate-800 font-medium">
+          <td className="px-4 py-3 text-xs text-slate-800 font-medium">
             {node.fieldName || node.fieldCode}
           </td>
 
           {/* NHÓM / PHÂN LOẠI */}
-          <td className="px-3 py-3 text-xs text-slate-600">
+          <td className="px-4 py-3 text-xs text-slate-600 w-36 whitespace-nowrap">
             {node.category || (isClass ? "CLASS" : "COMMON")}
           </td>
 
           {/* KIỂU DỮ LIỆU */}
-          <td className="px-3 py-3 text-xs">
+          <td className="px-4 py-3 text-xs w-44 whitespace-nowrap">
             {isClass ? (
               isArray ? (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                  <ListTree className="size-3" />
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                  <ListTree className="size-3 text-slate-500" />
                   ARRAY (Lớp lặp)
                   {node.itemType && ` [${node.itemType}]`}
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200">
-                  <FolderKanban className="size-3" />
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                  <FolderKanban className="size-3 text-slate-500" />
                   OBJECT (Lớp)
                 </span>
               )
             ) : (
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700">
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-600">
                 {node.dataType || "STRING"}
               </span>
             )}
           </td>
 
           {/* BẮT BUỘC / HIỆU LỰC */}
-          <td className="px-3 py-3 text-xs">
+          <td className="px-4 py-3 text-xs w-32 whitespace-nowrap text-center">
             {isClass ? (
               <span
                 className={`inline-flex items-center gap-1 font-medium ${
-                  node.isActive !== false ? "text-emerald-600" : "text-slate-400"
+                  node.isActive !== false ? "text-emerald-700" : "text-slate-400"
                 }`}
               >
                 {node.isActive !== false ? "Hiệu lực" : "Tắt"}
                 {node.validationRules && node.validationRules.length > 0 && (
-                  <span className="ml-1 px-1.5 py-0.2 rounded text-[10px] bg-amber-100 text-amber-800 font-semibold">
+                  <span className="ml-1 px-1.5 py-0.2 rounded text-[10px] bg-slate-100 text-slate-700 border border-slate-200 font-medium">
                     {node.validationRules.length} rules
                   </span>
                 )}
               </span>
             ) : node.isRequired ? (
-              <span className="text-brand font-semibold">Bắt buộc</span>
+              <span className="font-semibold text-slate-800">Bắt buộc</span>
             ) : (
               <span className="text-slate-400">Tùy chọn</span>
             )}
           </td>
 
           {/* THAO TÁC THEO MỤC 33 CỦA RSD */}
-          <td className="px-3 py-3 text-right">
+          <td className="px-4 py-3 text-right w-44 whitespace-nowrap">
             <div className="flex items-center justify-end gap-1">
               {/* Nút Cấu hình lớp (chỉ cho Object / Array) */}
               {isClass && (
                 <IconButton
                   label="Cấu hình lớp"
                   onClick={() => onOpenClassConfig(node)}
-                  className="size-7 hover:text-brand hover:bg-brand-soft"
+                  className="size-7 text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                 >
-                  <Sliders className="size-3.5 text-brand" />
+                  <Sliders className="size-3.5" />
                 </IconButton>
               )}
 
@@ -205,9 +202,9 @@ export default function FieldTreeTable({
                 <IconButton
                   label="Thêm phần tử con vào lớp"
                   onClick={() => onOpenAddChildNode(node)}
-                  className="size-7 hover:text-emerald-600 hover:bg-emerald-50"
+                  className="size-7 text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                 >
-                  <PlusCircle className="size-3.5 text-emerald-600" />
+                  <PlusCircle className="size-3.5" />
                 </IconButton>
               )}
 
@@ -216,7 +213,7 @@ export default function FieldTreeTable({
                 <IconButton
                   label={`Dán "${clipboardNode.fieldCode}" vào lớp này`}
                   onClick={() => handlePasteInto(node.fieldCode)}
-                  className="size-7 text-indigo-600 hover:bg-indigo-50"
+                  className="size-7 text-slate-700 hover:bg-slate-100"
                 >
                   <ClipboardPaste className="size-3.5" />
                 </IconButton>
@@ -227,7 +224,7 @@ export default function FieldTreeTable({
                 label="Di chuyển lên"
                 disabled={index === 0}
                 onClick={() => onMoveUp && onMoveUp(node, depth)}
-                className="size-7 hover:text-slate-900 disabled:opacity-20"
+                className="size-7 text-slate-500 hover:text-slate-900 disabled:opacity-20"
               >
                 <MoveUp className="size-3.5" />
               </IconButton>
@@ -237,7 +234,7 @@ export default function FieldTreeTable({
                 label="Di chuyển xuống"
                 disabled={index === totalInLevel - 1}
                 onClick={() => onMoveDown && onMoveDown(node, depth)}
-                className="size-7 hover:text-slate-900 disabled:opacity-20"
+                className="size-7 text-slate-500 hover:text-slate-900 disabled:opacity-20"
               >
                 <MoveDown className="size-3.5" />
               </IconButton>
@@ -246,7 +243,7 @@ export default function FieldTreeTable({
               <IconButton
                 label="Sao chép node này"
                 onClick={() => handleCopyNode(node)}
-                className="size-7 hover:text-slate-900"
+                className="size-7 text-slate-500 hover:text-slate-900"
               >
                 <Copy className="size-3.5" />
               </IconButton>
@@ -255,9 +252,9 @@ export default function FieldTreeTable({
               <IconButton
                 label="Xóa"
                 onClick={() => onDeleteNode(node)}
-                className="size-7 hover:text-red-600 hover:bg-red-50"
+                className="size-7 text-slate-400 hover:text-red-600 hover:bg-red-50"
               >
-                <Trash2 className="size-3.5 text-slate-400 hover:text-red-600" />
+                <Trash2 className="size-3.5" />
               </IconButton>
             </div>
           </td>
@@ -277,12 +274,12 @@ export default function FieldTreeTable({
     <div className="space-y-3">
       {/* CLIPBOARD BAR (KHI ĐANG SAO CHÉP NODE) */}
       {clipboardNode && (
-        <div className="flex items-center justify-between bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg text-xs">
-          <div className="flex items-center gap-2">
-            <Copy className="size-4 text-amber-600" />
+        <div className="flex items-center justify-between bg-slate-50 border border-slate-200 px-4 py-2.5 rounded-lg text-xs">
+          <div className="flex items-center gap-2 text-slate-700">
+            <Copy className="size-4 text-slate-500" />
             <span>
               Đã sao chép node:{" "}
-              <strong className="font-mono text-amber-900">
+              <strong className="font-mono text-slate-900">
                 {clipboardNode.fieldCode}
               </strong>{" "}
               ({clipboardNode.fieldName})
@@ -291,15 +288,15 @@ export default function FieldTreeTable({
           <div className="flex items-center gap-2">
             <Button
               variant="secondary"
-              className="text-xs h-7 px-2.5 text-indigo-700 bg-white"
+              className="text-xs h-7 px-2.5 text-slate-700 bg-white"
               onClick={() => handlePasteInto(null)}
             >
-              <ClipboardPaste className="size-3.5 mr-1 text-indigo-600" />
+              <ClipboardPaste className="size-3.5 mr-1" />
               Dán vào gốc
             </Button>
             <Button
               variant="ghost"
-              className="text-xs h-7 px-2 text-slate-600 hover:text-red-600"
+              className="text-xs h-7 px-2 text-slate-500 hover:text-red-600"
               onClick={handleClearClipboard}
             >
               <XCircle className="size-3.5 mr-1" />
@@ -310,28 +307,28 @@ export default function FieldTreeTable({
       )}
 
       {/* TABLE */}
-      <div className="overflow-x-auto rounded-lg border border-line bg-white">
+      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-2xs">
         <table className="w-full text-left text-sm">
-          <thead className="bg-canvas font-semibold text-slate-700 text-xs uppercase tracking-wider">
+          <thead className="bg-slate-50 font-semibold text-slate-700 text-xs uppercase tracking-wider border-b border-slate-200">
             <tr>
-              <th className="px-3 py-3 w-12 text-center">STT</th>
-              <th className="px-3 py-3">Mã trường / Cấu trúc Lớp</th>
-              <th className="px-3 py-3">Tên hiển thị</th>
-              <th className="px-3 py-3">Nhóm</th>
-              <th className="px-3 py-3">Kiểu dữ liệu</th>
-              <th className="px-3 py-3">Bắt buộc / Hiệu lực</th>
-              <th className="px-3 py-3 text-right">Thao tác</th>
+              <th className="px-4 py-3.5 w-12 text-center">STT</th>
+              <th className="px-4 py-3.5 min-w-[260px]">Mã trường / Cấu trúc Lớp</th>
+              <th className="px-4 py-3.5">Tên hiển thị</th>
+              <th className="px-4 py-3.5 w-36">Nhóm</th>
+              <th className="px-4 py-3.5 w-44">Kiểu dữ liệu</th>
+              <th className="px-4 py-3.5 w-32 text-center">Bắt buộc / Hiệu lực</th>
+              <th className="px-4 py-3.5 text-right w-44">Thao tác</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-line">
+          <tbody className="divide-y divide-slate-100">
             {nodes.length === 0 ? (
               <tr>
-                <td colSpan={7} className="p-8 text-center text-muted">
+                <td colSpan={7} className="p-8 text-center text-slate-400">
                   <Layers className="size-8 mx-auto mb-2 text-slate-300" />
                   <p className="font-medium text-slate-700 text-xs">
                     Chưa có trường thông tin hoặc cấu trúc lớp nào
                   </p>
-                  <p className="text-[11px] text-muted mt-0.5">
+                  <p className="text-[11px] text-slate-400 mt-0.5">
                     Bấm "Thêm node vào cây" hoặc "Sao chép từ biểu mẫu khác" để cấu hình.
                   </p>
                 </td>

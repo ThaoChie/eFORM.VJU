@@ -469,17 +469,30 @@ export function Modal({
   onClose,
   footer,
   wide = false,
+  size,
+  className = "",
 }) {
   if (!open) return null
+
+  const sizeClass = size === "sm" ? "max-w-md"
+    : size === "md" ? "max-w-lg"
+    : size === "lg" ? "max-w-2xl"
+    : size === "xl" ? "max-w-4xl"
+    : size === "2xl" ? "max-w-5xl"
+    : size === "3xl" ? "max-w-6xl"
+    : size === "4xl" ? "max-w-7xl"
+    : wide ? "max-w-5xl"
+    : "max-w-lg";
+
   return (
     <div
       className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-night/45 p-0 sm:p-4 backdrop-blur-xs transition-opacity"
       onMouseDown={onClose}
     >
       <div
-        className={`max-h-[92vh] sm:max-h-[90vh] w-full overflow-hidden rounded-t-2xl sm:rounded-xl border border-line bg-white shadow-xl flex flex-col ${
-          wide ? "max-w-4xl" : "max-w-lg"
-        }`}
+        className={`max-h-[92vh] sm:max-h-[90vh] w-full overflow-hidden rounded-t-2xl sm:rounded-xl border border-line bg-white shadow-2xl flex flex-col ${
+          className.includes("max-w-") ? "" : sizeClass
+        } ${className}`}
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="flex h-14 sm:h-16 items-center justify-between border-b border-line px-4 sm:px-6 shrink-0 bg-white">

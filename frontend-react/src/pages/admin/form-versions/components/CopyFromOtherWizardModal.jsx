@@ -2,18 +2,17 @@ import React, { useState, useMemo, useEffect } from "react"
 import {
   Search,
   CheckCircle,
-  AlertTriangle,
   FolderKanban,
   ListTree,
   FileText,
   ChevronDown,
   ChevronRight,
-  Layers,
   ArrowRight,
   ArrowLeft,
-  X,
   Check,
-  RotateCcw
+  RotateCcw,
+  Layers,
+  AlertCircle
 } from "lucide-react"
 import { Button, Modal } from "../../../../components/ui/Primitives"
 import { extractTreeFromTemplate, countTreeStats, flattenTree } from "../formVersionUtils"
@@ -39,8 +38,7 @@ export default function CopyFromOtherWizardModal({
   const [selectedNodeCodes, setSelectedNodeCodes] = useState(new Set())
   const [expandedNodes, setExpandedNodes] = useState(new Set())
 
-  // Step 3 states
-  // decisions: { [fieldCode]: "keep" | "overwrite" }
+  // Step 3 states: decisions: { [fieldCode]: "keep" | "overwrite" }
   const [decisions, setDecisions] = useState({})
 
   // Cancel Confirmation Popup
@@ -216,7 +214,6 @@ export default function CopyFromOtherWizardModal({
 
   // Handle Proceed to Step 3
   const handleProceedToStep3 = () => {
-    // Initial decision: default to "overwrite" for conflicts
     const initial = {}
     const currentCodeMap = new Map()
     const flatCurrent = flattenTree(currentFields)
@@ -247,17 +244,11 @@ export default function CopyFromOtherWizardModal({
     const chosenVersion = availableTemplates.find(
       (t) => t.id === selectedVersionId
     )
-    const { fields: sourceFlatFields, signatureSlots, rawLayout, scope } =
+    const { signatureSlots, rawLayout, scope } =
       extractTreeFromTemplate(chosenVersion, allFieldCodes)
 
-    // Build the final fields list:
-    // 1. Keep existing current fields, except those marked as "overwrite"
-    // 2. Add or overwrite fields from source that were selected
     const overwrittenCodes = new Set(
       Object.keys(decisions).filter((code) => decisions[code] === "overwrite")
-    )
-    const keptCodes = new Set(
-      Object.keys(decisions).filter((code) => decisions[code] === "keep")
     )
 
     const flatCurrent = flattenTree(currentFields)
@@ -279,7 +270,6 @@ export default function CopyFromOtherWizardModal({
     selectedSourceNodes.forEach((src) => {
       const isExisting = currentCodeMap.has(src.fieldCode)
       if (!isExisting || overwrittenCodes.has(src.fieldCode)) {
-        // Add source field
         finalFields.push(src)
       }
     })
@@ -318,16 +308,16 @@ export default function CopyFromOtherWizardModal({
 
     return (
       <React.Fragment key={node.id || node.fieldCode}>
-        <tr className="hover:bg-slate-50 transition border-b border-slate-100">
-          <td className="px-3 py-2 w-10 text-center">
+        <tr className="hover:bg-slate-50/80 transition-colors border-b border-slate-100">
+          <td className="px-4 py-3 w-12 text-center">
             <input
               type="checkbox"
               checked={isChecked}
               onChange={() => handleToggleNode(node)}
-              className="size-4 rounded text-brand focus:ring-brand cursor-pointer"
+              className="size-4 rounded border-slate-300 text-brand focus:ring-brand cursor-pointer"
             />
           </td>
-          <td className="px-3 py-2">
+          <td className="px-4 py-3 min-w-[260px]">
             <div
               className="flex items-center gap-2"
               style={{ paddingLeft: `${depth * 20}px` }}
@@ -345,47 +335,47 @@ export default function CopyFromOtherWizardModal({
                   )}
                 </button>
               ) : (
-                <span className="w-6" />
+                <span className="w-6 inline-block" />
               )}
 
               {isClassNode ? (
                 node.classType === "ARRAY" || node.dataType === "ARRAY" ? (
-                  <ListTree className="size-4 text-indigo-600 shrink-0" />
+                  <ListTree className="size-4 text-slate-500 shrink-0" />
                 ) : (
-                  <FolderKanban className="size-4 text-purple-600 shrink-0" />
+                  <FolderKanban className="size-4 text-slate-500 shrink-0" />
                 )
               ) : (
                 <FileText className="size-4 text-slate-400 shrink-0" />
               )}
 
-              <span className="font-mono text-xs font-semibold text-brand">
+              <span className="font-mono text-xs font-semibold text-slate-800">
                 {node.fieldCode}
               </span>
             </div>
           </td>
-          <td className="px-3 py-2 font-medium text-slate-800 text-xs">
+          <td className="px-4 py-3 text-slate-800 text-xs">
             {node.fieldName}
           </td>
-          <td className="px-3 py-2 text-xs">
+          <td className="px-4 py-3 text-xs w-40 whitespace-nowrap">
             {isClassNode ? (
               node.classType === "ARRAY" || node.dataType === "ARRAY" ? (
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
                   Lớp lặp (ARRAY)
                 </span>
               ) : (
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200">
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
                   Lớp (OBJECT)
                 </span>
               )
             ) : (
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700">
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-600">
                 {node.dataType || "STRING"}
               </span>
             )}
           </td>
-          <td className="px-3 py-2 text-center text-xs">
+          <td className="px-4 py-3 text-center text-xs w-28 whitespace-nowrap">
             {node.isRequired ? (
-              <span className="text-brand font-semibold">Bắt buộc</span>
+              <span className="font-semibold text-slate-700">Bắt buộc</span>
             ) : (
               <span className="text-slate-400">Tùy chọn</span>
             )}
@@ -404,7 +394,8 @@ export default function CopyFromOtherWizardModal({
         open={open}
         title="Sao chép từ biểu mẫu khác"
         onClose={handleCancelClick}
-        className="max-w-4xl"
+        size="3xl"
+        className="max-w-5xl xl:max-w-6xl"
         footer={
           <div className="flex w-full items-center justify-between">
             <Button variant="secondary" onClick={handleCancelClick}>
@@ -450,64 +441,71 @@ export default function CopyFromOtherWizardModal({
           </div>
         }
       >
-        {/* Wizard Stepper Header */}
-        <div className="mb-5 border-b border-line pb-4">
-          <div className="flex items-center justify-between max-w-xl mx-auto">
-            <div className="flex items-center gap-2">
+        {/* Clean, Elegant Stepper Header */}
+        <div className="mb-6 border-b border-slate-200 pb-5">
+          <div className="flex items-center justify-center max-w-2xl mx-auto gap-3">
+            {/* Step 1 Indicator */}
+            <div className="flex items-center gap-2.5">
               <span
-                className={`flex size-7 items-center justify-center rounded-full text-xs font-bold ${
+                className={`flex size-7 items-center justify-center rounded-full text-xs font-bold transition ${
                   step === 1
-                    ? "bg-brand text-white shadow"
+                    ? "bg-brand text-white shadow-sm"
                     : step > 1
-                    ? "bg-emerald-600 text-white"
-                    : "bg-slate-200 text-slate-600"
+                    ? "bg-slate-700 text-white"
+                    : "bg-slate-100 text-slate-500 border border-slate-300"
                 }`}
               >
-                1
+                {step > 1 ? <Check className="size-3.5" /> : 1}
               </span>
               <span
-                className={`text-xs font-semibold ${
-                  step === 1 ? "text-brand" : "text-slate-700"
+                className={`text-xs ${
+                  step === 1 ? "font-bold text-brand" : "font-medium text-slate-700"
                 }`}
               >
                 1. Chọn biểu mẫu nguồn
               </span>
             </div>
-            <div className="h-0.5 w-12 bg-slate-200" />
-            <div className="flex items-center gap-2">
+
+            <div className="h-px w-16 bg-slate-300" />
+
+            {/* Step 2 Indicator */}
+            <div className="flex items-center gap-2.5">
               <span
-                className={`flex size-7 items-center justify-center rounded-full text-xs font-bold ${
+                className={`flex size-7 items-center justify-center rounded-full text-xs font-bold transition ${
                   step === 2
-                    ? "bg-brand text-white shadow"
+                    ? "bg-brand text-white shadow-sm"
                     : step > 2
-                    ? "bg-emerald-600 text-white"
-                    : "bg-slate-200 text-slate-600"
+                    ? "bg-slate-700 text-white"
+                    : "bg-slate-100 text-slate-500 border border-slate-300"
                 }`}
               >
-                2
+                {step > 2 ? <Check className="size-3.5" /> : 2}
               </span>
               <span
-                className={`text-xs font-semibold ${
-                  step === 2 ? "text-brand" : "text-slate-700"
+                className={`text-xs ${
+                  step === 2 ? "font-bold text-brand" : "font-medium text-slate-700"
                 }`}
               >
                 2. Chọn trường cần sao chép
               </span>
             </div>
-            <div className="h-0.5 w-12 bg-slate-200" />
-            <div className="flex items-center gap-2">
+
+            <div className="h-px w-16 bg-slate-300" />
+
+            {/* Step 3 Indicator */}
+            <div className="flex items-center gap-2.5">
               <span
-                className={`flex size-7 items-center justify-center rounded-full text-xs font-bold ${
+                className={`flex size-7 items-center justify-center rounded-full text-xs font-bold transition ${
                   step === 3
-                    ? "bg-brand text-white shadow"
-                    : "bg-slate-200 text-slate-600"
+                    ? "bg-brand text-white shadow-sm"
+                    : "bg-slate-100 text-slate-500 border border-slate-300"
                 }`}
               >
                 3
               </span>
               <span
-                className={`text-xs font-semibold ${
-                  step === 3 ? "text-brand" : "text-slate-700"
+                className={`text-xs ${
+                  step === 3 ? "font-bold text-brand" : "font-medium text-slate-700"
                 }`}
               >
                 3. Xử lý trùng lặp
@@ -520,126 +518,129 @@ export default function CopyFromOtherWizardModal({
         {step === 1 && (
           <div className="space-y-4">
             {/* Search Box */}
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Tìm kiếm theo mã biểu mẫu hoặc tên biểu mẫu..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full rounded-lg border border-line pl-9 pr-4 py-2 text-xs focus:border-brand focus:outline-none"
-                />
-              </div>
-              <Button
-                variant="secondary"
-                className="text-xs h-9 px-3 shrink-0"
-                onClick={() => {}}
-              >
-                <Search className="size-3.5 mr-1" />
-                Tìm kiếm
-              </Button>
+            <div className="relative max-w-md">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Tìm kiếm theo mã biểu mẫu hoặc tên biểu mẫu..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 bg-white pl-10 pr-4 py-2 text-xs focus:border-brand focus:ring-1 focus:ring-brand focus:outline-none"
+              />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Two Side-by-Side Tables */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
               {/* Table 1: Danh sách Biểu mẫu */}
-              <div className="border border-line rounded-lg overflow-hidden flex flex-col">
-                <div className="bg-slate-50 px-3 py-2 border-b border-line font-semibold text-xs text-slate-700 uppercase tracking-wider">
-                  Danh sách Biểu mẫu
+              <div className="border border-slate-200 rounded-lg overflow-hidden flex flex-col bg-white shadow-2xs">
+                <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 font-semibold text-xs text-slate-700 uppercase tracking-wider flex items-center justify-between">
+                  <span>Danh sách Biểu mẫu</span>
+                  <span className="text-[11px] font-normal text-slate-500 lowercase">
+                    ({formList.length} biểu mẫu)
+                  </span>
                 </div>
-                <div className="max-h-64 overflow-y-auto divide-y divide-line">
+                <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
                   {formList.length === 0 ? (
-                    <div className="p-4 text-center text-xs text-muted">
-                      Không tìm thấy biểu mẫu nào
+                    <div className="p-8 text-center text-xs text-slate-400">
+                      Không tìm thấy biểu mẫu nào phù hợp
                     </div>
                   ) : (
-                    formList.map((form) => (
-                      <label
-                        key={form.formCode}
-                        className={`flex items-start gap-3 p-3 cursor-pointer hover:bg-slate-50 transition ${
-                          selectedFormCode === form.formCode
-                            ? "bg-brand-soft/40 border-l-4 border-brand"
-                            : ""
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="selected_form_code"
-                          checked={selectedFormCode === form.formCode}
-                          onChange={() => setSelectedFormCode(form.formCode)}
-                          className="mt-0.5 text-brand focus:ring-brand"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="font-mono text-xs font-bold text-brand">
-                            {form.formCode}
+                    formList.map((form) => {
+                      const isSelected = selectedFormCode === form.formCode
+                      return (
+                        <label
+                          key={form.formCode}
+                          className={`flex items-start gap-3 p-3.5 cursor-pointer hover:bg-slate-50 transition-colors ${
+                            isSelected ? "bg-slate-50 border-l-4 border-brand" : ""
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="selected_form_code"
+                            checked={isSelected}
+                            onChange={() => setSelectedFormCode(form.formCode)}
+                            className="mt-0.5 text-brand focus:ring-brand cursor-pointer"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-mono text-xs font-bold text-slate-800">
+                                {form.formCode}
+                              </span>
+                              <span className="text-[11px] text-slate-500">
+                                {form.versions.length} phiên bản
+                              </span>
+                            </div>
+                            <div className="text-xs text-slate-600 mt-1 line-clamp-2">
+                              {form.formName}
+                            </div>
                           </div>
-                          <div className="text-xs text-slate-700 truncate font-medium mt-0.5">
-                            {form.formName}
-                          </div>
-                          <div className="text-[11px] text-muted mt-0.5">
-                            {form.versions.length} phiên bản
-                          </div>
-                        </div>
-                      </label>
-                    ))
+                        </label>
+                      )
+                    })
                   )}
                 </div>
               </div>
 
               {/* Table 2: Danh sách Phiên bản đã duyệt */}
-              <div className="border border-line rounded-lg overflow-hidden flex flex-col">
-                <div className="bg-slate-50 px-3 py-2 border-b border-line font-semibold text-xs text-slate-700 uppercase tracking-wider">
-                  Danh sách Phiên bản đã duyệt
+              <div className="border border-slate-200 rounded-lg overflow-hidden flex flex-col bg-white shadow-2xs">
+                <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 font-semibold text-xs text-slate-700 uppercase tracking-wider flex items-center justify-between">
+                  <span>Danh sách Phiên bản đã duyệt</span>
+                  {selectedFormCode && (
+                    <span className="text-[11px] font-normal text-slate-500">
+                      ({currentFormVersions.length} phiên bản)
+                    </span>
+                  )}
                 </div>
-                <div className="max-h-64 overflow-y-auto divide-y divide-line">
+                <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
                   {!selectedFormCode ? (
-                    <div className="p-4 text-center text-xs text-muted">
-                      Vui lòng chọn 1 biểu mẫu ở bảng bên trái
+                    <div className="p-8 text-center text-xs text-slate-400">
+                      Vui lòng chọn 1 biểu mẫu ở cột bên trái
                     </div>
                   ) : currentFormVersions.length === 0 ? (
-                    <div className="p-4 text-center text-xs text-muted">
+                    <div className="p-8 text-center text-xs text-slate-400">
                       Biểu mẫu này chưa có phiên bản nào
                     </div>
                   ) : (
-                    currentFormVersions.map((tpl) => (
-                      <label
-                        key={tpl.id}
-                        className={`flex items-start gap-3 p-3 cursor-pointer hover:bg-slate-50 transition ${
-                          selectedVersionId === tpl.id
-                            ? "bg-brand-soft/40 border-l-4 border-brand"
-                            : ""
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="selected_version_id"
-                          checked={selectedVersionId === tpl.id}
-                          onChange={() => setSelectedVersionId(tpl.id)}
-                          className="mt-0.5 text-brand focus:ring-brand"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-xs font-bold text-slate-800">
-                              Mã PB: {tpl.id}
-                            </span>
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-brand-soft text-brand border border-brand/20">
-                              {tpl.versionNo}
-                            </span>
+                    currentFormVersions.map((tpl) => {
+                      const isSelected = selectedVersionId === tpl.id
+                      return (
+                        <label
+                          key={tpl.id}
+                          className={`flex items-start gap-3 p-3.5 cursor-pointer hover:bg-slate-50 transition-colors ${
+                            isSelected ? "bg-slate-50 border-l-4 border-brand" : ""
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="selected_version_id"
+                            checked={isSelected}
+                            onChange={() => setSelectedVersionId(tpl.id)}
+                            className="mt-0.5 text-brand focus:ring-brand cursor-pointer"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-xs font-semibold text-slate-800">
+                                Mã PB: {tpl.id}
+                              </span>
+                              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                                {tpl.versionNo}
+                              </span>
+                            </div>
+                            <div className="text-xs text-slate-600 mt-1 line-clamp-2">
+                              {tpl.formName}
+                            </div>
+                            <div className="text-[11px] text-slate-500 mt-1">
+                              Trạng thái:{" "}
+                              {tpl.isActive ? (
+                                <span className="text-emerald-700 font-medium">Đã duyệt / Hiệu lực</span>
+                              ) : (
+                                <span className="text-slate-500">{tpl.status || "Chưa kích hoạt"}</span>
+                              )}
+                            </div>
                           </div>
-                          <div className="text-xs text-slate-700 truncate font-medium mt-0.5">
-                            {tpl.formName}
-                          </div>
-                          <div className="text-[11px] text-muted mt-0.5">
-                            Trạng thái:{" "}
-                            {tpl.isActive ? (
-                              <span className="text-emerald-600 font-semibold">Đã duyệt / Hiệu lực</span>
-                            ) : (
-                              <span className="text-slate-500">{tpl.status || "Chưa kích hoạt"}</span>
-                            )}
-                          </div>
-                        </div>
-                      </label>
-                    ))
+                        </label>
+                      )
+                    })
                   )}
                 </div>
               </div>
@@ -649,58 +650,52 @@ export default function CopyFromOtherWizardModal({
 
         {/* STEP 2: CHỌN TRƯỜNG CẦN SAO CHÉP */}
         {step === 2 && (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {/* Action Bar & Stats */}
-            <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 p-3 rounded-lg border border-line">
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 px-4 py-3 rounded-lg border border-slate-200">
               <div className="flex items-center gap-2">
                 <Button
                   variant="secondary"
-                  className="text-xs h-8 px-2.5"
+                  className="text-xs h-8 px-3"
                   onClick={handleSelectAllStep2}
                 >
-                  <Check className="size-3.5 mr-1 text-emerald-600" />
+                  <Check className="size-3.5 mr-1.5 text-slate-600" />
                   Chọn tất cả
                 </Button>
                 <Button
                   variant="secondary"
-                  className="text-xs h-8 px-2.5"
+                  className="text-xs h-8 px-3"
                   onClick={handleDeselectAllStep2}
                 >
-                  <RotateCcw className="size-3.5 mr-1 text-slate-400" />
+                  <RotateCcw className="size-3.5 mr-1.5 text-slate-400" />
                   Bỏ chọn
                 </Button>
               </div>
 
               {/* Label Thống kê số lượng đã chọn */}
               <div className="text-xs font-medium text-slate-700">
-                <span className="text-muted">Đã chọn: </span>
-                <span className="font-semibold text-brand">
-                  {step2Stats.atomicCount}
-                </span>{" "}
-                trường đơn lẻ,{" "}
-                <span className="font-semibold text-purple-700">
-                  {step2Stats.classCount}
-                </span>{" "}
-                lớp dữ liệu
+                <span className="text-slate-500">Đã chọn: </span>
+                <strong className="text-slate-900">{step2Stats.atomicCount}</strong> trường đơn lẻ,{" "}
+                <strong className="text-slate-900">{step2Stats.classCount}</strong> lớp dữ liệu
               </div>
             </div>
 
             {/* Tree Table */}
-            <div className="border border-line rounded-lg overflow-hidden max-h-[360px] overflow-y-auto">
+            <div className="border border-slate-200 rounded-lg overflow-hidden max-h-[420px] overflow-y-auto bg-white">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-100 text-slate-700 font-semibold uppercase tracking-wider sticky top-0 z-10">
+                <thead className="bg-slate-50 text-slate-700 font-semibold uppercase tracking-wider sticky top-0 z-10 border-b border-slate-200">
                   <tr>
-                    <th className="px-3 py-2 w-10 text-center">Chọn</th>
-                    <th className="px-3 py-2">Mã trường / Lớp</th>
-                    <th className="px-3 py-2">Tên hiển thị</th>
-                    <th className="px-3 py-2">Phân loại</th>
-                    <th className="px-3 py-2 text-center">Bắt buộc</th>
+                    <th className="px-4 py-3 w-12 text-center">Chọn</th>
+                    <th className="px-4 py-3 min-w-[260px]">Mã trường / Lớp</th>
+                    <th className="px-4 py-3">Tên hiển thị</th>
+                    <th className="px-4 py-3 w-40">Phân loại</th>
+                    <th className="px-4 py-3 text-center w-28">Bắt buộc</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-line">
+                <tbody className="divide-y divide-slate-100">
                   {sourceTree.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="p-6 text-center text-muted">
+                      <td colSpan={5} className="p-8 text-center text-slate-400">
                         Biểu mẫu nguồn không có trường dữ liệu nào
                       </td>
                     </tr>
@@ -717,32 +712,35 @@ export default function CopyFromOtherWizardModal({
         {step === 3 && (
           <div className="space-y-4">
             {conflicts.length === 0 ? (
-              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-6 text-center">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-8 text-center">
                 <CheckCircle className="size-10 text-emerald-600 mx-auto mb-2" />
-                <h3 className="text-sm font-bold text-emerald-800">
-                  Không có trường nào bị trùng lặp!
+                <h3 className="text-sm font-semibold text-slate-800">
+                  Không có trường nào bị trùng lặp
                 </h3>
-                <p className="text-xs text-emerald-700 mt-1 max-w-md mx-auto">
-                  Tất cả {selectedNodeCodes.size} trường / lớp đã chọn từ nguồn sẽ được thêm mới hoàn toàn vào biểu mẫu hiện tại mà không làm thay đổi cấu hình hiện có.
+                <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                  Tất cả {selectedNodeCodes.size} trường / lớp đã chọn từ nguồn sẽ được thêm mới an toàn vào biểu mẫu hiện tại.
                 </p>
               </div>
             ) : (
               <div className="space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-xs text-amber-700 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200">
-                    Phát hiện <span className="font-bold">{conflicts.length}</span> trường bị trùng mã (ID) giữa biểu mẫu hiện tại và nguồn. Vui lòng chọn phương án xử lý:
-                  </p>
+                <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-3.5 rounded-lg border border-slate-200">
+                  <div className="flex items-center gap-2 text-xs text-slate-700">
+                    <AlertCircle className="size-4 text-amber-600 shrink-0" />
+                    <span>
+                      Phát hiện <strong>{conflicts.length}</strong> trường bị trùng mã giữa biểu mẫu hiện tại và nguồn:
+                    </span>
+                  </div>
                   <div className="flex items-center gap-2">
                     <Button
                       variant="secondary"
-                      className="text-xs h-7 px-2"
+                      className="text-xs h-7 px-2.5 text-slate-700"
                       onClick={() => handleSetAllDecisions("keep")}
                     >
                       Tất cả giữ hiện tại
                     </Button>
                     <Button
                       variant="secondary"
-                      className="text-xs h-7 px-2 text-brand font-semibold"
+                      className="text-xs h-7 px-2.5 text-slate-900 font-semibold"
                       onClick={() => handleSetAllDecisions("overwrite")}
                     >
                       Tất cả đè bằng nguồn
@@ -750,68 +748,64 @@ export default function CopyFromOtherWizardModal({
                   </div>
                 </div>
 
-                <div className="border border-line rounded-lg overflow-hidden max-h-[340px] overflow-y-auto">
+                <div className="border border-slate-200 rounded-lg overflow-hidden max-h-[380px] overflow-y-auto bg-white">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-100 text-slate-700 font-semibold uppercase tracking-wider sticky top-0 z-10">
+                    <thead className="bg-slate-50 text-slate-700 font-semibold uppercase tracking-wider sticky top-0 z-10 border-b border-slate-200">
                       <tr>
-                        <th className="px-3 py-2">Trường</th>
-                        <th className="px-3 py-2">Hiện tại</th>
-                        <th className="px-3 py-2">Nguồn</th>
-                        <th className="px-3 py-2 text-center w-28">
+                        <th className="px-4 py-3 w-64">Trường</th>
+                        <th className="px-4 py-3 min-w-[200px]">Cấu hình hiện tại</th>
+                        <th className="px-4 py-3 min-w-[200px]">Cấu hình nguồn</th>
+                        <th className="px-4 py-3 text-center w-36 whitespace-nowrap">
                           Giữ hiện tại
                         </th>
-                        <th className="px-3 py-2 text-center w-28">
+                        <th className="px-4 py-3 text-center w-36 whitespace-nowrap">
                           Đè bằng nguồn
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-line">
+                    <tbody className="divide-y divide-slate-100">
                       {conflicts.map((item) => {
                         const isKeep = decisions[item.fieldCode] === "keep"
                         const isOverwrite = decisions[item.fieldCode] === "overwrite"
                         return (
                           <tr
                             key={item.fieldCode}
-                            className={`hover:bg-slate-50 transition ${
-                              isOverwrite ? "bg-amber-50/40" : ""
+                            className={`hover:bg-slate-50 transition-colors ${
+                              isOverwrite ? "bg-slate-50/70" : ""
                             }`}
                           >
-                            <td className="px-3 py-2.5">
-                              <div className="font-mono text-xs font-bold text-brand">
+                            <td className="px-4 py-3">
+                              <div className="font-mono text-xs font-semibold text-slate-800">
                                 {item.fieldCode}
                               </div>
-                              <div className="text-[11px] text-slate-600 truncate max-w-[150px]">
+                              <div className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">
                                 {item.fieldName}
                               </div>
                             </td>
-                            <td className="px-3 py-2.5 text-[11px] text-slate-700">
+                            <td className="px-4 py-3 text-xs text-slate-700">
                               <div>
                                 Kiểu:{" "}
-                                <span className="font-semibold">
+                                <span className="font-medium text-slate-800">
                                   {item.currentNode.dataType}
                                 </span>
                               </div>
-                              <div className="text-muted">
-                                {item.currentNode.isRequired
-                                  ? "Bắt buộc"
-                                  : "Tùy chọn"}
+                              <div className="text-[11px] text-slate-500 mt-0.5">
+                                {item.currentNode.isRequired ? "Bắt buộc" : "Tùy chọn"}
                               </div>
                             </td>
-                            <td className="px-3 py-2.5 text-[11px] text-brand">
+                            <td className="px-4 py-3 text-xs text-slate-700">
                               <div>
                                 Kiểu:{" "}
-                                <span className="font-semibold">
+                                <span className="font-medium text-slate-800">
                                   {item.sourceNode.dataType}
                                 </span>
                               </div>
-                              <div className="text-muted">
-                                {item.sourceNode.isRequired
-                                  ? "Bắt buộc"
-                                  : "Tùy chọn"}
+                              <div className="text-[11px] text-slate-500 mt-0.5">
+                                {item.sourceNode.isRequired ? "Bắt buộc" : "Tùy chọn"}
                               </div>
                             </td>
-                            <td className="px-3 py-2.5 text-center">
-                              <label className="cursor-pointer inline-flex items-center">
+                            <td className="px-4 py-3 text-center">
+                              <label className="cursor-pointer inline-flex items-center justify-center p-1">
                                 <input
                                   type="radio"
                                   name={`decision_${item.fieldCode}`}
@@ -822,12 +816,12 @@ export default function CopyFromOtherWizardModal({
                                       [item.fieldCode]: "keep"
                                     }))
                                   }
-                                  className="text-slate-600 focus:ring-slate-400"
+                                  className="text-slate-700 focus:ring-slate-400 size-4 cursor-pointer"
                                 />
                               </label>
                             </td>
-                            <td className="px-3 py-2.5 text-center">
-                              <label className="cursor-pointer inline-flex items-center">
+                            <td className="px-4 py-3 text-center">
+                              <label className="cursor-pointer inline-flex items-center justify-center p-1">
                                 <input
                                   type="radio"
                                   name={`decision_${item.fieldCode}`}
@@ -838,7 +832,7 @@ export default function CopyFromOtherWizardModal({
                                       [item.fieldCode]: "overwrite"
                                     }))
                                   }
-                                  className="text-brand focus:ring-brand"
+                                  className="text-brand focus:ring-brand size-4 cursor-pointer"
                                 />
                               </label>
                             </td>
@@ -859,6 +853,7 @@ export default function CopyFromOtherWizardModal({
         open={cancelConfirmOpen}
         title="Xác nhận hủy thao tác"
         onClose={() => setCancelConfirmOpen(false)}
+        size="sm"
         footer={
           <>
             <Button
@@ -873,11 +868,11 @@ export default function CopyFromOtherWizardModal({
           </>
         }
       >
-        <div className="space-y-2">
-          <p className="text-sm text-slate-700">
-            Hệ thống sẽ hủy bỏ toàn bộ các lựa chọn vừa thực hiện và quay về màn hình thiết kế ban đầu mà không lưu lại thay đổi.
+        <div className="space-y-2 text-xs text-slate-600">
+          <p>
+            Hệ thống sẽ hủy bỏ toàn bộ các lựa chọn vừa thực hiện và quay về màn hình ban đầu mà không lưu lại thay đổi.
           </p>
-          <p className="text-xs text-muted">
+          <p className="font-medium text-slate-700">
             Bạn có chắc chắn muốn hủy thao tác sao chép không?
           </p>
         </div>
