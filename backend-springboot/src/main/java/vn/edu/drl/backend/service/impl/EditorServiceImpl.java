@@ -20,6 +20,8 @@ import vn.edu.drl.backend.enu.ScoreFormStatus;
 import vn.edu.drl.backend.model.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -226,6 +228,28 @@ public class EditorServiceImpl implements EditorService {
     public void submitAndSign(Long userId, SubmitFormRequest request, String ipAddress) {
         ScoreForm form = getFormForEdit(userId, request.getSemesterId());
 
+        // Kiểm tra hạn nộp của sinh viên theo BR-KCDRL-05
+        EvaluationPeriod activePeriod = evaluationPeriodRepository.findFirstByStatusOrderByCreatedAtDesc(EvaluationPeriodStatus.DANG_MO).orElse(null);
+        if (activePeriod != null && activePeriod.getSemester() != null && activePeriod.getSemester().getId().equals(request.getSemesterId())) {
+            LocalDate deadline = activePeriod.getStudentDeadline() != null ? activePeriod.getStudentDeadline() : activePeriod.getSubmissionDeadline();
+            if (deadline != null && LocalDate.now().isAfter(deadline)) {
+                boolean hasValidException = false;
+                User user = userRepository.findById(userId).orElse(null);
+                if (user != null && activePeriod.getExceptions() != null && !activePeriod.getExceptions().trim().isEmpty()) {
+                    Long classId = user.getClassEntity() != null ? user.getClassEntity().getId() : null;
+                    Long deptId = user.getDepartment() != null ? user.getDepartment().getId() : null;
+                    if (classId != null && activePeriod.getExceptions().contains("\"targetId\":" + classId)) {
+                        hasValidException = true;
+                    } else if (deptId != null && activePeriod.getExceptions().contains("\"targetId\":" + deptId)) {
+                        hasValidException = true;
+                    }
+                }
+                if (!hasValidException) {
+                    throw new RuntimeException("Đã quá hạn chót sinh viên nộp bài (" + deadline.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + "). Tính năng Đẩy duyệt đã bị khóa (BR-KCDRL-05).");
+                }
+            }
+        }
+
         List<ScoreFormDetail> details = scoreFormDetailRepository.findByScoreFormIdWithCriteria(form.getId());
         BigDecimal total = BigDecimal.ZERO;
         for (ScoreFormDetail d : details) {
@@ -297,6 +321,14 @@ public class EditorServiceImpl implements EditorService {
     private ScoreForm getFormForEdit(Long userId, Long semesterId) {
         ScoreForm form = scoreFormRepository.findByStudentIdAndSemesterId(userId, semesterId)
                 .orElseThrow(() -> new RuntimeException("Form not found"));
+
+        if (Boolean.TRUE.equals(form.getIsLocked())) {
+            throw new RuntimeException("Kỳ chấm ĐRL đã được khóa sổ. Phiếu chỉ ở chế độ xem (Read-only).");
+        }
+
+        if (form.getStatus() == ScoreFormStatus.EXPIRED) {
+            throw new RuntimeException("Phiếu rèn luyện đã hết hạn do kỳ chấm đã khóa sổ (EXPIRED).");
+        }
 
         if (form.getStatus() != ScoreFormStatus.DRAFT && form.getStatus() != ScoreFormStatus.REJECTED) {
             throw new RuntimeException("Form cannot be edited in current status: " + form.getStatus());

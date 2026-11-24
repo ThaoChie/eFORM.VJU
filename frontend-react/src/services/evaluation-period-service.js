@@ -50,9 +50,10 @@ export const evaluationPeriodService = {
     return unwrap(res)
   },
 
-  // Gia hạn hạn nộp kỳ chấm (U1, U2)
-  async extendDeadline(id, newDeadline) {
-    const res = await client.post(`/admin/evaluation-periods/${id}/extend`, { newDeadline })
+  // Gia hạn hạn nộp hoặc cấu hình ngoại lệ mở lẻ (Luồng 1a)
+  async extendDeadline(id, payload) {
+    const body = typeof payload === "string" ? { newDeadline: payload, extendScope: "ALL" } : payload
+    const res = await client.post(`/admin/evaluation-periods/${id}/extend`, body)
     return unwrap(res)
   },
 

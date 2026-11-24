@@ -16,6 +16,7 @@ import java.util.List;
 @AllArgsConstructor
 public class EvaluationPeriodResponse {
     private Long id;
+    private String periodCode;
     
     // Semester info
     private Long semesterId;
@@ -29,17 +30,30 @@ public class EvaluationPeriodResponse {
     private String formVersionNo;
     private String formName;
 
-    // Period details
+    // Period details & Timeline (BR-KCDRL-02)
     private String applicationScope;
+    private String applicableDepartments;
+    private List<String> applicableDepartmentNames;
+    private LocalDate startDate;
+    private LocalDate studentDeadline;
+    private LocalDate classDeadline;
+    private LocalDate deanDeadline;
     private LocalDate submissionDeadline;
+    private String exceptions;
+
+    // Status & Lock (BR-KCDRL-04, BR-KCDRL-06)
     private EvaluationPeriodStatus status;
     private String statusDisplayName;
+    private Boolean isLocked;
+    private Boolean isActive;
     private Long remainingDays;
 
-    // Progress / Submission stats
+    // Progress / Submission stats (Bảng tóm tắt tiến độ khóa sổ)
     private Long totalSubmissions;
     private Long completedSubmissions;
     private Long pendingSubmissions;
+    private Long draftSubmissions;
+    private Long rejectedSubmissions;
 
     // Meta
     private String createdByName;

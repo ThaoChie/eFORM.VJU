@@ -14,6 +14,8 @@ import java.util.List;
 public class EvaluationPeriodFormOptionsResponse {
     private List<SemesterOption> semesters;
     private List<FormVersionOption> formVersions;
+    private List<DepartmentOption> departments;
+    private List<ClassOption> classes;
     private List<String> scopes;
 
     @Data
@@ -39,5 +41,26 @@ public class EvaluationPeriodFormOptionsResponse {
         private String formName;
         private String versionNo;
         private String status;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class DepartmentOption {
+        private Long id;
+        private String deptCode;
+        private String deptName;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ClassOption {
+        private Long id;
+        private String classCode;
+        private String className;
+        private Long departmentId;
     }
 }

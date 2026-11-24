@@ -33,6 +33,8 @@ public interface ScoreFormRepository extends JpaRepository<ScoreForm, Long> {
 
     long countBySemesterId(Long semesterId);
     long countBySemesterIdAndStatus(Long semesterId, vn.edu.drl.backend.enu.ScoreFormStatus status);
+    java.util.List<ScoreForm> findBySemesterId(Long semesterId);
+    java.util.List<ScoreForm> findBySemesterIdAndStatus(Long semesterId, vn.edu.drl.backend.enu.ScoreFormStatus status);
 
     long countByStatus(vn.edu.drl.backend.enu.ScoreFormStatus status);
     long countByStatusIn(java.util.Collection<vn.edu.drl.backend.enu.ScoreFormStatus> statuses);
