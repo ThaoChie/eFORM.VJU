@@ -54,8 +54,8 @@ pades:
 
 brevo:
   api-key: ${BREVO_API_KEY:}
-  sender-email: ${BREVO_SENDER_EMAIL:no-reply@vju.ac.vn}
+  sender-email: ${BREVO_SENDER_EMAIL:${SPRING_MAIL_FROM:no-reply@vju.ac.vn}}
   sender-name: ${BREVO_SENDER_NAME:Trường Đại học Việt Nhật (VJU) - Hệ thống ĐRL}
   api-url: ${BREVO_API_URL:https://api.brevo.com/v3/smtp/email}
-  app-base-url: ${APP_BASE_URL:https://e-form-vju-staging.vercel.app}
+  app-base-url: ${APP_BASE_URL:${PUBLIC_BASE_URL:https://e-form-vju-staging.vercel.app}}
   enabled: ${BREVO_ENABLED:true}
