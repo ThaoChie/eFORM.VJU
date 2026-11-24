@@ -77,10 +77,22 @@ public class WorkflowBatchHelperServiceImpl implements WorkflowBatchHelperServic
         }
         
         if (studentSignature != null) {
-            pdfBytes = signatureEngine.insertSignatureImage(pdfBytes, studentSignature, 100, 100);
+            pdfBytes = signatureEngine.insertSignatureByMarker(
+                pdfBytes,
+                studentSignature,
+                "[[SIG_STUDENT]]",
+                new String[]{"{{ sig_student_image }}", "[SIG_STUDENT]"},
+                100, 100
+            );
         }
         if (classLeaderSignature != null) {
-            pdfBytes = signatureEngine.insertSignatureImage(pdfBytes, classLeaderSignature, 300, 100);
+            pdfBytes = signatureEngine.insertSignatureByMarker(
+                pdfBytes,
+                classLeaderSignature,
+                "[[SIG_CLASS]]",
+                new String[]{"[[SIG_LEADER]]", "{{ sig_leader_image }}", "[SIG_CLASS]", "[SIG_LEADER]"},
+                300, 100
+            );
         }
 
         User deanUser = userRepository.findById(userId).orElse(null);
@@ -113,7 +125,13 @@ public class WorkflowBatchHelperServiceImpl implements WorkflowBatchHelperServic
         try {
             if (deanSigImg != null) {
                 deanSignature = Base64.getDecoder().decode(deanSigImg.contains(",") ? deanSigImg.split(",")[1] : deanSigImg);
-                pdfBytes = signatureEngine.insertSignatureImage(pdfBytes, deanSignature, 500, 100);
+                pdfBytes = signatureEngine.insertSignatureByMarker(
+                    pdfBytes,
+                    deanSignature,
+                    "[[SIG_DEAN]]",
+                    new String[]{"[[SIG_FACULTY]]", "{{ sig_dean_image }}", "[SIG_DEAN]"},
+                    500, 100
+                );
             }
         } catch (Exception e) {
             // Ignore signature decode error for robustness or log it
