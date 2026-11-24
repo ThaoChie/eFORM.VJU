@@ -1067,11 +1067,11 @@ export default function FormVersionEditPage() {
           </div>
         </Card>
 
-        {/* PHÔI WORD & TỌA ĐỘ 3 Ô KÝ */}
+        {/* PHÔI WORD & CƠ CHẾ ĐỊNH VỊ CHỮ KÝ */}
         <Card>
           <div className="mb-4 border-b border-line pb-3">
             <h2 className="text-base font-semibold text-slate-800">
-              File template phôi Word (.docx) & Tọa độ ô ký trên PDF
+              File template phôi Word (.docx) & Cơ chế định vị chữ ký tự động
             </h2>
           </div>
 
@@ -1106,100 +1106,60 @@ export default function FormVersionEditPage() {
               </label>
             </div>
 
-            {/* Tọa độ 3 ô ký */}
+            {/* Cơ chế định vị chữ ký động qua Marker Tag */}
             <div className="space-y-3">
-              <span className="text-xs font-semibold text-slate-700">
-                Vị trí 3 ô ký trên PDF (Sinh viên, Lớp, Khoa) *
-              </span>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-700">
+                  Vị trí chữ ký trên PDF (Sinh viên, Lớp, Khoa)
+                </span>
+                <span className="rounded bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-800">
+                  100% Tự động qua Marker Tag
+                </span>
+              </div>
 
-              <div className="overflow-x-auto rounded-lg border border-line">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-canvas font-semibold text-slate-700">
-                    <tr>
-                      <th className="px-3 py-2">Đối tượng</th>
-                      <th className="px-2 py-2">Trang</th>
-                      <th className="px-2 py-2">X</th>
-                      <th className="px-2 py-2">Y</th>
-                      <th className="px-2 py-2">Rộng</th>
-                      <th className="px-2 py-2">Cao</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-line">
-                    {signatureSlots.map((slot, idx) => (
-                      <tr key={slot.roleCode}>
-                        <td className="px-3 py-2 font-medium text-slate-800">
-                          {slot.role}
-                        </td>
-                        <td className="px-2 py-2">
-                          <input
-                            type="number"
-                            min="1"
-                            value={slot.page}
-                            onChange={(e) => {
-                              const copy = [...signatureSlots];
-                              copy[idx].page = Number(e.target.value);
-                              setSignatureSlots(copy);
-                              markDirty();
-                            }}
-                            className="w-12 rounded border border-line px-1.5 py-1 text-center"
-                          />
-                        </td>
-                        <td className="px-2 py-2">
-                          <input
-                            type="number"
-                            value={slot.x}
-                            onChange={(e) => {
-                              const copy = [...signatureSlots];
-                              copy[idx].x = Number(e.target.value);
-                              setSignatureSlots(copy);
-                              markDirty();
-                            }}
-                            className="w-14 rounded border border-line px-1.5 py-1 text-center"
-                          />
-                        </td>
-                        <td className="px-2 py-2">
-                          <input
-                            type="number"
-                            value={slot.y}
-                            onChange={(e) => {
-                              const copy = [...signatureSlots];
-                              copy[idx].y = Number(e.target.value);
-                              setSignatureSlots(copy);
-                              markDirty();
-                            }}
-                            className="w-14 rounded border border-line px-1.5 py-1 text-center"
-                          />
-                        </td>
-                        <td className="px-2 py-2">
-                          <input
-                            type="number"
-                            value={slot.width}
-                            onChange={(e) => {
-                              const copy = [...signatureSlots];
-                              copy[idx].width = Number(e.target.value);
-                              setSignatureSlots(copy);
-                              markDirty();
-                            }}
-                            className="w-14 rounded border border-line px-1.5 py-1 text-center"
-                          />
-                        </td>
-                        <td className="px-2 py-2">
-                          <input
-                            type="number"
-                            value={slot.height}
-                            onChange={(e) => {
-                              const copy = [...signatureSlots];
-                              copy[idx].height = Number(e.target.value);
-                              setSignatureSlots(copy);
-                              markDirty();
-                            }}
-                            className="w-14 rounded border border-line px-1.5 py-1 text-center"
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-3.5 space-y-3">
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Hệ thống không sử dụng tọa độ cố định. Backend <strong>PdfSignatureEngine</strong> sẽ tự động dò tìm vị trí từ khóa đánh dấu trong file PDF xuất ra để chèn chữ ký:
+                </p>
+
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center justify-between rounded-lg border border-line bg-white px-3 py-2 shadow-xs">
+                    <div>
+                      <span className="font-semibold text-slate-800">1. Chữ ký Sinh viên</span>
+                      <p className="text-[11px] text-muted">Tự động chèn khi sinh viên nộp phiếu</p>
+                    </div>
+                    <span className="font-mono font-bold text-brand bg-brand-soft/60 px-2.5 py-1 rounded text-xs border border-brand/20">
+                      [[SIG_STUDENT]]
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-lg border border-line bg-white px-3 py-2 shadow-xs">
+                    <div>
+                      <span className="font-semibold text-slate-800">2. Chữ ký Cán bộ lớp</span>
+                      <p className="text-[11px] text-muted">Tự động chèn khi lớp trưởng duyệt</p>
+                    </div>
+                    <span className="font-mono font-bold text-brand bg-brand-soft/60 px-2.5 py-1 rounded text-xs border border-brand/20">
+                      [[SIG_CLASS]]
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-lg border border-line bg-white px-3 py-2 shadow-xs">
+                    <div>
+                      <span className="font-semibold text-slate-800">3. Chữ ký Trưởng Khoa / BCN</span>
+                      <p className="text-[11px] text-muted">Tự động chèn và cấp chứng thư PAdES</p>
+                    </div>
+                    <span className="font-mono font-bold text-brand bg-brand-soft/60 px-2.5 py-1 rounded text-xs border border-brand/20">
+                      [[SIG_DEAN]]
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2 pt-1 text-[11px] text-slate-600 bg-emerald-50/60 border border-emerald-200/60 rounded-md p-2">
+                  <CheckCircle className="size-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <span>
+                    Bảng điểm dù dãn dài bao nhiêu trang hoặc vùng ký bị nhảy sang trang tiếp theo, chữ ký luôn được định vị và đóng đúng 100% vào ô ký tương ứng.
+                  </span>
+                </div>
               </div>
             </div>
           </div>
