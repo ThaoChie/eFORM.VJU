@@ -257,30 +257,33 @@ export const submissionService = {
     return unwrap(res)
   },
 
-  // Lấy học kỳ đang mở (active)
+  // Lấy học kỳ đang mở (active evaluation period)
   async getActiveSemester() {
     try {
       const activePeriod = await this.getActivePeriod()
-      if (activePeriod && activePeriod.semesterId) {
+      if (activePeriod && activePeriod.semesterId && activePeriod.status === "DANG_MO") {
         return {
           id: activePeriod.semesterId,
           semesterName: activePeriod.semesterName,
           academicYear: activePeriod.academicYear,
           isActive: true,
-          deadline: activePeriod.submissionDeadline,
+          deadline: activePeriod.studentDeadline || activePeriod.submissionDeadline,
           remainingDays: activePeriod.remainingDays,
           formVersionId: activePeriod.formVersionId,
           formName: activePeriod.formName,
           formCode: activePeriod.formCode,
+          periodId: activePeriod.id,
+          periodStatus: activePeriod.status,
+          isPeriodActive: true,
+          exceptions: activePeriod.exceptions,
         }
       }
     } catch (e) {
-      console.warn("Could not fetch active evaluation period, checking semesters...", e)
+      console.warn("Could not fetch active evaluation period:", e)
     }
 
-    const list = await this.getAllSemesters()
-    if (!Array.isArray(list) || list.length === 0) return null
-    return list.find((s) => s.isActive === true) || null
+    // Không tự động fallback sang semester nếu không có đợt chấm nào đang mở
+    return null
   },
 
   // Lấy danh sách lịch sử phiếu của sinh viên

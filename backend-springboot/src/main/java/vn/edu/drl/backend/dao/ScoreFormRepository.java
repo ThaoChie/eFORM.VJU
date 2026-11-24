@@ -31,6 +31,13 @@ public interface ScoreFormRepository extends JpaRepository<ScoreForm, Long> {
         org.springframework.data.domain.Pageable pageable
     );
 
+    long countByEvaluationPeriodId(Long periodId);
+    long countByEvaluationPeriodIdAndStatus(Long periodId, vn.edu.drl.backend.enu.ScoreFormStatus status);
+    java.util.List<ScoreForm> findByEvaluationPeriodId(Long periodId);
+
+    long countBySemesterIdAndFormVersionId(Long semesterId, Long formVersionId);
+    long countBySemesterIdAndFormVersionIdAndStatus(Long semesterId, Long formVersionId, vn.edu.drl.backend.enu.ScoreFormStatus status);
+
     long countBySemesterId(Long semesterId);
     long countBySemesterIdAndStatus(Long semesterId, vn.edu.drl.backend.enu.ScoreFormStatus status);
     java.util.List<ScoreForm> findBySemesterId(Long semesterId);

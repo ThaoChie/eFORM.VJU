@@ -501,12 +501,15 @@ public class EvaluationPeriodServiceImpl implements EvaluationPeriodService {
         int lockedCount = 0;
 
         if (period.getSemester() != null) {
-            List<ScoreForm> forms = scoreFormRepository.findBySemesterId(period.getSemester().getId());
+            List<ScoreForm> forms = scoreFormRepository.findByEvaluationPeriodId(period.getId());
+            if (forms.isEmpty()) {
+                forms = scoreFormRepository.findBySemesterId(period.getSemester().getId());
+            }
             for (ScoreForm f : forms) {
                 f.setIsLocked(true); // Khóa cứng Read-only
                 lockedCount++;
 
-                // Chuyển DRAFT sang EXPIRED, gán 0 điểm và Xếp loại Kém (BR-KCDRL-06)
+                // Chuyển DRAFT sang EXPIRED, gán 0 điểm và Xếp loại Kém
                 if (f.getStatus() == ScoreFormStatus.DRAFT) {
                     f.setStatus(ScoreFormStatus.EXPIRED);
                     f.setStudentTotal(BigDecimal.ZERO);
@@ -652,14 +655,44 @@ public class EvaluationPeriodServiceImpl implements EvaluationPeriodService {
         Long draftSubmissions = 0L;
         Long rejectedSubmissions = 0L;
 
-        if (p.getSemester() != null) {
-            totalSubmissions = scoreFormRepository.countBySemesterId(p.getSemester().getId());
-            completedSubmissions = scoreFormRepository.countBySemesterIdAndStatus(p.getSemester().getId(), ScoreFormStatus.DEAN_APPROVED);
-            long submitted = scoreFormRepository.countBySemesterIdAndStatus(p.getSemester().getId(), ScoreFormStatus.SUBMITTED);
-            long classApproved = scoreFormRepository.countBySemesterIdAndStatus(p.getSemester().getId(), ScoreFormStatus.CLASS_APPROVED);
-            draftSubmissions = scoreFormRepository.countBySemesterIdAndStatus(p.getSemester().getId(), ScoreFormStatus.DRAFT);
-            rejectedSubmissions = scoreFormRepository.countBySemesterIdAndStatus(p.getSemester().getId(), ScoreFormStatus.REJECTED);
-            pendingSubmissions = submitted + classApproved;
+        if (p.getStatus() == EvaluationPeriodStatus.CHUA_MO) {
+            // Đợt chấm chưa mở: Tiến độ bằng 0, không lấy dữ liệu của các đợt khác
+            totalSubmissions = 0L;
+            completedSubmissions = 0L;
+            pendingSubmissions = 0L;
+            draftSubmissions = 0L;
+            rejectedSubmissions = 0L;
+        } else if (p.getSemester() != null) {
+            // Đợt chấm đang mở hoặc đã đóng:
+            long periodCount = scoreFormRepository.countByEvaluationPeriodId(p.getId());
+            if (periodCount > 0) {
+                totalSubmissions = periodCount;
+                completedSubmissions = scoreFormRepository.countByEvaluationPeriodIdAndStatus(p.getId(), ScoreFormStatus.DEAN_APPROVED);
+                long submitted = scoreFormRepository.countByEvaluationPeriodIdAndStatus(p.getId(), ScoreFormStatus.SUBMITTED);
+                long classApproved = scoreFormRepository.countByEvaluationPeriodIdAndStatus(p.getId(), ScoreFormStatus.CLASS_APPROVED);
+                draftSubmissions = scoreFormRepository.countByEvaluationPeriodIdAndStatus(p.getId(), ScoreFormStatus.DRAFT);
+                rejectedSubmissions = scoreFormRepository.countByEvaluationPeriodIdAndStatus(p.getId(), ScoreFormStatus.REJECTED);
+                pendingSubmissions = submitted + classApproved;
+            } else {
+                // Fallback nếu dữ liệu cũ chưa có evaluation_period_id
+                if (p.getFormVersion() != null) {
+                    totalSubmissions = scoreFormRepository.countBySemesterIdAndFormVersionId(p.getSemester().getId(), p.getFormVersion().getId());
+                    completedSubmissions = scoreFormRepository.countBySemesterIdAndFormVersionIdAndStatus(p.getSemester().getId(), p.getFormVersion().getId(), ScoreFormStatus.DEAN_APPROVED);
+                    long submitted = scoreFormRepository.countBySemesterIdAndFormVersionIdAndStatus(p.getSemester().getId(), p.getFormVersion().getId(), ScoreFormStatus.SUBMITTED);
+                    long classApproved = scoreFormRepository.countBySemesterIdAndFormVersionIdAndStatus(p.getSemester().getId(), p.getFormVersion().getId(), ScoreFormStatus.CLASS_APPROVED);
+                    draftSubmissions = scoreFormRepository.countBySemesterIdAndFormVersionIdAndStatus(p.getSemester().getId(), p.getFormVersion().getId(), ScoreFormStatus.DRAFT);
+                    rejectedSubmissions = scoreFormRepository.countBySemesterIdAndFormVersionIdAndStatus(p.getSemester().getId(), p.getFormVersion().getId(), ScoreFormStatus.REJECTED);
+                    pendingSubmissions = submitted + classApproved;
+                } else {
+                    totalSubmissions = scoreFormRepository.countBySemesterId(p.getSemester().getId());
+                    completedSubmissions = scoreFormRepository.countBySemesterIdAndStatus(p.getSemester().getId(), ScoreFormStatus.DEAN_APPROVED);
+                    long submitted = scoreFormRepository.countBySemesterIdAndStatus(p.getSemester().getId(), ScoreFormStatus.SUBMITTED);
+                    long classApproved = scoreFormRepository.countBySemesterIdAndStatus(p.getSemester().getId(), ScoreFormStatus.CLASS_APPROVED);
+                    draftSubmissions = scoreFormRepository.countBySemesterIdAndStatus(p.getSemester().getId(), ScoreFormStatus.DRAFT);
+                    rejectedSubmissions = scoreFormRepository.countBySemesterIdAndStatus(p.getSemester().getId(), ScoreFormStatus.REJECTED);
+                    pendingSubmissions = submitted + classApproved;
+                }
+            }
         }
 
         List<String> deptNames = new ArrayList<>();

@@ -53,6 +53,9 @@ const initialSubmissionState = {
   rejectedAt: null,
   noActiveSemester: false,
   isReadOnly: false,
+  isLocked: false,
+  isExpired: false,
+  readOnlyReason: "",
   isDirty: false,
   lastSavedText: "",
   templateLayout: OFFICIAL_DRL_2026_BLOCKS,
@@ -259,13 +262,51 @@ export const useSubmissionStore = create((set, get) => ({
       }
 
       const formStatus = formRes?.status || "DRAFT"
-      const isReadOnly = formStatus !== "DRAFT" && formStatus !== "REJECTED"
+      const isLocked = Boolean(formRes?.isLocked)
+      const isExpired = Boolean(formRes?.isExpired) || formStatus === "EXPIRED"
+
+      // Kiểm tra hạn chót nộp của sinh viên
+      const deadline = formRes?.studentDeadline || activeSemester?.deadline
+      let isPastDeadline = false
+      if (deadline) {
+        try {
+          const d = new Date(deadline)
+          d.setHours(23, 59, 59, 999)
+          if (new Date() > d) {
+            const exc = activeSemester?.exceptions || formRes?.exceptions
+            const u = useAuthStore.getState().user
+            const hasExc = exc && (
+              (u?.classEntityId && exc.includes(`"targetId":${u.classEntityId}`)) ||
+              (u?.classId && exc.includes(`"targetId":${u.classId}`)) ||
+              (u?.departmentId && exc.includes(`"targetId":${u.departmentId}`))
+            )
+            if (!hasExc) isPastDeadline = true
+          }
+        } catch {}
+      }
+
+      const isReadOnly =
+        Boolean(formRes?.isReadOnly) ||
+        isLocked ||
+        isExpired ||
+        isPastDeadline ||
+        (formStatus !== "DRAFT" && formStatus !== "REJECTED")
+
+      const readOnlyReason =
+        formRes?.readOnlyReason ||
+        (isLocked
+          ? "Kỳ đánh giá ĐRL đã được khóa sổ. Phiếu chỉ ở chế độ xem."
+          : isExpired || isPastDeadline
+          ? "Đã hết thời hạn sinh viên tự đánh giá. Cổng soạn thảo đã đóng."
+          : isReadOnly
+          ? `Phiếu hiện ở trạng thái ${formStatus} và được khóa chỉnh sửa.`
+          : "")
 
       // Restore uncommitted edits from draft cache only for this specific user
       const currentUserId = targetUserId != null ? targetUserId : getCurrentUserId()
       const draftKey = getDraftStorageKey(activeSemester?.id, currentUserId)
 
-      if (draftKey && (formStatus === "DRAFT" || formStatus === "REJECTED")) {
+      if (draftKey && !isReadOnly && (formStatus === "DRAFT" || formStatus === "REJECTED")) {
         try {
           const cached = JSON.parse(localStorage.getItem(draftKey) || "null")
           if (cached && typeof cached === "object") {
@@ -299,6 +340,9 @@ export const useSubmissionStore = create((set, get) => ({
         rejectedBy: formRes?.rejectedBy || null,
         rejectedAt: formRes?.rejectedAt || null,
         isReadOnly,
+        isLocked,
+        isExpired,
+        readOnlyReason,
         isDirty: false,
         noActiveSemester: false,
         details: formRes?.details || [],

@@ -38,20 +38,9 @@ export default function StudentDashboard() {
   const pendingLeaderReviews = data?.pendingLeaderReviews || 0
   const hasSignature = data?.hasSignature ?? !!user?.signatureSpecimenUrl
 
-  const semester = data?.semester || {
-    name: M.semester,
-    academicYear: "2026-2027",
-    deadline: M.deadline,
-    remainingDays: 12
-  }
-
-  const formVersion = data?.formVersion || M.formVersion
-  const myForm = data?.myForm || {
-    formId: 1,
-    status: "Soạn thảo",
-    currentStep: 0,
-    score: null
-  }
+  const semester = data?.semester || null
+  const formVersion = data?.formVersion || ""
+  const myForm = data?.myForm || null
 
   const notifications = data?.notifications || []
 
@@ -125,18 +114,29 @@ export default function StudentDashboard() {
         <Card>
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-slate-800">Phiếu của tôi</h2>
-            <StatusTag status={myForm.status} />
+            {myForm?.status && <StatusTag status={myForm.status} />}
           </div>
           <div className="my-7">
-            <ProgressStepper current={myForm.currentStep} />
+            <ProgressStepper current={myForm?.currentStep ?? 0} />
           </div>
-          {(!semester || !semester.name) && !myForm.formId ? (
-            <p className="text-xs text-muted italic">Chưa mở kỳ chấm để tạo phiếu mới.</p>
+          {!myForm ? (
+            semester ? (
+              <Button
+                variant="primary"
+                className="w-full sm:w-auto"
+                onClick={() => navigate("/student/compose")}
+              >
+                Bắt đầu soạn phiếu
+                <ArrowRight className="size-4" />
+              </Button>
+            ) : (
+              <p className="text-xs text-muted italic">Chưa mở kỳ chấm để tạo phiếu mới.</p>
+            )
           ) : (
             <Button
               variant="primary"
               className="w-full sm:w-auto"
-              onClick={() => navigate("/student/compose")}
+              onClick={() => navigate(`/student/compose/${myForm.formId || ""}`)}
             >
               {myForm.status === "Soạn thảo" || myForm.status === "Chưa nộp" || myForm.status === "DRAFT" || myForm.status === "REJECTED"
                 ? "Soạn thảo mẫu biểu"

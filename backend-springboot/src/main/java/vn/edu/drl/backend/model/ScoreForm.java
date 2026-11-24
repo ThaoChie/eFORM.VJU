@@ -23,6 +23,10 @@ public class ScoreForm {
     private Semester semester;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "evaluation_period_id")
+    private EvaluationPeriod evaluationPeriod;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "form_version_id")
     private FormVersion formVersion;
 

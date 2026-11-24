@@ -67,6 +67,9 @@ export default function ComposePage() {
     rejectedAt,
     noActiveSemester,
     isReadOnly,
+    isLocked,
+    isExpired,
+    readOnlyReason,
     isDirty,
     lastSavedText,
     templateLayout,
@@ -613,10 +616,14 @@ export default function ComposePage() {
 
       {/* 3. Read-Only Notice if in non-editable status */}
       {isReadOnly && (
-        <div className="m-4 rounded-lg border border-blue-200 bg-blue-50/70 p-3 text-xs text-blue-800 flex items-center gap-2">
-          <Lock className="size-4 text-blue-600 shrink-0" />
+        <div className="m-4 rounded-lg border border-amber-200 bg-amber-50/80 p-3.5 text-xs text-amber-900 flex items-center gap-2.5 shadow-xs">
+          <Lock className="size-4 text-amber-700 shrink-0" />
           <span>
-            Phiếu hiện ở trạng thái <strong>{currentStatusBadge.text}</strong> và được khóa chỉnh sửa. Bạn chỉ có quyền xem nội dung.
+            {readOnlyReason ? (
+              <strong>{readOnlyReason}</strong>
+            ) : (
+              <>Phiếu hiện ở trạng thái <strong>{currentStatusBadge.text}</strong> và được khóa chỉnh sửa. Bạn chỉ có quyền xem nội dung.</>
+            )}
           </span>
         </div>
       )}
