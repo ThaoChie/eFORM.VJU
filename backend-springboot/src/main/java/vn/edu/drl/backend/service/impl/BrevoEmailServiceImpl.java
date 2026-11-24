@@ -52,6 +52,16 @@ public class BrevoEmailServiceImpl implements EmailService {
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm").withZone(ZoneId.of("Asia/Ho_Chi_Minh"));
 
     /**
+     * Chuẩn hóa Base URL: Luôn đảm bảo trỏ về môi trường staging hợp lệ và loại bỏ mọi giá trị localhost
+     */
+    private String getBaseUrl() {
+        if (appBaseUrl == null || appBaseUrl.trim().isEmpty() || appBaseUrl.contains("localhost") || appBaseUrl.contains("127.0.0.1")) {
+            return "https://e-form-vju-staging.vercel.app";
+        }
+        return appBaseUrl.trim().replaceAll("/+$", "");
+    }
+
+    /**
      * Gửi email qua Brevo REST API (Bất đồng bộ trong nền, chống nghẽn luồng chính)
      */
     @Async
@@ -141,7 +151,7 @@ public class BrevoEmailServiceImpl implements EmailService {
     @Async
     public void sendAccountCreatedEmail(User user, String tempPassword) {
         if (user == null || user.getEmail() == null) return;
-        String loginUrl = appBaseUrl + "/login";
+        String loginUrl = getBaseUrl() + "/login";
         String html = EmailTemplateBuilder.buildAccountCreatedEmail(
                 user.getFullName(),
                 user.getEmail(),
@@ -163,7 +173,7 @@ public class BrevoEmailServiceImpl implements EmailService {
     @Async
     public void sendPasswordResetEmail(User user, String otp, String resetToken) {
         if (user == null || user.getEmail() == null) return;
-        String resetUrl = appBaseUrl + "/login?resetToken=" + resetToken;
+        String resetUrl = getBaseUrl() + "/login?resetToken=" + resetToken;
         String html = EmailTemplateBuilder.buildPasswordResetEmail(
                 user.getFullName(),
                 otp,
@@ -185,7 +195,7 @@ public class BrevoEmailServiceImpl implements EmailService {
     public void sendSignaturePermissionEmail(User user, Instant expiry) {
         if (user == null || user.getEmail() == null) return;
         String expiryStr = (expiry != null) ? DATE_FORMATTER.format(expiry) : "7 ngày sau khi cấp";
-        String signatureUrl = appBaseUrl + (user.getRole() != null ? "/" + user.getRole().name().toLowerCase().replace("_", "-") : "") + "/signature";
+        String signatureUrl = getBaseUrl() + (user.getRole() != null ? "/" + user.getRole().name().toLowerCase().replace("_", "-") : "") + "/signature";
         String html = EmailTemplateBuilder.buildSignaturePermissionGrantedEmail(
                 user.getFullName(),
                 expiryStr,
@@ -215,7 +225,7 @@ public class BrevoEmailServiceImpl implements EmailService {
         String deadlineStr = period.getSubmissionDeadline() != null
                 ? period.getSubmissionDeadline().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
                 : "Theo thông báo";
-        String composeUrl = appBaseUrl + "/student/compose";
+        String composeUrl = getBaseUrl() + "/student/compose";
 
         for (User u : recipients) {
             if (u.getEmail() == null || u.getEmail().trim().isEmpty()) continue;
@@ -247,7 +257,7 @@ public class BrevoEmailServiceImpl implements EmailService {
     public void sendFormRejectedEmail(ScoreForm form, String levelTitle, String reason) {
         if (form == null || form.getStudent() == null || form.getStudent().getEmail() == null) return;
         User student = form.getStudent();
-        String editUrl = appBaseUrl + "/student/compose/" + form.getId();
+        String editUrl = getBaseUrl() + "/student/compose/" + form.getId();
         String html = EmailTemplateBuilder.buildFormRejectedEmail(
                 student.getFullName(),
                 levelTitle,
@@ -273,7 +283,7 @@ public class BrevoEmailServiceImpl implements EmailService {
         String semesterName = form.getSemester() != null ? form.getSemester().getSemesterName() : "Học kỳ 1 (2026-2027)";
         BigDecimal score = form.getFinalTotal() != null ? form.getFinalTotal() : form.getClassTotal();
         String ranking = form.getRanking() != null ? form.getRanking() : "Tốt";
-        String portalUrl = appBaseUrl + "/student/history";
+        String portalUrl = getBaseUrl() + "/student/history";
 
         String html = EmailTemplateBuilder.buildOfficialResultEmail(
                 student.getFullName(),
@@ -310,7 +320,7 @@ public class BrevoEmailServiceImpl implements EmailService {
         if (classLeader == null || classLeader.getEmail() == null) return;
         if (Boolean.FALSE.equals(classLeader.getEmailRemindersEnabled())) return;
 
-        String reviewUrl = appBaseUrl + "/class-leader/review";
+        String reviewUrl = getBaseUrl() + "/class-leader/review";
         String html = EmailTemplateBuilder.buildClassLeaderReminderEmail(
                 classLeader.getFullName(),
                 className,
@@ -334,7 +344,7 @@ public class BrevoEmailServiceImpl implements EmailService {
         if (classLeader == null || classLeader.getEmail() == null) return;
         if (Boolean.FALSE.equals(classLeader.getEmailClassUpdatesEnabled())) return;
 
-        String queueUrl = appBaseUrl + "/class-leader/review";
+        String queueUrl = getBaseUrl() + "/class-leader/review";
         String html = EmailTemplateBuilder.buildClassLeaderFormRejectedNoticeEmail(
                 classLeader.getFullName(),
                 className,
@@ -364,7 +374,7 @@ public class BrevoEmailServiceImpl implements EmailService {
         if (dean == null || dean.getEmail() == null) return;
         if (Boolean.FALSE.equals(dean.getEmailRemindersEnabled())) return;
 
-        String batchUrl = appBaseUrl + "/dean/batches";
+        String batchUrl = getBaseUrl() + "/dean/batches";
         String html = EmailTemplateBuilder.buildDeanReminderEmail(
                 dean.getFullName(),
                 deptName,
