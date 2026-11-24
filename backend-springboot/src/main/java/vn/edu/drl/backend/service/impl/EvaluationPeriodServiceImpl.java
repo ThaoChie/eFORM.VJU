@@ -114,7 +114,7 @@ public class EvaluationPeriodServiceImpl implements EvaluationPeriodService {
 
         // 2. Biểu mẫu phải ở trạng thái ACTIVE
         if (formVersion.getStatus() != FormVersionStatus.ACTIVE) {
-            throw new RuntimeException("Chỉ được chọn phiên bản biểu mẫu đang có hiệu lực (ACTIVE).");
+            throw new RuntimeException("Chỉ được chọn phiên bản biểu mẫu đang có hiệu lực.");
         }
 
         // Đồng bộ fallback deadline nếu client truyền submissionDeadline
@@ -197,7 +197,7 @@ public class EvaluationPeriodServiceImpl implements EvaluationPeriodService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy phiên bản biểu mẫu với ID: " + request.getFormVersionId()));
 
         if (formVersion.getStatus() != FormVersionStatus.ACTIVE) {
-            throw new RuntimeException("Chỉ được chọn phiên bản biểu mẫu đang có hiệu lực (ACTIVE).");
+            throw new RuntimeException("Chỉ được chọn phiên bản biểu mẫu đang có hiệu lực.");
         }
 
         LocalDate studentDeadline = request.getStudentDeadline() != null ? request.getStudentDeadline() : request.getSubmissionDeadline();

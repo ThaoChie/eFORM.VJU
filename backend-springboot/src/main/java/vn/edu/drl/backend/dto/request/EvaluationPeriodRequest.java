@@ -9,7 +9,7 @@ import java.util.List;
 
 @Data
 public class EvaluationPeriodRequest {
-    @NotBlank(message = "Mã đợt chấm không được để trống (BR-KCDRL-01)")
+    @NotBlank(message = "Mã đợt chấm không được để trống")
     private String periodCode;
 
     @NotNull(message = "Học kỳ không được để trống")

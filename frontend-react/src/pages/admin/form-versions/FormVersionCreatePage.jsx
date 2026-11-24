@@ -1315,7 +1315,7 @@ export default function FormVersionCreatePage() {
             <p>• Mã biểu mẫu: <strong>{formCode}</strong> ({versionNo})</p>
             <p>• Tên phiên bản: <strong>{formName}</strong></p>
             <p>• Số lượng trường thông tin: <strong>{selectedFields.length} trường</strong></p>
-            <p>• Trạng thái sau tạo: <strong>{isAutoActivate ? "Có hiệu lực (ACTIVE)" : "Vô hiệu hóa (INACTIVE)"}</strong></p>
+            <p>• Trạng thái sau tạo: <strong>{isAutoActivate ? "Đang hiệu lực" : "Chưa kích hoạt"}</strong></p>
           </div>
 
           <p className="text-xs text-slate-600">
