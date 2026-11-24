@@ -103,7 +103,7 @@ export default function EvaluationPeriodListPage() {
   const [updating, setUpdating] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
-  // Extend & Exception form state (Luồng 1a)
+  // Extend & Exception form state
   const [extendForm, setExtendForm] = useState({
     extendScope: "ALL", // "ALL" hoặc "EXCEPTION"
     newStudentDeadline: "",
@@ -323,21 +323,21 @@ export default function EvaluationPeriodListPage() {
     }
   }, [availableFormVersions])
 
-  // Handle Create Period (Luồng C - BR-KCDRL-01 -> BR-KCDRL-03)
+  // Handle Create Period
   const handleCreatePeriod = async (e) => {
     e.preventDefault()
     const errors = {}
 
-    if (!createForm.periodCode?.trim()) errors.periodCode = "Mã đợt chấm bắt buộc (BR-KCDRL-01)"
+    if (!createForm.periodCode?.trim()) errors.periodCode = "Vui lòng nhập mã đợt đánh giá"
     if (!createForm.semesterId) errors.semesterId = "Vui lòng chọn học kỳ"
-    if (!createForm.formVersionId) errors.formVersionId = "Vui lòng chọn phiên bản biểu mẫu ACTIVE"
+    if (!createForm.formVersionId) errors.formVersionId = "Vui lòng chọn phiên bản biểu mẫu áp dụng"
     if (!createForm.applicationScope) errors.applicationScope = "Vui lòng chọn phạm vi áp dụng"
 
     if (createForm.applicationScope === "Theo khoa" && (!createForm.applicableDepartmentIds || createForm.applicableDepartmentIds.length === 0)) {
       errors.applicableDepartmentIds = "Vui lòng chọn ít nhất 01 khoa áp dụng"
     }
 
-    // Kiểm tra 4 mốc thời gian tuần tự (BR-KCDRL-02)
+    // Kiểm tra tính tuần tự của các mốc thời gian
     if (!createForm.startDate) errors.startDate = "Vui lòng chọn ngày bắt đầu"
     if (!createForm.studentDeadline) errors.studentDeadline = "Vui lòng chọn hạn SV nộp bài"
     if (!createForm.classDeadline) errors.classDeadline = "Vui lòng chọn hạn Lớp thẩm định"
@@ -413,20 +413,20 @@ export default function EvaluationPeriodListPage() {
     e.preventDefault()
     const errors = {}
 
-    if (!editForm.periodCode?.trim()) errors.periodCode = "Mã đợt chấm bắt buộc (BR-KCDRL-01)"
+    if (!editForm.periodCode?.trim()) errors.periodCode = "Vui lòng nhập mã đợt đánh giá"
     if (!editForm.semesterId) errors.semesterId = "Vui lòng chọn học kỳ"
-    if (!editForm.formVersionId) errors.formVersionId = "Vui lòng chọn phiên bản biểu mẫu ACTIVE"
+    if (!editForm.formVersionId) errors.formVersionId = "Vui lòng chọn phiên bản biểu mẫu áp dụng"
     if (!editForm.applicationScope) errors.applicationScope = "Vui lòng chọn phạm vi áp dụng"
 
     if (editForm.applicationScope === "Theo khoa" && (!editForm.applicableDepartmentIds || editForm.applicableDepartmentIds.length === 0)) {
       errors.applicableDepartmentIds = "Vui lòng chọn ít nhất 01 khoa áp dụng"
     }
 
-    // Kiểm tra tuần tự BR-KCDRL-02
+    // Kiểm tra tính tuần tự của thời hạn
     if (!editForm.startDate) errors.startDate = "Vui lòng chọn ngày bắt đầu"
     if (!editForm.studentDeadline) errors.studentDeadline = "Vui lòng chọn hạn SV nộp bài"
     if (!editForm.classDeadline) errors.classDeadline = "Vui lòng chọn hạn Lớp thẩm định"
-    if (!editForm.deanDeadline) errors.deanDeadline = "Vui lòng chọn hạn Khoa duyệt lô"
+    if (!editForm.deanDeadline) errors.deanDeadline = "Vui lòng chọn hạn Khoa duyệt"
 
     if (editForm.startDate && editForm.studentDeadline && editForm.studentDeadline <= editForm.startDate) {
       errors.studentDeadline = "Hạn SV nộp bài phải sau Ngày bắt đầu mở đợt"
@@ -491,7 +491,7 @@ export default function EvaluationPeriodListPage() {
     }
   }
 
-  // Handle Open Detail & History (Luồng R)
+  // Handle Open Detail & History
   const handleViewDetail = async (period) => {
     setSelectedPeriod(period)
     setDetailModalOpen(true)
@@ -506,24 +506,24 @@ export default function EvaluationPeriodListPage() {
     }
   }
 
-  // Confirm Open Period (Luồng 5, 6 - Kích hoạt mở đợt & BR-KCDRL-04)
+  // Confirm Open Period
   const handleConfirmOpenPeriod = async () => {
     if (!selectedPeriod) return
     setActionLoading(true)
     try {
       await evaluationPeriodService.openPeriod(selectedPeriod.id)
-      toast.success("Đã kích hoạt Mở kỳ chấm ĐRL thành công (is_active = TRUE) và phát thông báo toàn trường!")
+      toast.success("Kích hoạt mở đợt đánh giá thành công! Đã gửi thông báo tới sinh viên và cán bộ liên quan.")
       setOpenConfirmModalOpen(false)
       setSelectedPeriod(null)
       fetchPeriods()
     } catch (err) {
-      toast.error(err.response?.data?.message || err.message || "Lỗi mở kỳ chấm ĐRL")
+      toast.error(err.response?.data?.message || err.message || "Lỗi mở đợt đánh giá")
     } finally {
       setActionLoading(false)
     }
   }
 
-  // Handle Open Extend Modal (Luồng sự kiện thay thế 1a - Gia hạn / Cấu hình ngoại lệ)
+  // Handle Open Extend Modal
   const handleOpenExtendModal = (period) => {
     setSelectedPeriod(period)
     setExtendForm({
@@ -540,7 +540,7 @@ export default function EvaluationPeriodListPage() {
     setExtendModalOpen(true)
   }
 
-  // Confirm Extend Deadline / Add Exception (Luồng 1a)
+  // Confirm Extend Deadline / Add Exception
   const handleConfirmExtendDeadline = async (e) => {
     e.preventDefault()
     setExtendError("")
@@ -610,7 +610,7 @@ export default function EvaluationPeriodListPage() {
     }
   }
 
-  // Open Close/Lock Period Modal (Luồng sự kiện thay thế 1b - Khóa sổ & BR-KCDRL-06)
+  // Open Close/Lock Period Modal
   const handleOpenClosePeriodModal = async (period) => {
     setSelectedPeriod(period)
     setCloseConfirmModalOpen(true)
@@ -621,18 +621,18 @@ export default function EvaluationPeriodListPage() {
     } catch (ignored) {}
   }
 
-  // Confirm Close Period & Lock Down (Luồng 1b - BR-KCDRL-06)
+  // Confirm Close Period & Lock Down
   const handleConfirmClosePeriod = async () => {
     if (!selectedPeriod) return
     setActionLoading(true)
     try {
       await evaluationPeriodService.closePeriod(selectedPeriod.id)
-      toast.success("Khóa sổ đợt chấm thành công! Toàn bộ phiếu DRAFT đã chuyển sang EXPIRED và dữ liệu đã đồng bộ sang SIS/Core.")
+      toast.success("Khóa sổ đợt đánh giá thành công! Dữ liệu đã được niêm phong và sẵn sàng đồng bộ sang Hệ thống Đào tạo.")
       setCloseConfirmModalOpen(false)
       setSelectedPeriod(null)
       fetchPeriods()
     } catch (err) {
-      toast.error(err.response?.data?.message || err.message || "Lỗi khóa sổ kỳ chấm ĐRL")
+      toast.error(err.response?.data?.message || err.message || "Lỗi khóa sổ kỳ đánh giá")
     } finally {
       setActionLoading(false)
     }
@@ -742,11 +742,11 @@ export default function EvaluationPeriodListPage() {
     },
     {
       key: "timeline",
-      title: "3 Mốc thời hạn (BR-KCDRL-02)",
+      title: "Thời hạn đánh giá",
       render: (item) => (
         <div className="space-y-0.5 text-xs">
           <div className="text-slate-600 flex items-center gap-1">
-            <span className="text-muted w-14 inline-block">1. SV nộp:</span>
+            <span className="text-muted w-16 inline-block">Sinh viên:</span>
             <span className="font-medium text-ink">{formatDate(item.studentDeadline || item.submissionDeadline)}</span>
             {item.status === "DANG_MO" && item.remainingDays != null && (
               <span className="text-[10px] text-amber-700 bg-amber-50 px-1 rounded ml-1">
@@ -755,11 +755,11 @@ export default function EvaluationPeriodListPage() {
             )}
           </div>
           <div className="text-slate-600 flex items-center gap-1">
-            <span className="text-muted w-14 inline-block">2. Lớp duyệt:</span>
+            <span className="text-muted w-16 inline-block">Cấp lớp:</span>
             <span className="font-medium text-ink">{formatDate(item.classDeadline)}</span>
           </div>
           <div className="text-slate-600 flex items-center gap-1">
-            <span className="text-muted w-14 inline-block">3. Khoa duyệt:</span>
+            <span className="text-muted w-16 inline-block">Cấp khoa:</span>
             <span className="font-medium text-ink">{formatDate(item.deanDeadline)}</span>
           </div>
         </div>
@@ -776,13 +776,13 @@ export default function EvaluationPeriodListPage() {
       render: (item) => (
         <div className="flex items-center gap-1">
           <ActionViewButton
-            label="Chi tiết & Lịch sử kỳ chấm"
+            label="Xem chi tiết"
             onClick={() => handleViewDetail(item)}
           />
           {item.status === "CHUA_MO" && (
             <>
               <IconButton
-                label="Kích hoạt Mở kỳ (is_active = TRUE)"
+                label="Kích hoạt mở đợt đánh giá"
                 onClick={() => {
                   setSelectedPeriod(item)
                   setOpenConfirmModalOpen(true)
@@ -792,14 +792,14 @@ export default function EvaluationPeriodListPage() {
                 <Play className="size-4" />
               </IconButton>
               <IconButton
-                label="Chỉnh sửa kỳ chấm"
+                label="Chỉnh sửa đợt đánh giá"
                 onClick={() => handleOpenEditModal(item)}
                 className="text-brand hover:bg-brand-soft hover:text-brand-dark"
               >
                 <Pencil className="size-4" />
               </IconButton>
               <IconButton
-                label="Xóa kỳ chấm"
+                label="Xóa đợt đánh giá"
                 onClick={() => handleOpenDeleteModal(item)}
                 className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
               >
@@ -810,14 +810,14 @@ export default function EvaluationPeriodListPage() {
           {item.status === "DANG_MO" && (
             <>
               <IconButton
-                label="Gia hạn / Cấu hình ngoại lệ (Luồng 1a)"
+                label="Gia hạn thời hạn / Cấp ngoại lệ"
                 onClick={() => handleOpenExtendModal(item)}
                 className="text-amber-600 hover:bg-amber-50 hover:text-amber-700"
               >
                 <CalendarClock className="size-4" />
               </IconButton>
               <IconButton
-                label="Khóa sổ đợt chấm (Luồng 1b - BR-KCDRL-06)"
+                label="Khóa sổ & Kết thúc đợt"
                 onClick={() => handleOpenClosePeriodModal(item)}
                 className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
               >
@@ -835,9 +835,9 @@ export default function EvaluationPeriodListPage() {
       {/* Page Header */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-ink">Quản lý Kỳ chấm ĐRL (UC-ADM-05)</h1>
+          <h1 className="text-xl font-bold text-ink">Quản lý kỳ chấm điểm rèn luyện</h1>
           <p className="text-xs sm:text-sm text-muted mt-1 max-w-2xl">
-            Quản lý vòng đời toàn trình kỳ chấm ĐRL: cấu hình 3 mốc thời hạn tuần tự, kích hoạt mở đợt, gia hạn ngoại lệ và khóa sổ đồng bộ SIS/Core.
+            Thiết lập thời hạn và theo dõi tiến độ đánh giá điểm rèn luyện sinh viên theo từng học kỳ.
           </p>
         </div>
 
@@ -907,7 +907,7 @@ export default function EvaluationPeriodListPage() {
             >
               <option value="">Tất cả trạng thái</option>
               <option value="CHUA_MO">Chưa mở</option>
-              <option value="DANG_MO">Đang mở (ACTIVE)</option>
+              <option value="DANG_MO">Đang mở</option>
               <option value="DA_DONG">Đã đóng / Khóa sổ</option>
             </select>
           </div>
@@ -926,12 +926,12 @@ export default function EvaluationPeriodListPage() {
       </div>
 
       {/* ========================================================================= */}
-      {/* 1. Modal: Thêm mới kỳ chấm (Luồng chính Bước 1-6 & BR-KCDRL-01 -> BR-KCDRL-03) */}
+      {/* 1. Modal: Thêm mới kỳ chấm */}
       {/* ========================================================================= */}
       <Modal
         open={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
-        title="Thêm mới kỳ chấm ĐRL (UC-ADM-05)"
+        title="Thêm mới kỳ đánh giá điểm rèn luyện"
         wide={true}
         footer={
           <>
@@ -942,7 +942,7 @@ export default function EvaluationPeriodListPage() {
               loading={creating}
               onClick={handleCreatePeriod}
             >
-              Lưu kỳ chấm (Chưa mở)
+              Lưu kỳ đánh giá
             </ConfirmButton>
           </>
         }
@@ -959,7 +959,7 @@ export default function EvaluationPeriodListPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1">
-                Mã đợt chấm (BR-KCDRL-01) <span className="text-brand">*</span>
+                Mã đợt đánh giá <span className="text-brand">*</span>
               </label>
               <input
                 type="text"
@@ -1016,11 +1016,11 @@ export default function EvaluationPeriodListPage() {
             </div>
           </div>
 
-          {/* Hàng 2: Biểu mẫu áp dụng (chỉ phiên bản ACTIVE) & Phạm vi */}
+          {/* Hàng 2: Biểu mẫu áp dụng & Phạm vi */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1">
-                Biểu mẫu áp dụng (ACTIVE) (BR-KCDRL-03) <span className="text-brand">*</span>
+                Biểu mẫu áp dụng <span className="text-brand">*</span>
               </label>
               <select
                 value={createForm.formVersionId}
@@ -1028,16 +1028,16 @@ export default function EvaluationPeriodListPage() {
                 className="h-10 w-full rounded-lg border border-line bg-white px-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand-soft"
                 disabled={!createForm.semesterId}
               >
-                <option value="">-- Chọn phiên bản biểu mẫu ACTIVE --</option>
+                <option value="">-- Chọn phiên bản biểu mẫu áp dụng --</option>
                 {availableFormVersions.map((fv) => (
                   <option key={fv.id} value={fv.id}>
-                    {fv.formName} ({fv.formCode} {fv.versionNo}) - [{fv.status}]
+                    {fv.formName} ({fv.formCode} {fv.versionNo})
                   </option>
                 ))}
               </select>
               {availableFormVersions.length === 0 && createForm.semesterId && (
                 <span className="block mt-1 text-xs text-amber-600">
-                  Chưa có phiên bản biểu mẫu ACTIVE nào cho học kỳ này.
+                  Chưa có phiên bản biểu mẫu có hiệu lực nào cho học kỳ này.
                 </span>
               )}
               {createErrors.formVersionId && (
@@ -1096,20 +1096,20 @@ export default function EvaluationPeriodListPage() {
             </div>
           )}
 
-          {/* Khối cấu hình 4 mốc thời gian tuần tự (BR-KCDRL-02) */}
+          {/* Khối cấu hình 4 mốc thời gian tuần tự */}
           <div className="p-3.5 rounded-lg border border-slate-200 bg-slate-50/70 space-y-3">
             <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
               <Clock className="size-4 text-brand" />
-              Cấu hình 3 mốc thời hạn tuần tự (Quy tắc BR-KCDRL-02)
+              Thiết lập các mốc thời hạn đánh giá
             </div>
             <p className="text-[11px] text-slate-500">
-              Bắt buộc tuân thủ thứ tự: <strong>Ngày bắt đầu &lt; Hạn SV nộp &lt; Hạn Lớp duyệt &lt; Hạn Khoa duyệt (Kết thúc)</strong>
+              Thứ tự thời gian tuần tự: <strong>Ngày mở cổng &lt; Hạn SV nộp &lt; Hạn Lớp duyệt &lt; Hạn Khoa duyệt</strong>
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">
-                  1. Ngày bắt đầu mở đợt <span className="text-brand">*</span>
+                  1. Ngày mở cổng tự chấm <span className="text-brand">*</span>
                 </label>
                 <input
                   type="date"
@@ -1124,7 +1124,7 @@ export default function EvaluationPeriodListPage() {
 
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">
-                  2. Hạn SV nộp bài <span className="text-brand">*</span>
+                  2. Hạn sinh viên nộp bài <span className="text-brand">*</span>
                 </label>
                 <input
                   type="date"
@@ -1139,7 +1139,7 @@ export default function EvaluationPeriodListPage() {
 
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">
-                  3. Hạn Lớp thẩm định <span className="text-brand">*</span>
+                  3. Hạn ban cán sự lớp thẩm định <span className="text-brand">*</span>
                 </label>
                 <input
                   type="date"
@@ -1154,7 +1154,7 @@ export default function EvaluationPeriodListPage() {
 
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">
-                  4. Hạn Khoa duyệt lô <span className="text-brand">*</span>
+                  4. Hạn cấp khoa phê duyệt <span className="text-brand">*</span>
                 </label>
                 <input
                   type="date"
@@ -1177,7 +1177,7 @@ export default function EvaluationPeriodListPage() {
       <Modal
         open={editModalOpen}
         onClose={() => setEditModalOpen(false)}
-        title={`Chỉnh sửa kỳ chấm: ${selectedPeriod?.periodCode || ""}`}
+        title={`Chỉnh sửa đợt đánh giá: ${selectedPeriod?.periodCode || ""}`}
         wide={true}
         footer={
           <>
@@ -1204,7 +1204,7 @@ export default function EvaluationPeriodListPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1">
-                Mã đợt chấm <span className="text-brand">*</span>
+                Mã đợt đánh giá <span className="text-brand">*</span>
               </label>
               <input
                 type="text"
@@ -1242,14 +1242,14 @@ export default function EvaluationPeriodListPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1">
-                Biểu mẫu áp dụng (ACTIVE) <span className="text-brand">*</span>
+                Biểu mẫu áp dụng <span className="text-brand">*</span>
               </label>
               <select
                 value={editForm.formVersionId}
                 onChange={(e) => setEditForm({ ...editForm, formVersionId: e.target.value })}
                 className="h-10 w-full rounded-lg border border-line bg-white px-3 text-sm outline-none focus:border-brand"
               >
-                <option value="">-- Chọn phiên bản biểu mẫu ACTIVE --</option>
+                <option value="">-- Chọn phiên bản biểu mẫu áp dụng --</option>
                 {availableFormVersionsForEdit.map((fv) => (
                   <option key={fv.id} value={fv.id}>
                     {fv.formName} ({fv.formCode} {fv.versionNo})
@@ -1271,7 +1271,7 @@ export default function EvaluationPeriodListPage() {
                 className="h-10 w-full rounded-lg border border-line bg-white px-3 text-sm outline-none focus:border-brand"
               >
                 <option value="Toàn trường">Toàn trường</option>
-                <option value="Theo khoa">Theo khoa</option>
+                <option value="Theo khoa">Theo khoa cụ thể</option>
               </select>
             </div>
           </div>
@@ -1311,11 +1311,11 @@ export default function EvaluationPeriodListPage() {
           {/* 4 Mốc thời gian */}
           <div className="p-3.5 rounded-lg border border-slate-200 bg-slate-50/70 space-y-3">
             <div className="text-xs font-semibold text-slate-800">
-              Cập nhật 3 mốc thời hạn tuần tự (BR-KCDRL-02)
+              Cập nhật các mốc thời hạn đánh giá
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">1. Ngày bắt đầu</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">1. Ngày mở cổng</label>
                 <input
                   type="date"
                   value={editForm.startDate}
@@ -1324,7 +1324,7 @@ export default function EvaluationPeriodListPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">2. Hạn SV nộp</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">2. Hạn SV nộp bài</label>
                 <input
                   type="date"
                   value={editForm.studentDeadline}
@@ -1336,7 +1336,7 @@ export default function EvaluationPeriodListPage() {
                 )}
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">3. Hạn Lớp duyệt</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">3. Hạn Lớp thẩm định</label>
                 <input
                   type="date"
                   value={editForm.classDeadline}
@@ -1348,7 +1348,7 @@ export default function EvaluationPeriodListPage() {
                 )}
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">4. Hạn Khoa duyệt</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">4. Hạn Khoa phê duyệt</label>
                 <input
                   type="date"
                   value={editForm.deanDeadline}
@@ -1410,23 +1410,23 @@ export default function EvaluationPeriodListPage() {
             {/* Tiến độ 3 mốc thời hạn */}
             <div className="p-4 rounded-xl border border-line bg-white space-y-2">
               <div className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                Lịch trình 3 mốc thời hạn (BR-KCDRL-02)
+                Lịch trình thời hạn các cấp
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-center">
                 <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
-                  <div className="text-[11px] text-muted">1. Mở đợt</div>
+                  <div className="text-[11px] text-muted">1. Mở cổng</div>
                   <div className="text-xs font-bold text-slate-800 mt-0.5">{formatDate(periodDetail.startDate)}</div>
                 </div>
                 <div className="p-2.5 rounded-lg bg-amber-50/60 border border-amber-200">
-                  <div className="text-[11px] text-amber-700 font-medium">2. Hạn SV nộp</div>
+                  <div className="text-[11px] text-amber-700 font-medium">2. Sinh viên nộp</div>
                   <div className="text-xs font-bold text-amber-900 mt-0.5">{formatDate(periodDetail.studentDeadline || periodDetail.submissionDeadline)}</div>
                 </div>
                 <div className="p-2.5 rounded-lg bg-blue-50/60 border border-blue-200">
-                  <div className="text-[11px] text-blue-700 font-medium">3. Hạn Lớp duyệt</div>
+                  <div className="text-[11px] text-blue-700 font-medium">3. Lớp thẩm định</div>
                   <div className="text-xs font-bold text-blue-900 mt-0.5">{formatDate(periodDetail.classDeadline)}</div>
                 </div>
                 <div className="p-2.5 rounded-lg bg-emerald-50/60 border border-emerald-200">
-                  <div className="text-[11px] text-emerald-700 font-medium">4. Hạn Khoa duyệt</div>
+                  <div className="text-[11px] text-emerald-700 font-medium">4. Khoa phê duyệt</div>
                   <div className="text-xs font-bold text-emerald-900 mt-0.5">{formatDate(periodDetail.deanDeadline)}</div>
                 </div>
               </div>
@@ -1451,7 +1451,7 @@ export default function EvaluationPeriodListPage() {
                   <div className="text-base font-bold text-emerald-800 mt-0.5">{periodDetail.completedSubmissions || 0}</div>
                 </div>
                 <div className="p-2 rounded-lg bg-slate-100 border border-slate-300">
-                  <div className="text-[11px] text-slate-600 font-medium">Bản nháp (DRAFT)</div>
+                  <div className="text-[11px] text-slate-600 font-medium">Bản nháp chưa nộp</div>
                   <div className="text-base font-bold text-slate-700 mt-0.5">{periodDetail.draftSubmissions || 0}</div>
                 </div>
                 <div className="p-2 rounded-lg bg-rose-50 border border-rose-200">
@@ -1465,7 +1465,7 @@ export default function EvaluationPeriodListPage() {
             {periodDetail.exceptions && parseExceptionsList(periodDetail.exceptions).length > 0 && (
               <div className="p-4 rounded-xl border border-line bg-white space-y-2">
                 <div className="text-xs font-semibold text-slate-700">
-                  Cấu hình ngoại lệ mở lẻ đã cấp (Luồng 1a):
+                  Danh sách đơn vị được cấp quyền ngoại lệ:
                 </div>
                 <div className="space-y-1.5">
                   {parseExceptionsList(periodDetail.exceptions).map((ex, idx) => (
@@ -1521,12 +1521,12 @@ export default function EvaluationPeriodListPage() {
       </Modal>
 
       {/* ========================================================================= */}
-      {/* 3. Modal: Gia hạn / Cấu hình ngoại lệ (Luồng sự kiện thay thế 1a) */}
+      {/* 3. Modal: Gia hạn / Cấu hình ngoại lệ */}
       {/* ========================================================================= */}
       <Modal
         open={extendModalOpen}
         onClose={() => setExtendModalOpen(false)}
-        title={`Gia hạn / Cấu hình ngoại lệ: ${selectedPeriod?.periodCode || ""}`}
+        title={`Gia hạn thời hạn & Cấp quyền ngoại lệ: ${selectedPeriod?.periodCode || ""}`}
         wide={true}
         footer={
           <>
@@ -1573,7 +1573,7 @@ export default function EvaluationPeriodListPage() {
                 onChange={() => setExtendForm({ ...extendForm, extendScope: "EXCEPTION" })}
                 className="text-brand focus:ring-brand"
               />
-              <span>Cấp quyền mở nộp/sửa lẻ (Ngoại lệ theo Lớp/Khoa)</span>
+              <span>Cấp quyền mở nộp/sửa bổ sung (Theo từng Lớp/Khoa)</span>
             </label>
           </div>
 
@@ -1581,7 +1581,7 @@ export default function EvaluationPeriodListPage() {
           {extendForm.extendScope === "ALL" && (
             <div className="space-y-3 p-3.5 rounded-lg border border-line bg-white">
               <div className="text-xs text-slate-600">
-                Điều chỉnh mốc thời hạn chung cho toàn trường (tuân thủ logic tuần tự BR-KCDRL-02):
+                Điều chỉnh các mốc thời hạn đánh giá chung cho toàn trường:
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
@@ -1602,7 +1602,7 @@ export default function EvaluationPeriodListPage() {
 
                 <div>
                   <label className="block text-xs font-medium text-slate-700 mb-1">
-                    2. Hạn Lớp duyệt mới
+                    2. Hạn Lớp thẩm định mới
                   </label>
                   <input
                     type="date"
@@ -1618,7 +1618,7 @@ export default function EvaluationPeriodListPage() {
 
                 <div>
                   <label className="block text-xs font-medium text-slate-700 mb-1">
-                    3. Hạn Khoa duyệt mới
+                    3. Hạn Khoa phê duyệt mới
                   </label>
                   <input
                     type="date"
@@ -1641,7 +1641,7 @@ export default function EvaluationPeriodListPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-slate-700 mb-1">
-                    Đối tượng mở lẻ <span className="text-brand">*</span>
+                    Đối tượng cấp ngoại lệ <span className="text-brand">*</span>
                   </label>
                   <div className="flex gap-4 mb-2">
                     <label className="flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
@@ -1722,12 +1722,12 @@ export default function EvaluationPeriodListPage() {
       </Modal>
 
       {/* ========================================================================= */}
-      {/* 4. Modal: Xác nhận Mở kỳ (Luồng 5, 6 - BR-KCDRL-04) */}
+      {/* 4. Modal: Xác nhận Mở kỳ */}
       {/* ========================================================================= */}
       <Modal
         open={openConfirmModalOpen}
         onClose={() => setOpenConfirmModalOpen(false)}
-        title="Xác nhận Kích hoạt Mở kỳ chấm ĐRL (is_active = TRUE)"
+        title="Kích hoạt mở đợt đánh giá điểm rèn luyện"
         wide={false}
         footer={
           <>
@@ -1745,31 +1745,31 @@ export default function EvaluationPeriodListPage() {
       >
         <div className="space-y-3 text-sm text-slate-700">
           <p>
-            Bạn có chắc chắn muốn kích hoạt mở đợt chấm{" "}
+            Bạn có chắc chắn muốn kích hoạt mở đợt đánh giá{" "}
             <span className="font-semibold text-slate-900">{selectedPeriod?.periodCode}</span> (Học kỳ: {selectedPeriod?.semesterName})?
           </p>
           <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 space-y-1">
             <div className="flex items-center gap-1.5 font-semibold">
               <CheckCircle2 className="size-4 text-emerald-600" />
-              Quy tắc & Chuỗi xử lý tự động:
+              Quy trình sau khi kích hoạt:
             </div>
             <ul className="list-disc pl-5 space-y-0.5 text-emerald-700">
-              <li>Chuyển trạng thái kỳ sang <strong>ACTIVE (is_active = TRUE)</strong>.</li>
-              <li>Kích hoạt tính năng &quot;Soạn phiếu&quot; trên màn hình Sinh viên thuộc phạm vi.</li>
-              <li>Phát thông báo tự động (In-app & Brevo Email) tới Sinh viên, Cán bộ Lớp và Lãnh đạo Khoa.</li>
-              <li>Tuân thủ <strong>BR-KCDRL-04</strong>: Toàn trường chỉ duy nhất 01 kỳ chấm ĐRL ở trạng thái ACTIVE.</li>
+              <li>Chuyển trạng thái đợt đánh giá sang <strong>Đang mở</strong>.</li>
+              <li>Kích hoạt cổng tự đánh giá cho toàn bộ sinh viên thuộc phạm vi áp dụng.</li>
+              <li>Gửi thông báo tự động (In-app và Email) đến Sinh viên, Cán bộ Lớp và Lãnh đạo Khoa.</li>
+              <li>Lưu ý: Hệ thống chỉ duy trì duy nhất 01 đợt đánh giá đang mở tại cùng một thời điểm.</li>
             </ul>
           </div>
         </div>
       </Modal>
 
       {/* ========================================================================= */}
-      {/* 5. Modal: Khóa sổ / Đóng kỳ (Luồng sự kiện thay thế 1b & BR-KCDRL-06) */}
+      {/* 5. Modal: Khóa sổ / Đóng kỳ */}
       {/* ========================================================================= */}
       <Modal
         open={closeConfirmModalOpen}
         onClose={() => setCloseConfirmModalOpen(false)}
-        title={`Khóa sổ & Đóng đợt chấm ĐRL: ${selectedPeriod?.periodCode || ""}`}
+        title={`Khóa sổ & Kết thúc đợt đánh giá: ${selectedPeriod?.periodCode || ""}`}
         wide={true}
         footer={
           <>
@@ -1789,7 +1789,7 @@ export default function EvaluationPeriodListPage() {
       >
         <div className="space-y-4 text-sm text-slate-700">
           <p>
-            Bạn đang chuẩn bị thực hiện <strong>Khóa sổ đợt chấm</strong> (Luồng 1b). Vui lòng kiểm tra kỹ tiến độ trước khi xác nhận:
+            Bạn đang chuẩn bị thực hiện <strong>Khóa sổ đợt đánh giá</strong>. Toàn bộ tiến độ và kết quả đánh giá sẽ được niêm phong chính thức. Vui lòng kiểm tra kỹ số liệu trước khi xác nhận:
           </p>
 
           {/* Bảng tổng hợp tiến độ */}
@@ -1807,26 +1807,26 @@ export default function EvaluationPeriodListPage() {
               <div className="text-lg font-bold text-amber-800 mt-0.5">{selectedPeriod?.pendingSubmissions || 0}</div>
             </div>
             <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200">
-              <div className="text-[11px] text-rose-700 font-semibold">Bản nháp (DRAFT) chưa nộp</div>
+              <div className="text-[11px] text-rose-700 font-semibold">Bản nháp chưa nộp</div>
               <div className="text-lg font-bold text-rose-800 mt-0.5">{selectedPeriod?.draftSubmissions || 0}</div>
             </div>
           </div>
 
-          {/* Cảnh báo nghiêm ngặt về BR-KCDRL-06 */}
+          {/* Cảnh báo quy trình Khóa sổ */}
           <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-1.5">
             <div className="flex items-center gap-1.5 font-bold text-amber-800">
               <AlertCircle className="size-4 text-amber-600 shrink-0" />
-              Chuỗi xử lý khóa sổ tự động theo quy tắc BR-KCDRL-06:
+              Quy trình xử lý khóa sổ & niêm phong dữ liệu:
             </div>
             <ol className="list-decimal pl-5 space-y-1 text-amber-800">
-              <li>Chuyển trạng thái kỳ chấm sang <strong>INACTIVE / ĐÃ KHÓA SỔ (is_active = FALSE)</strong>.</li>
-              <li>Vô hiệu hóa toàn bộ tính năng Soạn, Nộp, Duyệt phiếu trên toàn hệ thống (chuyển về chế độ <strong>Read-only</strong>).</li>
+              <li>Chuyển trạng thái đợt đánh giá sang <strong>Đã đóng / Khóa sổ</strong>.</li>
+              <li>Đóng cổng đánh giá: Ngừng toàn bộ thao tác soạn, sửa, thẩm định và phê duyệt trên toàn hệ thống.</li>
               <li>
-                <strong>Tất cả phiếu DRAFT chưa nộp</strong> sẽ tự động chuyển sang <strong>EXPIRED</strong>, hệ thống tự động gán mặc định <strong>Điểm = 0</strong> và <strong>Xếp loại = &apos;Kém&apos;</strong>.
+                <strong>Tất cả bản nháp chưa nộp</strong> trước hạn sẽ tự động chuyển sang <strong>Hết hạn</strong> (hệ thống mặc định gán 0 điểm và xếp loại Kém).
               </li>
-              <li>Khóa cứng cờ niêm phong <strong>is_locked = TRUE</strong>.</li>
+              <li>Niêm phong kết quả đánh giá chính thức của học kỳ.</li>
               <li>
-                Tự động kích hoạt cơ chế đồng bộ toàn bộ dữ liệu điểm tổng hợp sang <strong>Hệ thống SIS/Core của Phòng Đào tạo</strong>.
+                Sẵn sàng kết nối và đồng bộ dữ liệu điểm tổng hợp sang <strong>Hệ thống Quản lý Đào tạo (SIS) của Nhà trường</strong>.
               </li>
             </ol>
           </div>

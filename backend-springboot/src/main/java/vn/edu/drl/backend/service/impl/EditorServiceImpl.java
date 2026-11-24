@@ -245,7 +245,7 @@ public class EditorServiceImpl implements EditorService {
                     }
                 }
                 if (!hasValidException) {
-                    throw new RuntimeException("Đã quá hạn chót sinh viên nộp bài (" + deadline.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + "). Tính năng Đẩy duyệt đã bị khóa (BR-KCDRL-05).");
+                    throw new RuntimeException("Đã hết thời hạn nộp phiếu tự đánh giá của sinh viên (" + deadline.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + "). Cổng nộp phiếu hiện đã đóng.");
                 }
             }
         }

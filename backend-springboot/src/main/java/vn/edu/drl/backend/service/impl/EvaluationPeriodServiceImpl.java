@@ -97,13 +97,13 @@ public class EvaluationPeriodServiceImpl implements EvaluationPeriodService {
         User admin = userRepository.findById(adminUserId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy thông tin quản trị viên"));
 
-        // 1. Kiểm tra mã đợt chấm duy nhất (BR-KCDRL-01)
+        // 1. Kiểm tra mã đợt chấm duy nhất
         String periodCode = (request.getPeriodCode() != null) ? request.getPeriodCode().trim() : "";
         if (periodCode.isEmpty()) {
-            throw new RuntimeException("Mã đợt chấm không được để trống (BR-KCDRL-01)");
+            throw new RuntimeException("Mã đợt chấm không được để trống.");
         }
         if (evaluationPeriodRepository.existsByPeriodCode(periodCode)) {
-            throw new RuntimeException("409 CONFLICT: Mã đợt chấm '" + periodCode + "' đã tồn tại trên hệ thống. Vui lòng chọn mã khác (BR-KCDRL-01).");
+            throw new RuntimeException("Mã đợt chấm '" + periodCode + "' đã tồn tại trên hệ thống. Vui lòng sử dụng mã khác.");
         }
 
         Semester semester = semesterRepository.findById(request.getSemesterId())
@@ -112,9 +112,9 @@ public class EvaluationPeriodServiceImpl implements EvaluationPeriodService {
         FormVersion formVersion = formVersionRepository.findById(request.getFormVersionId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy phiên bản biểu mẫu với ID: " + request.getFormVersionId()));
 
-        // 2. Biểu mẫu phải ở trạng thái ACTIVE (BR-KCDRL-03)
+        // 2. Biểu mẫu phải ở trạng thái ACTIVE
         if (formVersion.getStatus() != FormVersionStatus.ACTIVE) {
-            throw new RuntimeException("Chỉ được chọn phiên bản biểu mẫu đang có hiệu lực (ACTIVE) (BR-KCDRL-03)");
+            throw new RuntimeException("Chỉ được chọn phiên bản biểu mẫu đang có hiệu lực (ACTIVE).");
         }
 
         // Đồng bộ fallback deadline nếu client truyền submissionDeadline
@@ -123,7 +123,7 @@ public class EvaluationPeriodServiceImpl implements EvaluationPeriodService {
         LocalDate classDeadline = request.getClassDeadline() != null ? request.getClassDeadline() : (studentDeadline != null ? studentDeadline.plusDays(7) : null);
         LocalDate deanDeadline = request.getDeanDeadline() != null ? request.getDeanDeadline() : (classDeadline != null ? classDeadline.plusDays(7) : null);
 
-        // 3. Kiểm tra nghiêm ngặt 3 mốc thời hạn tuần tự (BR-KCDRL-02)
+        // 3. Kiểm tra các mốc thời hạn tuần tự
         validateTimelineOrder(startDate, studentDeadline, classDeadline, deanDeadline);
 
         // 4. Kiểm tra phạm vi Theo khoa
@@ -181,11 +181,11 @@ public class EvaluationPeriodServiceImpl implements EvaluationPeriodService {
             throw new RuntimeException("Chỉ được chỉnh sửa kỳ chấm ĐRL khi đang ở trạng thái Chưa mở");
         }
 
-        // 1. Kiểm tra mã đợt chấm duy nhất (BR-KCDRL-01)
+        // 1. Kiểm tra mã đợt chấm duy nhất
         String periodCode = (request.getPeriodCode() != null) ? request.getPeriodCode().trim() : "";
         if (!periodCode.isEmpty() && !periodCode.equals(period.getPeriodCode())) {
             if (evaluationPeriodRepository.existsByPeriodCodeAndIdNot(periodCode, id)) {
-                throw new RuntimeException("409 CONFLICT: Mã đợt chấm '" + periodCode + "' đã tồn tại trên hệ thống. Vui lòng chọn mã khác (BR-KCDRL-01).");
+                throw new RuntimeException("Mã đợt chấm '" + periodCode + "' đã tồn tại trên hệ thống. Vui lòng sử dụng mã khác.");
             }
             period.setPeriodCode(periodCode);
         }
@@ -197,7 +197,7 @@ public class EvaluationPeriodServiceImpl implements EvaluationPeriodService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy phiên bản biểu mẫu với ID: " + request.getFormVersionId()));
 
         if (formVersion.getStatus() != FormVersionStatus.ACTIVE) {
-            throw new RuntimeException("Chỉ được chọn phiên bản biểu mẫu đang có hiệu lực (ACTIVE) (BR-KCDRL-03)");
+            throw new RuntimeException("Chỉ được chọn phiên bản biểu mẫu đang có hiệu lực (ACTIVE).");
         }
 
         LocalDate studentDeadline = request.getStudentDeadline() != null ? request.getStudentDeadline() : request.getSubmissionDeadline();
@@ -205,7 +205,7 @@ public class EvaluationPeriodServiceImpl implements EvaluationPeriodService {
         LocalDate classDeadline = request.getClassDeadline() != null ? request.getClassDeadline() : (studentDeadline != null ? studentDeadline.plusDays(7) : null);
         LocalDate deanDeadline = request.getDeanDeadline() != null ? request.getDeanDeadline() : (classDeadline != null ? classDeadline.plusDays(7) : null);
 
-        // Kiểm tra thứ tự tuần tự (BR-KCDRL-02)
+        // Kiểm tra thứ tự tuần tự
         validateTimelineOrder(startDate, studentDeadline, classDeadline, deanDeadline);
 
         String scope = request.getApplicationScope() != null ? request.getApplicationScope().trim() : "Toàn trường";
@@ -273,11 +273,11 @@ public class EvaluationPeriodServiceImpl implements EvaluationPeriodService {
             throw new RuntimeException("Không thể mở lại kỳ chấm ĐRL đã đóng/khóa sổ");
         }
 
-        // 1. Kiểm tra BR-KCDRL-04: Toàn trường chỉ duy nhất 01 kỳ chấm ở trạng thái ACTIVE (Đang mở)
+        // 1. Kiểm tra: Toàn trường chỉ duy nhất 01 kỳ chấm ở trạng thái Đang mở
         Optional<EvaluationPeriod> activeOther = evaluationPeriodRepository.findFirstByStatusOrderByCreatedAtDesc(EvaluationPeriodStatus.DANG_MO);
         if (activeOther.isPresent() && !activeOther.get().getId().equals(id)) {
-            throw new RuntimeException("409 CONFLICT: Tại một thời điểm toàn trường chỉ có duy nhất 01 kỳ chấm ĐRL ở trạng thái Đang mở (" +
-                    activeOther.get().getPeriodCode() + "). Admin bắt buộc phải thực hiện khóa sổ đợt chấm cũ trước khi mở kỳ mới (BR-KCDRL-04).");
+            throw new RuntimeException("Hiện tại đang có một kỳ chấm ĐRL đang mở (" +
+                    activeOther.get().getPeriodCode() + "). Vui lòng khóa sổ đợt chấm hiện tại trước khi kích hoạt mở đợt mới.");
         }
 
         // 2. Kiểm tra hạn nộp
@@ -532,8 +532,8 @@ public class EvaluationPeriodServiceImpl implements EvaluationPeriodService {
         audit.setFromStatus(oldStatus.name());
         audit.setToStatus(EvaluationPeriodStatus.DA_DONG.name());
         audit.setNote("Khóa sổ đợt chấm " + period.getPeriodCode() +
-                ". Đã chuyển " + expiredCount + " phiếu DRAFT sang EXPIRED (0đ, Xếp loại Kém), khóa cứng toàn bộ " +
-                lockedCount + " phiếu và đồng bộ sang SIS/Core (BR-KCDRL-06).");
+                ". Đã chuyển " + expiredCount + " phiếu chưa hoàn tất sang hết hạn (0 điểm) và niêm phong " +
+                lockedCount + " phiếu kết quả chuyển Phòng Đào tạo.");
         auditLogRepository.save(audit);
 
         // Gửi thông báo tới sinh viên và cán bộ
@@ -622,20 +622,20 @@ public class EvaluationPeriodServiceImpl implements EvaluationPeriodService {
     }
 
     /**
-     * Kiểm tra logic 3 mốc thời hạn tuần tự (BR-KCDRL-02)
+     * Kiểm tra logic 3 mốc thời hạn tuần tự
      */
     private void validateTimelineOrder(LocalDate start, LocalDate student, LocalDate classRev, LocalDate dean) {
         if (start == null || student == null || classRev == null || dean == null) {
-            throw new RuntimeException("Bắt buộc phải cấu hình đầy đủ 4 mốc thời gian: Ngày bắt đầu mở đợt, Hạn SV nộp bài, Hạn Lớp thẩm định, Hạn Khoa duyệt (BR-KCDRL-02).");
+            throw new RuntimeException("Vui lòng thiết lập đầy đủ 4 mốc thời gian: Ngày bắt đầu mở cổng, Hạn sinh viên nộp bài, Hạn lớp thẩm định và Hạn khoa phê duyệt.");
         }
         if (!student.isAfter(start)) {
-            throw new RuntimeException("Quy tắc thời gian (BR-KCDRL-02): Hạn sinh viên nộp bài (" + student + ") phải sau Ngày bắt đầu mở đợt (" + start + ").");
+            throw new RuntimeException("Thời hạn không hợp lệ: Hạn sinh viên nộp bài (" + student + ") phải sau ngày bắt đầu mở cổng (" + start + ").");
         }
         if (!classRev.isAfter(student)) {
-            throw new RuntimeException("Quy tắc thời gian (BR-KCDRL-02): Hạn thẩm định của Lớp (" + classRev + ") phải sau Hạn sinh viên nộp bài (" + student + ").");
+            throw new RuntimeException("Thời hạn không hợp lệ: Hạn thẩm định của lớp (" + classRev + ") phải sau hạn sinh viên nộp bài (" + student + ").");
         }
         if (!dean.isAfter(classRev)) {
-            throw new RuntimeException("Quy tắc thời gian (BR-KCDRL-02): Hạn phê duyệt của Khoa / Ngày kết thúc (" + dean + ") phải sau Hạn thẩm định của Lớp (" + classRev + ").");
+            throw new RuntimeException("Thời hạn không hợp lệ: Hạn phê duyệt của khoa (" + dean + ") phải sau hạn thẩm định của lớp (" + classRev + ").");
         }
     }
 
