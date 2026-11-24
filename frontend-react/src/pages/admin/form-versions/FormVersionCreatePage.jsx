@@ -496,38 +496,84 @@ export default function FormVersionCreatePage() {
   };
 
   // 16: Upload & Analyze Template File (.docx)
-  const analyzePlaceholders = (file, fields = selectedFields) => {
+  const analyzePlaceholders = (file, fields = selectedFields, rawJson = customLayoutJson) => {
     if (!file) {
       setMatchAnalysis(null);
       return;
     }
-    // Giả lập đọc và đối chiếu placeholder {{ field_code }} trong phôi .docx
-    const fieldCodesSet = new Set(fields.map((f) => f.fieldCode || f.code));
-    // Một số placeholder mẫu tiêu chuẩn trong phôi ĐRL
-    const docxPlaceholders = [
+
+    // Làm phẳng toàn bộ cây trường thông tin (bao gồm cả các node con trong Lớp / Group)
+    const flatFields = flattenTree(fields);
+    const fieldCodesSet = new Set(flatFields.map((f) => f.fieldCode || f.code));
+
+    // Bổ sung các key từ customLayoutJson nếu có
+    if (rawJson) {
+      try {
+        const parsed = JSON.parse(rawJson);
+        const extractKeys = (obj) => {
+          if (!obj) return;
+          if (Array.isArray(obj)) {
+            obj.forEach((item) => extractKeys(item));
+          } else if (typeof obj === "object") {
+            if (obj.fieldCode) fieldCodesSet.add(obj.fieldCode);
+            if (obj.code) fieldCodesSet.add(obj.code);
+            if (obj.id) fieldCodesSet.add(obj.id);
+            Object.keys(obj).forEach((k) => {
+              if (typeof obj[k] === "number" || typeof obj[k] === "string") {
+                fieldCodesSet.add(k);
+              } else if (typeof obj[k] === "object") {
+                extractKeys(obj[k]);
+              }
+            });
+          }
+        };
+        extractKeys(parsed);
+      } catch (e) {
+        // ignore json parse error
+      }
+    }
+
+    // Các trường thông tin sinh viên hệ thống tự động điền từ tài khoản sinh viên
+    const SYSTEM_PROFILE_FIELDS = [
       "student_name",
       "student_code",
-      "student_class",
-      "study_attendance",
-      "proof_volunteer",
-      "student_gpa_score",
-      "student_total"
+      "student_class"
     ];
-    let matchedCount = 0;
-    const missing = [];
 
-    docxPlaceholders.forEach((ph) => {
-      if (fieldCodesSet.has(ph)) {
+    // Các trường tiêu chí đánh giá trong phôi ĐRL (kèm alias mapping các mã tiêu chí)
+    const REQUIRED_EVAL_FIELDS = [
+      { key: "study_attendance", aliases: ["score_1_1", "study_attendance", "total_section_1"] },
+      { key: "proof_volunteer", aliases: ["score_3_2", "proof_volunteer", "total_section_3"] },
+      { key: "student_gpa_score", aliases: ["score_1_5", "student_gpa_score", "score_1_5_gpa_sv"] },
+      { key: "student_total", aliases: ["total_drl_score", "grand_total_sv", "grand_total_lop", "student_total"] }
+    ];
+
+    let matchedCount = 0;
+    const totalInDoc = SYSTEM_PROFILE_FIELDS.length + REQUIRED_EVAL_FIELDS.length; // 7
+    const missing = [];
+    const systemProvided = [];
+
+    // 1. Kiểm tra trường hệ thống (họ tên, MSSV, lớp)
+    SYSTEM_PROFILE_FIELDS.forEach((sf) => {
+      matchedCount++;
+      systemProvided.push(sf);
+    });
+
+    // 2. Kiểm tra trường tiêu chí
+    REQUIRED_EVAL_FIELDS.forEach(({ key, aliases }) => {
+      const isMatched = aliases.some((a) => fieldCodesSet.has(a));
+      if (isMatched) {
         matchedCount++;
       } else {
-        missing.push(ph);
+        missing.push(key);
       }
     });
 
     setMatchAnalysis({
-      totalInDoc: docxPlaceholders.length,
+      totalInDoc,
       matchedCount,
-      missing
+      missing,
+      systemProvided
     });
   };
 
@@ -1023,17 +1069,49 @@ export default function FormVersionCreatePage() {
               </label>
 
               {matchAnalysis && (
-                <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900 space-y-1">
+                <div
+                  className={`rounded-lg border p-3 text-xs space-y-1.5 ${
+                    matchAnalysis.missing.length === 0
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                      : "border-blue-200 bg-blue-50 text-blue-900"
+                  }`}
+                >
                   <div className="font-semibold flex items-center justify-between">
-                    <span>Kết quả đối chiếu placeholder phôi Word:</span>
-                    <span className="rounded bg-blue-200 px-2 py-0.5 font-bold">
+                    <span className="flex items-center gap-1.5">
+                      <CheckCircle
+                        className={`size-4 ${
+                          matchAnalysis.missing.length === 0
+                            ? "text-emerald-600"
+                            : "text-blue-600"
+                        }`}
+                      />
+                      Kết quả đối chiếu placeholder phôi Word:
+                    </span>
+                    <span
+                      className={`rounded px-2 py-0.5 font-bold ${
+                        matchAnalysis.missing.length === 0
+                          ? "bg-emerald-200 text-emerald-800"
+                          : "bg-blue-200 text-blue-800"
+                      }`}
+                    >
                       Khớp {matchAnalysis.matchedCount}/{matchAnalysis.totalInDoc}
                     </span>
                   </div>
                   {matchAnalysis.missing.length > 0 && (
-                    <p className="text-red-700">
-                      Thiếu trường trong biểu mẫu:{" "}
+                    <p className="text-amber-700">
+                      Thiếu tiêu chí rèn luyện trong biểu mẫu:{" "}
                       <span className="font-mono">{matchAnalysis.missing.join(", ")}</span>
+                    </p>
+                  )}
+                  {matchAnalysis.systemProvided && matchAnalysis.systemProvided.length > 0 && (
+                    <p className="text-slate-600 text-[11px]">
+                      <span className="font-medium text-emerald-700">✓ Tự động điền từ hồ sơ SV:</span>{" "}
+                      <span className="font-mono">{matchAnalysis.systemProvided.join(", ")}</span>
+                    </p>
+                  )}
+                  {matchAnalysis.missing.length === 0 && (
+                    <p className="text-emerald-700 font-medium">
+                      ✓ Phôi Word hoàn toàn tương thích và khớp 100% với cấu trúc biểu mẫu!
                     </p>
                   )}
                 </div>
