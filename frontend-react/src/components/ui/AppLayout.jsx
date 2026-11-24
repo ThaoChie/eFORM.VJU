@@ -1,10 +1,25 @@
-import { KeyRound, LogOut, Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react"
+import { KeyRound, LogOut, Menu, PanelLeftClose, PanelLeftOpen, User, X } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom"
 import { menus } from "../../common/permission-config"
 import { useAuthStore } from "../../stores/useAuthStore"
-import { IconButton } from "./Primitives"
+import { Button, IconButton, Modal } from "./Primitives"
 import NotificationBell from "./NotificationBell"
+
+const getUserInitials = (name) => {
+  if (!name) return "U"
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase()
+  return (parts[0][0] + (parts[1] ? parts[1][0] : parts[0][1] || "")).toUpperCase()
+}
+
+const roleLabelMap = {
+  admin: "Quản trị viên",
+  student: "Sinh viên",
+  "class-leader": "Cán bộ lớp / Lớp trưởng",
+  "class-deputy": "Lớp phó",
+  dean: "Ban Chủ nhiệm Khoa"
+}
 
 export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(() => {
@@ -80,10 +95,17 @@ export default function AppLayout() {
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const accountMenuRef = useRef(null)
 
+  const [sidebarUserMenuOpen, setSidebarUserMenuOpen] = useState(false)
+  const sidebarUserMenuRef = useRef(null)
+  const [profileModalOpen, setProfileModalOpen] = useState(false)
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (accountMenuRef.current && !accountMenuRef.current.contains(event.target)) {
         setAccountMenuOpen(false)
+      }
+      if (sidebarUserMenuRef.current && !sidebarUserMenuRef.current.contains(event.target)) {
+        setSidebarUserMenuOpen(false)
       }
     }
     document.addEventListener("mousedown", handleClickOutside)
@@ -257,51 +279,86 @@ export default function AppLayout() {
           ))}
         </nav>
 
-        {/* Footer: Đổi mật khẩu & Đăng xuất (ngăn cách bằng đường divider) */}
-        <div className="p-2 border-t border-line">
-          {!isMobile && !sidebarOpen ? (
-            <div className="flex flex-col items-center">
-              <IconButton
-                label="Đổi mật khẩu"
-                tooltipPlacement="right"
-                className="text-muted hover:text-brand hover:bg-brand-soft rounded-xl size-11 transition"
-                onClick={() => navigate("/change-password")}
-              >
-                <KeyRound className="size-5" />
-              </IconButton>
-              <div className="my-1.5 w-8 border-t border-line" role="separator" />
-              <IconButton
-                label="Đăng xuất"
-                tooltipPlacement="right"
-                className="text-muted hover:text-brand hover:bg-brand-soft rounded-xl size-11 transition"
-                onClick={signOut}
-              >
-                <LogOut className="size-5" />
-              </IconButton>
-            </div>
-          ) : (
-            <div>
+        {/* Footer: User profile & Dropup Menu (Thay thế nút đăng xuất cũ) */}
+        <div className="relative p-2.5 border-t border-line" ref={sidebarUserMenuRef}>
+          {/* Dropup Menu */}
+          {sidebarUserMenuOpen && (
+            <div
+              className={`absolute z-50 rounded-xl border border-line bg-white shadow-xl p-1.5 transition-all ${
+                !isMobile && !sidebarOpen
+                  ? "left-full ml-2 bottom-2 w-56 animate-in fade-in slide-in-from-left-2 duration-150"
+                  : "bottom-full mb-2 left-2 right-2 animate-in fade-in slide-in-from-bottom-2 duration-150"
+              }`}
+            >
               <button
                 type="button"
                 onClick={() => {
+                  setSidebarUserMenuOpen(false)
+                  setProfileModalOpen(true)
+                }}
+                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-xs font-medium text-slate-700 hover:bg-canvas rounded-lg transition"
+              >
+                <User className="size-4 text-slate-500 shrink-0" />
+                <span>Hồ sơ cá nhân</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSidebarUserMenuOpen(false)
                   if (isMobile) closeSidebar()
                   navigate("/change-password")
                 }}
-                className="flex w-full h-11 items-center gap-3 rounded-lg px-4 text-muted hover:bg-canvas hover:text-ink transition"
+                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-xs font-medium text-slate-700 hover:bg-canvas rounded-lg transition"
               >
-                <KeyRound className="size-[18px] shrink-0" />
-                <span className="truncate">Đổi mật khẩu</span>
+                <KeyRound className="size-4 text-slate-500 shrink-0" />
+                <span>Đổi mật khẩu</span>
               </button>
-              <div className="my-1.5 border-t border-line" role="separator" />
+
+              <div className="my-1 border-t border-line" role="separator" />
+
               <button
                 type="button"
-                onClick={signOut}
-                className="flex w-full h-11 items-center gap-3 rounded-lg px-4 text-muted hover:bg-canvas hover:text-ink transition"
+                onClick={() => {
+                  setSidebarUserMenuOpen(false)
+                  signOut()
+                }}
+                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-xs font-medium text-brand hover:bg-brand-soft rounded-lg transition"
               >
-                <LogOut className="size-[18px] shrink-0" />
-                <span className="truncate">Đăng xuất</span>
+                <LogOut className="size-4 shrink-0" />
+                <span>Đăng xuất</span>
               </button>
             </div>
+          )}
+
+          {/* User trigger button */}
+          {!isMobile && !sidebarOpen ? (
+            <button
+              type="button"
+              onClick={() => setSidebarUserMenuOpen((prev) => !prev)}
+              title={user.fullName || user.name || "Tài khoản"}
+              className="flex size-10 mx-auto items-center justify-center rounded-full bg-slate-900 text-white text-xs font-bold hover:ring-2 hover:ring-brand/40 transition select-none cursor-pointer"
+            >
+              {getUserInitials(user.fullName || user.name)}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setSidebarUserMenuOpen((prev) => !prev)}
+              className="flex w-full items-center gap-3 p-2 rounded-xl text-left hover:bg-slate-100/70 transition cursor-pointer select-none group"
+            >
+              <span className="flex size-9 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white shrink-0 group-hover:ring-2 group-hover:ring-brand/30 transition">
+                {getUserInitials(user.fullName || user.name)}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-slate-800 truncate">
+                  {user.fullName || user.name || "Người dùng"}
+                </p>
+                <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                  {user.email || user.username || "Tài khoản"}
+                </p>
+              </div>
+            </button>
           )}
         </div>
       </aside>
@@ -396,6 +453,82 @@ export default function AppLayout() {
           <Outlet />
         </main>
       </div>
+
+      {/* MODAL HỒ SƠ CÁ NHÂN */}
+      <Modal
+        open={profileModalOpen}
+        title="Hồ sơ cá nhân"
+        onClose={() => setProfileModalOpen(false)}
+        size="md"
+        className="max-w-md"
+        footer={
+          <div className="flex w-full items-center justify-between">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setProfileModalOpen(false)
+                navigate("/change-password")
+              }}
+            >
+              <KeyRound className="size-4 mr-1 text-slate-500" />
+              Đổi mật khẩu
+            </Button>
+            <Button variant="primary" onClick={() => setProfileModalOpen(false)}>
+              Đóng
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <div className="flex items-center gap-3.5 pb-4 border-b border-slate-100">
+            <span className="flex size-14 items-center justify-center rounded-full bg-slate-900 text-lg font-bold text-white shrink-0">
+              {getUserInitials(user.fullName || user.name)}
+            </span>
+            <div className="min-w-0 flex-1">
+              <h3 className="text-base font-bold text-slate-800 truncate">
+                {user.fullName || user.name || "Người dùng"}
+              </h3>
+              <p className="text-xs text-slate-500 truncate mt-0.5">
+                {user.email || user.username || "Chưa có email"}
+              </p>
+              <span className="inline-block mt-1.5 px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700">
+                {roleLabelMap[user.role] || user.role}
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-2.5 text-xs">
+            <div className="flex items-center justify-between py-1.5 border-b border-slate-50">
+              <span className="text-slate-500">Mã định danh / Tên đăng nhập:</span>
+              <span className="font-mono font-semibold text-slate-800">
+                {user.username || user.code || user.id || "N/A"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between py-1.5 border-b border-slate-50">
+              <span className="text-slate-500">Email:</span>
+              <span className="font-medium text-slate-800">{user.email || "N/A"}</span>
+            </div>
+            <div className="flex items-center justify-between py-1.5 border-b border-slate-50">
+              <span className="text-slate-500">Đơn vị / Khoa:</span>
+              <span className="font-medium text-slate-800">
+                {user.facultyName || user.departmentName || user.context || "Trường Đại học Việt Nhật (VJU)"}
+              </span>
+            </div>
+            {user.className && (
+              <div className="flex items-center justify-between py-1.5 border-b border-slate-50">
+                <span className="text-slate-500">Lớp sinh hoạt:</span>
+                <span className="font-medium text-slate-800">{user.className}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between py-1.5">
+              <span className="text-slate-500">Chữ ký số cá nhân:</span>
+              <span className="font-medium text-emerald-700">
+                {user.signatureSpecimenUrl ? "Đã thiết lập chữ ký" : "Chưa tải mẫu chữ ký"}
+              </span>
+            </div>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }
