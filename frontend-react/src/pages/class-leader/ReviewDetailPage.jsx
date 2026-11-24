@@ -66,6 +66,20 @@ export default function ReviewDetailPage() {
     )
   }, [currentUser])
 
+  // Conflict of interest check (BUS-CLS02-04)
+  const isSelfForm = useMemo(() => {
+    if (!currentUser?.id || !detail) return false
+    const sId = detail.studentId || detail.student?.id
+    const sCode = (detail.studentCode || detail.student?.userCode || "").trim().toLowerCase()
+    const myCode = (currentUser.userCode || currentUser.code || "").trim().toLowerCase()
+    const myId = String(currentUser.id)
+    return Boolean(
+      detail.isSelfReview ||
+      (sId && String(sId) === myId) ||
+      (myCode && sCode && sCode === myCode)
+    )
+  }, [currentUser, detail])
+
   // Load form details from backend
   useEffect(() => {
     let isMounted = true
@@ -213,6 +227,11 @@ export default function ReviewDetailPage() {
 
   // Handle Approve button click
   const handleOpenSignModal = () => {
+    if (isSelfForm) {
+      toast.error("Theo quy định BUS-CLS02-04, cán bộ lớp không thể tự thẩm định phiếu của chính mình")
+      return
+    }
+
     if (total > 100) {
       setError("Tổng điểm đánh giá cấp lớp không được vượt quá 100 điểm.")
       toast.error("Tổng điểm không được vượt quá 100 điểm")
@@ -263,6 +282,11 @@ export default function ReviewDetailPage() {
 
   // Confirm rejection
   const handleConfirmReject = async () => {
+    if (isSelfForm) {
+      toast.error("Theo quy định BUS-CLS02-04, cán bộ lớp không thể tự từ chối phiếu của chính mình")
+      return
+    }
+
     if (!rejectReasonText.trim()) {
       toast.error("Vui lòng nhập lý do trả lại phiếu")
       return
@@ -333,6 +357,19 @@ export default function ReviewDetailPage() {
         </div>
       </div>
 
+      {/* CẢNH BÁO XUNG ĐỘT LỢI ÍCH (BUS-CLS02-04) */}
+      {isSelfForm && (
+        <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-900 flex items-start gap-3 shadow-xs">
+          <ShieldAlert className="size-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="font-bold">Quy định tránh xung đột lợi ích (BUS-CLS02-04)</p>
+            <p className="mt-1 text-xs text-amber-800 leading-relaxed">
+              Phiếu rèn luyện này là của chính bạn. Theo quy định hệ thống, Cán bộ lớp tuyệt đối không thể tự thẩm định hoặc phê duyệt phiếu của chính mình. Phiếu này sẽ được thẩm định bởi Cán bộ lớp khác (Lớp phó/Bí thư).
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* MAIN TWO-COLUMN CONTENT */}
       <div className="grid gap-4 lg:grid-cols-[1.2fr_.8fr]">
         {/* LEFT COLUMN: CRITERIA LIST & SCORING */}
@@ -389,6 +426,7 @@ export default function ReviewDetailPage() {
                     <Input
                       type="number"
                       step="1"
+                      disabled={isSelfForm}
                       onKeyDown={(e) => {
                         if (["e", "E", "+", "-", ".", ","].includes(e.key)) {
                           e.preventDefault()
@@ -413,7 +451,7 @@ export default function ReviewDetailPage() {
                           })
                         }
                       }}
-                      className="w-20 text-center font-mono font-bold text-slate-900 border-slate-300 focus:border-brand"
+                      className="w-20 text-center font-mono font-bold text-slate-900 border-slate-300 focus:border-brand disabled:bg-slate-100 disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>
@@ -571,8 +609,9 @@ export default function ReviewDetailPage() {
             <Button
               variant="danger"
               onClick={() => setRejectModalOpen(true)}
-              disabled={submitting}
+              disabled={submitting || isSelfForm}
               className="flex-1 sm:flex-none"
+              title={isSelfForm ? "Không thể tự xử lý phiếu của chính mình (BUS-CLS02-04)" : ""}
             >
               Trả lại phiếu
             </Button>
@@ -580,7 +619,9 @@ export default function ReviewDetailPage() {
               variant="primary"
               onClick={handleOpenSignModal}
               loading={submitting}
+              disabled={isSelfForm}
               className="flex-1 sm:flex-none bg-brand text-white"
+              title={isSelfForm ? "Không thể tự xử lý phiếu của chính mình (BUS-CLS02-04)" : ""}
             >
               Ký và duyệt phiếu
             </Button>
@@ -591,8 +632,9 @@ export default function ReviewDetailPage() {
           label="Nhận xét đánh giá cấp lớp"
           value={comment}
           maxLength={1000}
+          disabled={isSelfForm}
           onChange={(e) => setComment(e.target.value)}
-          placeholder="Nhập nhận xét hoặc ý kiến của ban cán sự lớp về phiếu rèn luyện này..."
+          placeholder={isSelfForm ? "Không khả dụng cho phiếu của chính mình" : "Nhập nhận xét hoặc ý kiến của ban cán sự lớp về phiếu rèn luyện này..."}
           error={error}
         />
       </div>

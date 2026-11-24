@@ -10,6 +10,27 @@ public interface ScoreFormRepository extends JpaRepository<ScoreForm, Long> {
     org.springframework.data.domain.Page<ScoreForm> findByStatusAndStudentClassEntityId(vn.edu.drl.backend.enu.ScoreFormStatus status, Long classId, org.springframework.data.domain.Pageable pageable);
     org.springframework.data.domain.Page<ScoreForm> findByStatusAndStudentDepartmentId(vn.edu.drl.backend.enu.ScoreFormStatus status, Long deptId, org.springframework.data.domain.Pageable pageable);
 
+    @org.springframework.data.jpa.repository.Query(
+        value = "SELECT sf FROM ScoreForm sf WHERE sf.status = :status AND sf.student.classEntity.id = :classId AND sf.student.id != :studentId",
+        countQuery = "SELECT COUNT(sf) FROM ScoreForm sf WHERE sf.status = :status AND sf.student.classEntity.id = :classId AND sf.student.id != :studentId"
+    )
+    org.springframework.data.domain.Page<ScoreForm> findPendingQueueForClassReviewer(
+        @org.springframework.data.repository.query.Param("status") vn.edu.drl.backend.enu.ScoreFormStatus status,
+        @org.springframework.data.repository.query.Param("classId") Long classId,
+        @org.springframework.data.repository.query.Param("studentId") Long studentId,
+        org.springframework.data.domain.Pageable pageable
+    );
+
+    @org.springframework.data.jpa.repository.Query(
+        value = "SELECT sf FROM ScoreForm sf WHERE sf.status = :status AND sf.student.id != :studentId",
+        countQuery = "SELECT COUNT(sf) FROM ScoreForm sf WHERE sf.status = :status AND sf.student.id != :studentId"
+    )
+    org.springframework.data.domain.Page<ScoreForm> findPendingQueueExcludingStudent(
+        @org.springframework.data.repository.query.Param("status") vn.edu.drl.backend.enu.ScoreFormStatus status,
+        @org.springframework.data.repository.query.Param("studentId") Long studentId,
+        org.springframework.data.domain.Pageable pageable
+    );
+
     long countByStatus(vn.edu.drl.backend.enu.ScoreFormStatus status);
     long countByStatusIn(java.util.Collection<vn.edu.drl.backend.enu.ScoreFormStatus> statuses);
     long countByStatusAndStudentDepartmentId(vn.edu.drl.backend.enu.ScoreFormStatus status, Long deptId);

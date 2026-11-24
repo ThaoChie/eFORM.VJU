@@ -8,6 +8,8 @@ import java.util.List;
 @Data
 public class WorkflowDetailResponse {
     private Long scoreFormId;
+    private Long studentId;
+    private Boolean isSelfReview;
     private String studentName;
     private String studentCode;
     private java.time.LocalDate dob;

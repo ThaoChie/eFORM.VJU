@@ -118,3 +118,7 @@ codegen.py
 # Root package.json (không liên quan đến project, dễ nhầm với FE/BE)
 /package.json
 /package-lock.json
+
+# Autotest (kiểm thử tự động - không đẩy lên git)
+autotest/
+

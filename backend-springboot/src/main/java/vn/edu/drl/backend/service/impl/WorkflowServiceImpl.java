@@ -52,15 +52,10 @@ public class WorkflowServiceImpl implements WorkflowService {
         if (user.getRole() == Role.CLASS_LEADER || user.getRole() == Role.CLASS_DEPUTY) {
             Long classId = user.getClassEntity() != null ? user.getClassEntity().getId() : null;
             if (classId != null) {
-                forms = scoreFormRepository.findByStatusAndStudentClassEntityId(ScoreFormStatus.SUBMITTED, classId, pageable);
-                if (forms.isEmpty()) {
-                    Page<ScoreForm> allSubmitted = scoreFormRepository.findByStatus(ScoreFormStatus.SUBMITTED, pageable);
-                    if (!allSubmitted.isEmpty()) {
-                        forms = allSubmitted;
-                    }
-                }
+                // BUS-CLS02-04: Prevent conflict of interest - reviewer's own form must NEVER appear in their queue
+                forms = scoreFormRepository.findPendingQueueForClassReviewer(ScoreFormStatus.SUBMITTED, classId, userId, pageable);
             } else {
-                forms = scoreFormRepository.findByStatus(ScoreFormStatus.SUBMITTED, pageable);
+                forms = scoreFormRepository.findPendingQueueExcludingStudent(ScoreFormStatus.SUBMITTED, userId, pageable);
             }
         } else if (user.getRole() == Role.DEAN) {
             Long deptId = user.getDepartment() != null ? user.getDepartment().getId() : null;
@@ -125,6 +120,8 @@ public class WorkflowServiceImpl implements WorkflowService {
 
         WorkflowDetailResponse res = new WorkflowDetailResponse();
         res.setScoreFormId(form.getId());
+        res.setStudentId(st != null ? st.getId() : null);
+        res.setIsSelfReview(st != null && st.getId().equals(userId));
         res.setStudentName(st != null ? st.getFullName() : "Sinh viên");
         res.setStudentCode(st != null ? st.getUserCode() : "");
         res.setDob(st != null ? st.getDob() : null);
@@ -271,6 +268,9 @@ public class WorkflowServiceImpl implements WorkflowService {
             throw new RuntimeException("403 Forbidden");
         }
         ScoreForm form = scoreFormRepository.findById(formId).orElseThrow();
+        if (user.getRole() != Role.ADMIN && form.getStudent() != null && form.getStudent().getId().equals(userId)) {
+            throw new vn.edu.drl.backend.exception.BusinessException("BUS-CLS02-04: Cán bộ lớp không thể tự thẩm định hoặc phê duyệt phiếu của chính mình");
+        }
         if (form.getIsLocked()) throw new RuntimeException("409 FORM_LOCKED");
         if (form.getStatus() != ScoreFormStatus.SUBMITTED) throw new RuntimeException("422 INVALID_TRANSITION");
 
@@ -370,7 +370,11 @@ public class WorkflowServiceImpl implements WorkflowService {
 
     @Transactional
     public void rejectForm(Long userId, Long formId, RejectRequest request) {
+        User user = userRepository.findById(userId).orElseThrow();
         ScoreForm form = scoreFormRepository.findById(formId).orElseThrow();
+        if (user.getRole() != Role.ADMIN && form.getStudent() != null && form.getStudent().getId().equals(userId)) {
+            throw new vn.edu.drl.backend.exception.BusinessException("BUS-CLS02-04: Cán bộ lớp không thể tự từ chối phiếu của chính mình");
+        }
         if (form.getIsLocked()) throw new RuntimeException("409 FORM_LOCKED");
 
         String oldStatus = form.getStatus().name();
