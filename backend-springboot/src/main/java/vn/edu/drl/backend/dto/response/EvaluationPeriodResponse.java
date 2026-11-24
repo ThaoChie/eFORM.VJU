@@ -36,6 +36,11 @@ public class EvaluationPeriodResponse {
     private String statusDisplayName;
     private Long remainingDays;
 
+    // Progress / Submission stats
+    private Long totalSubmissions;
+    private Long completedSubmissions;
+    private Long pendingSubmissions;
+
     // Meta
     private String createdByName;
     private Instant createdAt;

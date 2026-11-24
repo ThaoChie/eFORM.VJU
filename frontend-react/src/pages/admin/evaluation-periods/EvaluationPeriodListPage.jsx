@@ -55,6 +55,8 @@ export default function EvaluationPeriodListPage() {
 
   // Modal states
   const [createModalOpen, setCreateModalOpen] = useState(false)
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [deleteConfirmModalOpen, setDeleteConfirmModalOpen] = useState(false)
   const [detailModalOpen, setDetailModalOpen] = useState(false)
   const [extendModalOpen, setExtendModalOpen] = useState(false)
   const [openConfirmModalOpen, setOpenConfirmModalOpen] = useState(false)
@@ -74,6 +76,18 @@ export default function EvaluationPeriodListPage() {
   })
   const [createErrors, setCreateErrors] = useState({})
   const [creating, setCreating] = useState(false)
+
+  // Edit form state
+  const [editForm, setEditForm] = useState({
+    id: null,
+    semesterId: "",
+    formVersionId: "",
+    applicationScope: "Toàn trường",
+    submissionDeadline: "",
+  })
+  const [editErrors, setEditErrors] = useState({})
+  const [updating, setUpdating] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   // Extend form state
   const [newDeadline, setNewDeadline] = useState("")
@@ -254,6 +268,14 @@ export default function EvaluationPeriodListPage() {
     )
   }, [options.formVersions, createForm.semesterId])
 
+  // Active form versions filtered by selected semester in edit modal
+  const availableFormVersionsForEdit = useMemo(() => {
+    if (!editForm.semesterId) return []
+    return (options.formVersions || []).filter(
+      (fv) => String(fv.semesterId) === String(editForm.semesterId)
+    )
+  }, [options.formVersions, editForm.semesterId])
+
   // Open Create Modal
   const handleOpenCreateModal = () => {
     const defaultSemester = options.semesters?.find((s) => s.isActive)?.id || options.semesters?.[0]?.id || ""
@@ -319,6 +341,91 @@ export default function EvaluationPeriodListPage() {
       }
     } finally {
       setCreating(false)
+    }
+  }
+
+  // Open Edit Modal (Chỉnh sửa kỳ khi CHUA_MO)
+  const handleOpenEditModal = (period) => {
+    setSelectedPeriod(period)
+    setEditForm({
+      id: period.id,
+      semesterId: String(period.semesterId || ""),
+      formVersionId: String(period.formVersionId || ""),
+      applicationScope: period.applicationScope || "Toàn trường",
+      submissionDeadline: period.submissionDeadline || "",
+    })
+    setEditErrors({})
+    setEditModalOpen(true)
+  }
+
+  // Handle Update Period
+  const handleUpdatePeriod = async (e) => {
+    e.preventDefault()
+    const errors = {}
+
+    if (!editForm.semesterId) errors.semesterId = "Vui lòng chọn học kỳ"
+    if (!editForm.formVersionId) errors.formVersionId = "Vui lòng chọn phiên bản biểu mẫu"
+    if (!editForm.applicationScope) errors.applicationScope = "Vui lòng chọn phạm vi áp dụng"
+    if (!editForm.submissionDeadline) {
+      errors.submissionDeadline = "Vui lòng chọn hạn nộp"
+    } else {
+      const today = new Date().toISOString().split("T")[0]
+      if (editForm.submissionDeadline < today) {
+        errors.submissionDeadline = "Hạn nộp không được trước ngày hiện tại"
+      }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setEditErrors(errors)
+      return
+    }
+
+    setUpdating(true)
+    setEditErrors({})
+    try {
+      await evaluationPeriodService.updatePeriod(editForm.id, {
+        semesterId: Number(editForm.semesterId),
+        formVersionId: Number(editForm.formVersionId),
+        applicationScope: editForm.applicationScope,
+        submissionDeadline: editForm.submissionDeadline,
+      })
+      toast.success("Cập nhật kỳ chấm ĐRL thành công!")
+      setEditModalOpen(false)
+      fetchPeriods()
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || "Lỗi cập nhật kỳ chấm"
+      if (msg.includes("409") || msg.includes("trùng") || msg.includes("Chưa mở hoặc Đang mở")) {
+        setEditErrors({
+          form: "Đã có kỳ cùng Học kỳ và Phạm vi áp dụng đang Chưa mở hoặc Đang mở.",
+        })
+      } else {
+        toast.error(msg)
+      }
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  // Open Delete Modal
+  const handleOpenDeleteModal = (period) => {
+    setSelectedPeriod(period)
+    setDeleteConfirmModalOpen(true)
+  }
+
+  // Confirm Delete Period
+  const handleConfirmDeletePeriod = async () => {
+    if (!selectedPeriod) return
+    setDeleting(true)
+    try {
+      await evaluationPeriodService.deletePeriod(selectedPeriod.id)
+      toast.success("Đã xóa kỳ chấm ĐRL thành công!")
+      setDeleteConfirmModalOpen(false)
+      setSelectedPeriod(null)
+      fetchPeriods()
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || "Lỗi khi xóa kỳ chấm ĐRL")
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -463,6 +570,11 @@ export default function EvaluationPeriodListPage() {
 
   const columns = [
     {
+      key: "stt",
+      title: "STT",
+      render: (_, i) => (page - 1) * pageSize + i + 1,
+    },
+    {
       key: "semesterName",
       title: "Học kỳ",
       render: (item) => (
@@ -520,37 +632,53 @@ export default function EvaluationPeriodListPage() {
             onClick={() => handleViewDetail(item)}
           />
           {item.status === "CHUA_MO" && (
-            <IconButton
-              label="Mở kỳ ngay"
-              onClick={() => {
-                setSelectedPeriod(item)
-                setOpenConfirmModalOpen(true)
-              }}
-              className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
-            >
-              <Play className="size-4" />
-            </IconButton>
+            <>
+              <IconButton
+                label="Mở kỳ ngay"
+                onClick={() => {
+                  setSelectedPeriod(item)
+                  setOpenConfirmModalOpen(true)
+                }}
+                className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
+              >
+                <Play className="size-4" />
+              </IconButton>
+              <IconButton
+                label="Chỉnh sửa kỳ chấm"
+                onClick={() => handleOpenEditModal(item)}
+                className="text-brand hover:bg-brand-soft hover:text-brand-dark"
+              >
+                <Pencil className="size-4" />
+              </IconButton>
+              <IconButton
+                label="Xóa kỳ chấm"
+                onClick={() => handleOpenDeleteModal(item)}
+                className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+              >
+                <Trash2 className="size-4" />
+              </IconButton>
+            </>
           )}
           {item.status === "DANG_MO" && (
-            <IconButton
-              label="Gia hạn hạn nộp"
-              onClick={() => handleOpenExtendModal(item)}
-              className="text-amber-600 hover:bg-amber-50 hover:text-amber-700"
-            >
-              <CalendarClock className="size-4" />
-            </IconButton>
-          )}
-          {item.status === "DANG_MO" && (
-            <IconButton
-              label="Đóng kỳ sớm"
-              onClick={() => {
-                setSelectedPeriod(item)
-                setCloseConfirmModalOpen(true)
-              }}
-              className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
-            >
-              <Ban className="size-4" />
-            </IconButton>
+            <>
+              <IconButton
+                label="Gia hạn hạn nộp"
+                onClick={() => handleOpenExtendModal(item)}
+                className="text-amber-600 hover:bg-amber-50 hover:text-amber-700"
+              >
+                <CalendarClock className="size-4" />
+              </IconButton>
+              <IconButton
+                label="Đóng kỳ sớm"
+                onClick={() => {
+                  setSelectedPeriod(item)
+                  setCloseConfirmModalOpen(true)
+                }}
+                className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+              >
+                <Ban className="size-4" />
+              </IconButton>
+            </>
           )}
         </div>
       ),
@@ -783,6 +911,135 @@ export default function EvaluationPeriodListPage() {
       </Modal>
 
       {/* ========================================================================= */}
+      {/* 1.1 Modal: Chỉnh sửa kỳ chấm (khi ở trạng thái Chưa mở) */}
+      {/* ========================================================================= */}
+      <Modal
+        open={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        title="Chỉnh sửa thông tin kỳ chấm ĐRL"
+        wide={false}
+        footer={
+          <>
+            <CancelButton onClick={() => setEditModalOpen(false)}>
+              Hủy
+            </CancelButton>
+            <ConfirmButton
+              loading={updating}
+              onClick={handleUpdatePeriod}
+            >
+              Lưu thay đổi
+            </ConfirmButton>
+          </>
+        }
+      >
+        <form onSubmit={handleUpdatePeriod} className="space-y-4">
+          {editErrors.form && (
+            <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-xs font-medium text-rose-700 flex items-center gap-2">
+              <AlertCircle className="size-4 shrink-0 text-rose-600" />
+              <span>{editErrors.form}</span>
+            </div>
+          )}
+
+          {/* Học kỳ */}
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1">
+              Học kỳ áp dụng <span className="text-brand">*</span>
+            </label>
+            <select
+              value={editForm.semesterId}
+              onChange={(e) => {
+                setEditForm({
+                  ...editForm,
+                  semesterId: e.target.value,
+                  formVersionId: "",
+                })
+              }}
+              className="h-10 w-full rounded-lg border border-line bg-white px-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand-soft"
+            >
+              <option value="">-- Chọn học kỳ --</option>
+              {options.semesters?.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.semesterName} ({s.academicYear}) {s.isActive ? "• [Đang kích hoạt]" : ""}
+                </option>
+              ))}
+            </select>
+            {editErrors.semesterId && (
+              <span className="block mt-1 text-xs text-brand">{editErrors.semesterId}</span>
+            )}
+          </div>
+
+          {/* Phiên bản biểu mẫu */}
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1">
+              Phiên bản biểu mẫu hiệu lực <span className="text-brand">*</span>
+            </label>
+            <select
+              value={editForm.formVersionId}
+              onChange={(e) => setEditForm({ ...editForm, formVersionId: e.target.value })}
+              className="h-10 w-full rounded-lg border border-line bg-white px-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand-soft"
+              disabled={!editForm.semesterId}
+            >
+              <option value="">-- Chọn phiên bản biểu mẫu --</option>
+              {availableFormVersionsForEdit.map((fv) => (
+                <option key={fv.id} value={fv.id}>
+                  {fv.formName} ({fv.formCode} {fv.versionNo})
+                </option>
+              ))}
+            </select>
+            {availableFormVersionsForEdit.length === 0 && editForm.semesterId && (
+              <span className="block mt-1 text-xs text-amber-600">
+                Chưa có phiên bản biểu mẫu ACTIVE nào cho học kỳ này.
+              </span>
+            )}
+            {editErrors.formVersionId && (
+              <span className="block mt-1 text-xs text-brand">{editErrors.formVersionId}</span>
+            )}
+          </div>
+
+          {/* Phạm vi áp dụng */}
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1">
+              Phạm vi áp dụng <span className="text-brand">*</span>
+            </label>
+            <select
+              value={editForm.applicationScope}
+              onChange={(e) => setEditForm({ ...editForm, applicationScope: e.target.value })}
+              className="h-10 w-full rounded-lg border border-line bg-white px-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand-soft"
+            >
+              {options.scopes?.map((sc) => (
+                <option key={sc} value={sc}>
+                  {sc}
+                </option>
+              ))}
+            </select>
+            {editErrors.applicationScope && (
+              <span className="block mt-1 text-xs text-brand">{editErrors.applicationScope}</span>
+            )}
+          </div>
+
+          {/* Hạn nộp */}
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1">
+              Hạn nộp sinh viên hoàn thành <span className="text-brand">*</span>
+            </label>
+            <input
+              type="date"
+              value={editForm.submissionDeadline}
+              min={new Date().toISOString().split("T")[0]}
+              onChange={(e) => setEditForm({ ...editForm, submissionDeadline: e.target.value })}
+              className="h-10 w-full rounded-lg border border-line bg-white px-3 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand-soft"
+            />
+            {editErrors.submissionDeadline && (
+              <span className="block mt-1 text-xs text-brand">{editErrors.submissionDeadline}</span>
+            )}
+            <p className="mt-1 text-xs text-slate-400">
+              Hạn nộp không được trước ngày hiện tại. Chỉ chỉnh sửa được khi kỳ còn Chưa mở.
+            </p>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ========================================================================= */}
       {/* 2. Modal: Xem chi tiết & Lịch sử thay đổi (R) */}
       {/* ========================================================================= */}
       <Modal
@@ -833,6 +1090,27 @@ export default function EvaluationPeriodListPage() {
                 <div className="text-xs text-slate-600 flex items-center justify-between">
                   <span>Hạn nộp: <strong className="text-slate-800">{formatDate(periodDetail.submissionDeadline)}</strong></span>
                   <div>{renderStatusBadge(periodDetail.status)}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Tiến độ nộp phiếu ĐRL */}
+            <div className="p-4 rounded-xl border border-line bg-white shadow-xs">
+              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2.5">
+                Tiến độ nộp phiếu ĐRL trong kỳ
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
+                <div className="p-3 rounded-lg bg-slate-50 border border-line">
+                  <div className="text-xs text-muted">Tổng số phiếu đã nộp</div>
+                  <div className="text-xl font-bold text-ink mt-0.5">{periodDetail.totalSubmissions || 0}</div>
+                </div>
+                <div className="p-3 rounded-lg bg-amber-50/70 border border-amber-200">
+                  <div className="text-xs text-amber-700 font-medium">Đang trong quy trình duyệt</div>
+                  <div className="text-xl font-bold text-amber-800 mt-0.5">{periodDetail.pendingSubmissions || 0}</div>
+                </div>
+                <div className="p-3 rounded-lg bg-emerald-50/70 border border-emerald-200">
+                  <div className="text-xs text-emerald-700 font-medium">Đã hoàn tất duyệt (Khoa duyệt)</div>
+                  <div className="text-xl font-bold text-emerald-800 mt-0.5">{periodDetail.completedSubmissions || 0}</div>
                 </div>
               </div>
             </div>
@@ -1025,6 +1303,47 @@ export default function EvaluationPeriodListPage() {
             <ul className="list-disc pl-5 space-y-0.5 text-slate-500">
               <li>Sau khi đóng kỳ, sinh viên sẽ không thể tạo mới phiếu cho kỳ này.</li>
               <li>Kỳ đã đóng không thể mở lại theo quy tắc nghiệp vụ.</li>
+            </ul>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ========================================================================= */}
+      {/* 5.1. Modal: Xác nhận Xóa kỳ chấm (khi ở trạng thái Chưa mở) */}
+      {/* ========================================================================= */}
+      <Modal
+        open={deleteConfirmModalOpen}
+        onClose={() => setDeleteConfirmModalOpen(false)}
+        title="Xác nhận xóa kỳ chấm ĐRL"
+        wide={false}
+        footer={
+          <>
+            <CancelButton onClick={() => setDeleteConfirmModalOpen(false)}>
+              Hủy
+            </CancelButton>
+            <Button
+              variant="danger"
+              loading={deleting}
+              onClick={handleConfirmDeletePeriod}
+            >
+              Xác nhận xóa
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3 text-sm text-slate-700">
+          <p>
+            Bạn có chắc chắn muốn xóa kỳ chấm{" "}
+            <span className="font-semibold text-slate-900">{selectedPeriod?.semesterName}</span>?
+          </p>
+          <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-700 space-y-1">
+            <div className="flex items-center gap-1.5 font-medium text-rose-800">
+              <AlertCircle className="size-3.5 text-rose-600" />
+              Lưu ý quan trọng:
+            </div>
+            <ul className="list-disc pl-5 space-y-0.5 text-rose-600">
+              <li>Thao tác này chỉ thực hiện được khi kỳ chấm còn ở trạng thái <strong>Chưa mở</strong>.</li>
+              <li>Toàn bộ thông tin thiết lập kỳ chấm và nhật ký liên quan sẽ bị xóa vĩnh viễn.</li>
             </ul>
           </div>
         </div>

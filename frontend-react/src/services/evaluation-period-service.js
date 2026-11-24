@@ -32,6 +32,18 @@ export const evaluationPeriodService = {
     return unwrap(res)
   },
 
+  // Cập nhật thông tin kỳ chấm ĐRL (khi ở trạng thái Chưa mở)
+  async updatePeriod(id, payload) {
+    const res = await client.put(`/admin/evaluation-periods/${id}`, payload)
+    return unwrap(res)
+  },
+
+  // Xóa kỳ chấm ĐRL (khi ở trạng thái Chưa mở)
+  async deletePeriod(id) {
+    const res = await client.delete(`/admin/evaluation-periods/${id}`)
+    return unwrap(res)
+  },
+
   // Kích hoạt mở kỳ (Chưa mở -> Đang mở)
   async openPeriod(id) {
     const res = await client.post(`/admin/evaluation-periods/${id}/open`)
