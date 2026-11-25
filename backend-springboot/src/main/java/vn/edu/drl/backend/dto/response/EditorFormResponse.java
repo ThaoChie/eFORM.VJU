@@ -32,6 +32,11 @@ public class EditorFormResponse {
     private String deanSignature;
     private String classLeaderName;
     private String deanName;
+    private Boolean isLocked;
+    private Boolean isExpired;
+    private Boolean isReadOnly;
+    private String readOnlyReason;
+    private java.time.LocalDate studentDeadline;
     private List<EditorFormDetailResponse> details;
 
     @Data

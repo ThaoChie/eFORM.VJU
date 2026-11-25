@@ -43,6 +43,11 @@ public class UserController {
     public ApiResponse<UserResponse> toggleStatus(@PathVariable Long id) {
         return ApiResponse.success(service.toggleStatus(id));
     }
+
+    @PutMapping("/{id}/grant-signature-change")
+    public ApiResponse<UserResponse> grantSignatureChange(@PathVariable Long id) {
+        return ApiResponse.success(service.grantSignatureChange(id));
+    }
     
     @GetMapping("/template-excel")
     public ResponseEntity<byte[]> downloadTemplate() {

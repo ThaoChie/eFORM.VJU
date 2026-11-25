@@ -20,6 +20,8 @@ import vn.edu.drl.backend.enu.ScoreFormStatus;
 import vn.edu.drl.backend.model.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -97,6 +99,43 @@ public class EditorServiceImpl implements EditorService {
         }).collect(Collectors.toList());
     }
 
+    private void ensureDetailsExist(ScoreForm form, Long semesterId) {
+        List<ScoreFormDetail> existingDetails = scoreFormDetailRepository.findByScoreFormId(form.getId());
+        if (existingDetails.isEmpty()) {
+            List<Criteria> criteriaList = criteriaRepository.findBySemesterId(semesterId);
+            if (criteriaList.isEmpty()) {
+                criteriaList = criteriaRepository.findAll();
+            }
+            List<ScoreFormDetail> batchDetails = new java.util.ArrayList<>(criteriaList.size());
+            for (Criteria c : criteriaList) {
+                ScoreFormDetail detail = new ScoreFormDetail();
+                detail.setScoreForm(form);
+                detail.setCriteria(c);
+                detail.setStudentScore(BigDecimal.ZERO);
+                batchDetails.add(detail);
+            }
+            scoreFormDetailRepository.saveAll(batchDetails);
+        }
+    }
+
+    private boolean hasValidException(User user, EvaluationPeriod activePeriod) {
+        if (user == null || activePeriod == null || activePeriod.getExceptions() == null || activePeriod.getExceptions().trim().isEmpty()) {
+            return false;
+        }
+        try {
+            Long classId = user.getClassEntity() != null ? user.getClassEntity().getId() : null;
+            Long deptId = user.getDepartment() != null ? user.getDepartment().getId() : null;
+            String json = activePeriod.getExceptions();
+            if (classId != null && (json.contains("\"targetId\":" + classId) || json.contains("\"targetId\":\"" + classId + "\""))) {
+                return true;
+            }
+            if (deptId != null && (json.contains("\"targetId\":" + deptId) || json.contains("\"targetId\":\"" + deptId + "\""))) {
+                return true;
+            }
+        } catch (Exception ignored) {}
+        return false;
+    }
+
     @Transactional
     public EditorFormResponse getMyForm(Long userId, Long semesterId) {
         User user = userRepository.findById(userId)
@@ -106,47 +145,73 @@ public class EditorServiceImpl implements EditorService {
 
         Optional<ScoreForm> existingForm = scoreFormRepository.findByStudentIdAndSemesterId(userId, semesterId);
 
+        // 1. Kiểm tra kỳ chấm ĐRL đang mở
+        Optional<EvaluationPeriod> activePeriodOpt = evaluationPeriodRepository.findFirstByStatusOrderByCreatedAtDesc(EvaluationPeriodStatus.DANG_MO);
+        boolean isPeriodActive = activePeriodOpt.isPresent() &&
+                activePeriodOpt.get().getSemester() != null &&
+                activePeriodOpt.get().getSemester().getId().equals(semesterId);
+
+        EvaluationPeriod activePeriod = isPeriodActive ? activePeriodOpt.get() : null;
+
+        // Nếu kỳ chấm không mở hoặc đã bị đóng
+        if (activePeriod == null) {
+            if (existingForm.isPresent()) {
+                ScoreForm form = existingForm.get();
+                ensureDetailsExist(form, semesterId);
+                EditorFormResponse resp = mapToEditorResponse(form);
+                resp.setIsReadOnly(true);
+                resp.setIsLocked(true);
+                resp.setReadOnlyReason("Kỳ đánh giá điểm rèn luyện hiện chưa mở hoặc đã kết thúc. Bạn chỉ có quyền xem phiếu.");
+                return resp;
+            } else {
+                throw new RuntimeException("Hiện tại chưa có đợt đánh giá điểm rèn luyện nào đang mở cho học kỳ này.");
+            }
+        }
+
+        // 2. Kiểm tra hạn nộp của sinh viên
+        LocalDate deadline = activePeriod.getStudentDeadline() != null ? activePeriod.getStudentDeadline() : activePeriod.getSubmissionDeadline();
+        boolean isExpired = false;
+        if (deadline != null && LocalDate.now().isAfter(deadline)) {
+            boolean hasValidException = hasValidException(user, activePeriod);
+            if (!hasValidException) {
+                isExpired = true;
+            }
+        }
+
         if (existingForm.isPresent()) {
             ScoreForm form = existingForm.get();
-            List<ScoreFormDetail> existingDetails = scoreFormDetailRepository.findByScoreFormId(form.getId());
-            if (existingDetails.isEmpty()) {
-                List<Criteria> criteriaList = criteriaRepository.findBySemesterId(semesterId);
-                if (criteriaList.isEmpty()) {
-                    criteriaList = criteriaRepository.findAll();
-                }
-                List<ScoreFormDetail> batchDetails = new java.util.ArrayList<>(criteriaList.size());
-                for (Criteria c : criteriaList) {
-                    ScoreFormDetail detail = new ScoreFormDetail();
-                    detail.setScoreForm(form);
-                    detail.setCriteria(c);
-                    detail.setStudentScore(BigDecimal.ZERO);
-                    batchDetails.add(detail);
-                }
-                scoreFormDetailRepository.saveAll(batchDetails);
+            if (form.getEvaluationPeriod() == null) {
+                form.setEvaluationPeriod(activePeriod);
+                scoreFormRepository.save(form);
             }
-            return mapToEditorResponse(form);
+            ensureDetailsExist(form, semesterId);
+            EditorFormResponse resp = mapToEditorResponse(form);
+            resp.setStudentDeadline(deadline);
+            if (isExpired) {
+                resp.setIsExpired(true);
+                resp.setIsReadOnly(true);
+                resp.setReadOnlyReason("Đã hết thời hạn nộp phiếu tự đánh giá của sinh viên (" + deadline.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + "). Cổng tự đánh giá đã đóng.");
+            }
+            return resp;
         }
 
-        if (!Boolean.TRUE.equals(semester.getIsActive())) {
-            throw new RuntimeException("Semester is not active");
+        // Nếu chưa có phiếu mà đã hết hạn -> không cho phép tạo mới phiếu
+        if (isExpired) {
+            throw new RuntimeException("Đã hết thời hạn nộp phiếu tự đánh giá của sinh viên (" + deadline.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + "). Cổng tự đánh giá đã đóng.");
         }
 
-        FormVersion activeForm = evaluationPeriodRepository.findFirstByStatusOrderByCreatedAtDesc(EvaluationPeriodStatus.DANG_MO)
-                .map(EvaluationPeriod::getFormVersion)
-                .or(() -> formVersionRepository.findByFormCodeAndSemesterIdAndStatus("DRL-2026", semesterId, FormVersionStatus.ACTIVE))
-                .or(() -> formVersionRepository.findByFormCodeAndSemesterIdAndStatus("FORM_DRL", semesterId, FormVersionStatus.ACTIVE))
-                .or(() -> formVersionRepository.findAll().stream()
-                        .filter(f -> f.getSemester() != null && f.getSemester().getId().equals(semesterId) && f.getStatus() == FormVersionStatus.ACTIVE)
-                        .findFirst())
-                .or(() -> formVersionRepository.findAll().stream()
-                        .filter(f -> f.getStatus() == FormVersionStatus.ACTIVE)
-                        .findFirst())
-                .orElseThrow(() -> new RuntimeException("No ACTIVE form template found for this semester"));
+        FormVersion activeForm = activePeriod.getFormVersion();
+        if (activeForm == null) {
+            activeForm = formVersionRepository.findByFormCodeAndSemesterIdAndStatus("DRL-2026", semesterId, FormVersionStatus.ACTIVE)
+                    .or(() -> formVersionRepository.findByFormCodeAndSemesterIdAndStatus("FORM_DRL", semesterId, FormVersionStatus.ACTIVE))
+                    .orElseThrow(() -> new RuntimeException("No ACTIVE form template found for this semester"));
+        }
 
         ScoreForm scoreForm = new ScoreForm();
         scoreForm.setStudent(user);
         scoreForm.setSemester(semester);
         scoreForm.setFormVersion(activeForm);
+        scoreForm.setEvaluationPeriod(activePeriod);
         scoreForm.setStatus(ScoreFormStatus.DRAFT);
         scoreForm.setStudentTotal(BigDecimal.ZERO);
         ScoreForm savedForm = scoreFormRepository.save(scoreForm);
@@ -165,7 +230,9 @@ public class EditorServiceImpl implements EditorService {
         }
         scoreFormDetailRepository.saveAll(batchDetails);
 
-        return mapToEditorResponse(savedForm);
+        EditorFormResponse resp = mapToEditorResponse(savedForm);
+        resp.setStudentDeadline(deadline);
+        return resp;
     }
 
     @Transactional
@@ -225,6 +292,28 @@ public class EditorServiceImpl implements EditorService {
     @Transactional
     public void submitAndSign(Long userId, SubmitFormRequest request, String ipAddress) {
         ScoreForm form = getFormForEdit(userId, request.getSemesterId());
+
+        // Kiểm tra hạn nộp của sinh viên theo BR-KCDRL-05
+        EvaluationPeriod activePeriod = evaluationPeriodRepository.findFirstByStatusOrderByCreatedAtDesc(EvaluationPeriodStatus.DANG_MO).orElse(null);
+        if (activePeriod != null && activePeriod.getSemester() != null && activePeriod.getSemester().getId().equals(request.getSemesterId())) {
+            LocalDate deadline = activePeriod.getStudentDeadline() != null ? activePeriod.getStudentDeadline() : activePeriod.getSubmissionDeadline();
+            if (deadline != null && LocalDate.now().isAfter(deadline)) {
+                boolean hasValidException = false;
+                User user = userRepository.findById(userId).orElse(null);
+                if (user != null && activePeriod.getExceptions() != null && !activePeriod.getExceptions().trim().isEmpty()) {
+                    Long classId = user.getClassEntity() != null ? user.getClassEntity().getId() : null;
+                    Long deptId = user.getDepartment() != null ? user.getDepartment().getId() : null;
+                    if (classId != null && activePeriod.getExceptions().contains("\"targetId\":" + classId)) {
+                        hasValidException = true;
+                    } else if (deptId != null && activePeriod.getExceptions().contains("\"targetId\":" + deptId)) {
+                        hasValidException = true;
+                    }
+                }
+                if (!hasValidException) {
+                    throw new RuntimeException("Đã hết thời hạn nộp phiếu tự đánh giá của sinh viên (" + deadline.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + "). Cổng nộp phiếu hiện đã đóng.");
+                }
+            }
+        }
 
         List<ScoreFormDetail> details = scoreFormDetailRepository.findByScoreFormIdWithCriteria(form.getId());
         BigDecimal total = BigDecimal.ZERO;
@@ -296,11 +385,37 @@ public class EditorServiceImpl implements EditorService {
 
     private ScoreForm getFormForEdit(Long userId, Long semesterId) {
         ScoreForm form = scoreFormRepository.findByStudentIdAndSemesterId(userId, semesterId)
-                .orElseThrow(() -> new RuntimeException("Form not found"));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy phiếu rèn luyện"));
+
+        if (Boolean.TRUE.equals(form.getIsLocked())) {
+            throw new RuntimeException("Kỳ chấm ĐRL đã được khóa sổ. Phiếu chỉ ở chế độ xem (Read-only).");
+        }
+
+        if (form.getStatus() == ScoreFormStatus.EXPIRED) {
+            throw new RuntimeException("Phiếu rèn luyện đã hết hạn do kỳ chấm đã khóa sổ (EXPIRED).");
+        }
 
         if (form.getStatus() != ScoreFormStatus.DRAFT && form.getStatus() != ScoreFormStatus.REJECTED) {
-            throw new RuntimeException("Form cannot be edited in current status: " + form.getStatus());
+            throw new RuntimeException("Không thể chỉnh sửa phiếu ở trạng thái hiện tại: " + form.getStatus());
         }
+
+        // BẮT BUỘC KIỂM TRA KỲ CHẤM CÒN MỞ VÀ CÒN HẠN
+        EvaluationPeriod activePeriod = evaluationPeriodRepository.findFirstByStatusOrderByCreatedAtDesc(EvaluationPeriodStatus.DANG_MO)
+                .orElseThrow(() -> new RuntimeException("Kỳ đánh giá điểm rèn luyện đã kết thúc hoặc chưa được mở. Cổng soạn thảo đã đóng."));
+
+        if (activePeriod.getSemester() == null || !activePeriod.getSemester().getId().equals(semesterId)) {
+            throw new RuntimeException("Học kỳ này hiện không trong đợt đánh giá rèn luyện.");
+        }
+
+        LocalDate deadline = activePeriod.getStudentDeadline() != null ? activePeriod.getStudentDeadline() : activePeriod.getSubmissionDeadline();
+        if (deadline != null && LocalDate.now().isAfter(deadline)) {
+            User student = form.getStudent();
+            boolean hasValidException = hasValidException(student, activePeriod);
+            if (!hasValidException) {
+                throw new RuntimeException("Đã hết thời hạn nộp phiếu tự đánh giá của sinh viên (" + deadline.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + "). Cổng soạn thảo đã đóng.");
+            }
+        }
+
         return form;
     }
 
@@ -319,6 +434,57 @@ public class EditorServiceImpl implements EditorService {
         response.setStatus(form.getStatus());
         response.setStudentTotal(form.getStudentTotal());
         response.setClassTotal(form.getClassTotal());
+        response.setIsLocked(Boolean.TRUE.equals(form.getIsLocked()));
+        response.setIsExpired(form.getStatus() == ScoreFormStatus.EXPIRED);
+
+        // Kiểm tra kỳ đánh giá điểm rèn luyện liên kết
+        EvaluationPeriod period = form.getEvaluationPeriod();
+        if (period == null && form.getSemester() != null) {
+            period = evaluationPeriodRepository.findFirstBySemesterIdOrderByCreatedAtDesc(form.getSemester().getId()).orElse(null);
+        }
+
+        if (period != null) {
+            LocalDate deadline = period.getStudentDeadline() != null ? period.getStudentDeadline() : period.getSubmissionDeadline();
+            response.setStudentDeadline(deadline);
+
+            if (period.getStatus() == EvaluationPeriodStatus.DA_DONG || Boolean.TRUE.equals(period.getIsLocked())) {
+                response.setIsReadOnly(true);
+                response.setIsLocked(true);
+                response.setReadOnlyReason("Kỳ đánh giá điểm rèn luyện đã kết thúc và khóa sổ. Cổng tự đánh giá đã đóng và phiếu chỉ ở chế độ xem.");
+            } else if (period.getStatus() == EvaluationPeriodStatus.VO_HIEU_HOA) {
+                response.setIsReadOnly(true);
+                response.setIsLocked(true);
+                response.setReadOnlyReason("Kỳ đánh giá điểm rèn luyện này hiện đang bị vô hiệu hóa. Cổng tự đánh giá tạm thời ngừng nhận thao tác.");
+            } else if (period.getStatus() == EvaluationPeriodStatus.CHUA_MO) {
+                response.setIsReadOnly(true);
+                response.setReadOnlyReason("Kỳ đánh giá điểm rèn luyện này chưa được kích hoạt mở.");
+            } else if (period.getStatus() == EvaluationPeriodStatus.DANG_MO) {
+                if (deadline != null && LocalDate.now().isAfter(deadline)) {
+                    boolean hasExc = hasValidException(form.getStudent(), period);
+                    if (!hasExc) {
+                        response.setIsReadOnly(true);
+                        response.setIsExpired(true);
+                        response.setReadOnlyReason("Đã hết thời hạn sinh viên tự đánh giá (Hạn chót: " + deadline.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + "). Cổng tự đánh giá đã đóng.");
+                    }
+                }
+            }
+        } else {
+            response.setIsReadOnly(true);
+            response.setReadOnlyReason("Hiện tại không có kỳ đánh giá điểm rèn luyện nào đang mở cho học kỳ này.");
+        }
+
+        if (Boolean.TRUE.equals(form.getIsLocked()) || form.getStatus() == ScoreFormStatus.EXPIRED || (form.getStatus() != ScoreFormStatus.DRAFT && form.getStatus() != ScoreFormStatus.REJECTED)) {
+            response.setIsReadOnly(true);
+            if (response.getReadOnlyReason() == null) {
+                if (form.getStatus() == ScoreFormStatus.EXPIRED) {
+                    response.setReadOnlyReason("Phiếu rèn luyện đã hết hạn do kỳ chấm đã khóa sổ.");
+                } else if (Boolean.TRUE.equals(form.getIsLocked())) {
+                    response.setReadOnlyReason("Kỳ đánh giá điểm rèn luyện đã khóa sổ.");
+                } else if (form.getStatus() != ScoreFormStatus.DRAFT && form.getStatus() != ScoreFormStatus.REJECTED) {
+                    response.setReadOnlyReason("Phiếu đã được nộp và chuyển lên cấp thẩm định, không thể chỉnh sửa.");
+                }
+            }
+        }
 
         User st = form.getStudent();
         vn.edu.drl.backend.model.ClassEntity c = (st != null) ? st.getClassEntity() : null;

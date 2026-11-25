@@ -24,4 +24,7 @@ public class AuthUserResponse {
     private Boolean isSignatureLocked;
     private Boolean isFirstLogin;
     private Boolean mustChangePassword;
+    private Boolean emailRemindersEnabled;
+    private Boolean emailClassUpdatesEnabled;
+    private java.time.Instant signatureUnlockedUntil;
 }

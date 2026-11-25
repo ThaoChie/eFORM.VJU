@@ -31,4 +31,6 @@ public interface WorkflowService {
     DeanApproveBatchResponse deanApproveBatch(Long userId, DeanApproveBatchRequest request, String ipAddress);
     List<DeanBatchResponse> getDeanBatches(Long userId);
     List<WorkflowQueueItemResponse> getBatchForms(Long userId, String classId, String status);
+    Map<String, Object> triggerClassLeaderReminders();
+    Map<String, Object> triggerDeanReminders();
 }

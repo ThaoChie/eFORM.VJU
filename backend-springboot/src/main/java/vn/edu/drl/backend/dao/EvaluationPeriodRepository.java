@@ -15,6 +15,16 @@ public interface EvaluationPeriodRepository extends JpaRepository<EvaluationPeri
     
     Optional<EvaluationPeriod> findFirstByStatusOrderByCreatedAtDesc(EvaluationPeriodStatus status);
 
+    Optional<EvaluationPeriod> findTopByOrderByCreatedAtDesc();
+
+    Optional<EvaluationPeriod> findFirstBySemesterIdOrderByCreatedAtDesc(Long semesterId);
+
+    boolean existsByPeriodCode(String periodCode);
+
+    boolean existsByPeriodCodeAndIdNot(String periodCode, Long id);
+
+    long countByStatus(EvaluationPeriodStatus status);
+
     List<EvaluationPeriod> findBySemesterIdAndApplicationScopeAndStatusIn(
             Long semesterId, String applicationScope, Collection<EvaluationPeriodStatus> statuses
     );
@@ -22,7 +32,8 @@ public interface EvaluationPeriodRepository extends JpaRepository<EvaluationPeri
     @Query("SELECT ep FROM EvaluationPeriod ep " +
            "WHERE (:semesterId IS NULL OR ep.semester.id = :semesterId) " +
            "  AND (:status IS NULL OR ep.status = :status) " +
-           "  AND (:keyword IS NULL OR LOWER(ep.semester.semesterName) LIKE :keyword " +
+           "  AND (:keyword IS NULL OR LOWER(ep.periodCode) LIKE :keyword " +
+           "       OR LOWER(ep.semester.semesterName) LIKE :keyword " +
            "       OR LOWER(ep.formVersion.formName) LIKE :keyword " +
            "       OR LOWER(ep.formVersion.formCode) LIKE :keyword " +
            "       OR LOWER(ep.applicationScope) LIKE :keyword) " +

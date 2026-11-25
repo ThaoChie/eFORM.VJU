@@ -51,6 +51,38 @@ public class EvaluationPeriodController {
         return ApiResponse.success(evaluationPeriodService.createPeriod(adminUserId, request));
     }
 
+    @PutMapping("/api/v1/admin/evaluation-periods/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<EvaluationPeriodResponse> updatePeriod(
+            @PathVariable Long id,
+            @Valid @RequestBody EvaluationPeriodRequest request
+    ) {
+        Long adminUserId = SecurityUtils.getCurrentUserId();
+        return ApiResponse.success(evaluationPeriodService.updatePeriod(adminUserId, id, request));
+    }
+
+    @DeleteMapping("/api/v1/admin/evaluation-periods/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<Void> deletePeriod(@PathVariable Long id) {
+        Long adminUserId = SecurityUtils.getCurrentUserId();
+        evaluationPeriodService.deletePeriod(adminUserId, id);
+        return ApiResponse.success(null);
+    }
+
+    @PostMapping("/api/v1/admin/evaluation-periods/{id}/deactivate")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<EvaluationPeriodResponse> deactivatePeriod(@PathVariable Long id) {
+        Long adminUserId = SecurityUtils.getCurrentUserId();
+        return ApiResponse.success(evaluationPeriodService.deactivatePeriod(adminUserId, id));
+    }
+
+    @PostMapping("/api/v1/admin/evaluation-periods/{id}/activate")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<EvaluationPeriodResponse> activatePeriod(@PathVariable Long id) {
+        Long adminUserId = SecurityUtils.getCurrentUserId();
+        return ApiResponse.success(evaluationPeriodService.activatePeriod(adminUserId, id));
+    }
+
     @PostMapping("/api/v1/admin/evaluation-periods/{id}/open")
     @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<EvaluationPeriodResponse> openPeriod(@PathVariable Long id) {

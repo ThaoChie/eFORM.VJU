@@ -372,48 +372,89 @@ public class DashboardServiceImpl implements DashboardService {
         }
 
         EvaluationPeriod activePeriod = evaluationPeriodRepository.findFirstByStatusOrderByCreatedAtDesc(EvaluationPeriodStatus.DANG_MO).orElse(null);
-        Semester semester = activePeriod != null ? activePeriod.getSemester() : semesterRepository.findByIsActiveTrue().orElse(null);
+        EvaluationPeriod displayPeriod = activePeriod != null ? activePeriod : evaluationPeriodRepository.findTopByOrderByCreatedAtDesc().orElse(null);
+        Semester semester = displayPeriod != null ? displayPeriod.getSemester() : null;
         LocalDate today = LocalDate.now();
 
         StudentDashboardResponse.SemesterInfoDto semDto = null;
-        String fvName = "Biểu mẫu ĐRL";
+        String fvName = null;
+        boolean canCompose = false;
+        String periodNotice = null;
 
         if (activePeriod != null) {
-            long remDays = Math.max(0, ChronoUnit.DAYS.between(today, activePeriod.getSubmissionDeadline()));
-            String deadlineStr = activePeriod.getSubmissionDeadline().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+            LocalDate deadline = activePeriod.getStudentDeadline() != null ? activePeriod.getStudentDeadline() : activePeriod.getSubmissionDeadline();
+            long remDays = (deadline != null) ? Math.max(0, ChronoUnit.DAYS.between(today, deadline)) : 0;
+            String deadlineStr = (deadline != null) ? deadline.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) : "";
+            boolean isExpired = deadline != null && today.isAfter(deadline);
+            boolean isLocked = Boolean.TRUE.equals(activePeriod.getIsLocked());
+
+            canCompose = !isExpired && !isLocked;
+            if (isLocked) {
+                periodNotice = "Kỳ đánh giá điểm rèn luyện đã khóa sổ. Cổng tự đánh giá đã đóng.";
+            } else if (isExpired) {
+                periodNotice = "Đã hết thời hạn sinh viên tự đánh giá (" + deadlineStr + "). Cổng tự đánh giá đã đóng.";
+            }
+
             semDto = StudentDashboardResponse.SemesterInfoDto.builder()
                     .id(semester != null ? semester.getId() : null)
+                    .periodId(activePeriod.getId())
+                    .periodStatus(activePeriod.getStatus().name())
                     .name(semester != null ? semester.getSemesterName() : "Học kỳ")
                     .academicYear(semester != null ? semester.getAcademicYear() : "")
                     .deadline(deadlineStr)
                     .remainingDays(remDays)
+                    .isExpired(isExpired)
+                    .isLocked(isLocked)
+                    .notice(periodNotice)
                     .build();
+
             if (activePeriod.getFormVersion() != null) {
-                fvName = activePeriod.getFormVersion().getFormName() + " (v" + activePeriod.getFormVersion().getVersionNo() + ")";
+                fvName = activePeriod.getFormVersion().getFormName() + " (" + activePeriod.getFormVersion().getVersionNo() + ")";
             }
-        } else if (semester != null && Boolean.TRUE.equals(semester.getIsActive())) {
-            long remDays = semester.getEndDate() != null ? Math.max(0, ChronoUnit.DAYS.between(today, semester.getEndDate())) : 0;
-            String deadlineStr = semester.getEndDate() != null ? semester.getEndDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) : "";
+        } else if (displayPeriod != null) {
+            LocalDate deadline = displayPeriod.getStudentDeadline() != null ? displayPeriod.getStudentDeadline() : displayPeriod.getSubmissionDeadline();
+            String deadlineStr = (deadline != null) ? deadline.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) : "";
+
+            if (displayPeriod.getStatus() == EvaluationPeriodStatus.DA_DONG) {
+                periodNotice = "Kỳ đánh giá điểm rèn luyện gần nhất đã khóa sổ. Cổng tự đánh giá hiện đang đóng.";
+            } else if (displayPeriod.getStatus() == EvaluationPeriodStatus.VO_HIEU_HOA) {
+                periodNotice = "Kỳ đánh giá điểm rèn luyện hiện đang tạm dừng hoặc bị vô hiệu hóa.";
+            } else if (displayPeriod.getStatus() == EvaluationPeriodStatus.CHUA_MO) {
+                periodNotice = "Kỳ đánh giá điểm rèn luyện cho học kỳ mới chưa được mở cổng tự đánh giá.";
+            }
+
             semDto = StudentDashboardResponse.SemesterInfoDto.builder()
-                    .id(semester.getId())
-                    .name(semester.getSemesterName())
-                    .academicYear(semester.getAcademicYear())
+                    .id(semester != null ? semester.getId() : null)
+                    .periodId(displayPeriod.getId())
+                    .periodStatus(displayPeriod.getStatus().name())
+                    .name(semester != null ? semester.getSemesterName() : "Học kỳ")
+                    .academicYear(semester != null ? semester.getAcademicYear() : "")
                     .deadline(deadlineStr)
-                    .remainingDays(remDays)
+                    .remainingDays(0)
+                    .isExpired(true)
+                    .isLocked(true)
+                    .notice(periodNotice)
                     .build();
-            Optional<FormVersion> fvOpt = formVersionRepository.findByFormCodeAndSemesterIdAndStatus("FORM_DRL", semester.getId(), FormVersionStatus.ACTIVE);
-            if (fvOpt.isPresent()) {
-                fvName = fvOpt.get().getFormName() + " (v" + fvOpt.get().getVersionNo() + ")";
+
+            if (displayPeriod.getFormVersion() != null) {
+                fvName = displayPeriod.getFormVersion().getFormName() + " (" + displayPeriod.getFormVersion().getVersionNo() + ")";
             }
         }
 
-        // Student's score form
-        Optional<ScoreForm> sfOpt = semester != null
-                ? scoreFormRepository.findByStudentIdAndSemesterId(userId, semester.getId())
-                : scoreFormRepository.findTopByStudentIdOrderByCreatedAtDesc(userId);
+        // Student's score form: ưu tiên tìm theo học kỳ đang mở, nếu không có thì tìm theo học kỳ gần nhất hoặc phiếu mới nhất
+        Optional<ScoreForm> sfOpt = Optional.empty();
+        if (activePeriod != null && activePeriod.getSemester() != null) {
+            sfOpt = scoreFormRepository.findByStudentIdAndSemesterId(userId, activePeriod.getSemester().getId());
+        } else if (semester != null) {
+            sfOpt = scoreFormRepository.findByStudentIdAndSemesterId(userId, semester.getId());
+        }
+        if (sfOpt.isEmpty()) {
+            sfOpt = scoreFormRepository.findTopByStudentIdOrderByCreatedAtDesc(userId);
+        }
 
-        StudentDashboardResponse.MyFormDto myFormDto = new StudentDashboardResponse.MyFormDto();
+        StudentDashboardResponse.MyFormDto myFormDto = null;
         if (sfOpt.isPresent()) {
+            myFormDto = new StudentDashboardResponse.MyFormDto();
             ScoreForm sf = sfOpt.get();
             myFormDto.setFormId(sf.getId());
             BigDecimal sc = sf.getFinalTotal() != null ? sf.getFinalTotal() : (sf.getClassTotal() != null ? sf.getClassTotal() : sf.getStudentTotal());
@@ -442,9 +483,6 @@ public class DashboardServiceImpl implements DashboardService {
                     myFormDto.setCurrentStep(0);
                 }
             }
-        } else {
-            myFormDto.setStatus("Soạn thảo");
-            myFormDto.setCurrentStep(0);
         }
 
         // Recent Notifications
@@ -466,6 +504,8 @@ public class DashboardServiceImpl implements DashboardService {
                 .hasSignature(hasSig)
                 .isLeader(isLeader)
                 .pendingLeaderReviews(pendingReviews)
+                .canCompose(canCompose)
+                .periodNotice(periodNotice)
                 .semester(semDto)
                 .formVersion(fvName)
                 .myForm(myFormDto)

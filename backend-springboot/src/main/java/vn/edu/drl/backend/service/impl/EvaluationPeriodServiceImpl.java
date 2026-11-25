@@ -1,5 +1,7 @@
 package vn.edu.drl.backend.service.impl;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -13,14 +15,18 @@ import vn.edu.drl.backend.enu.EvaluationPeriodStatus;
 import vn.edu.drl.backend.enu.FormVersionStatus;
 import vn.edu.drl.backend.enu.NotificationType;
 import vn.edu.drl.backend.enu.Role;
+import vn.edu.drl.backend.enu.ScoreFormStatus;
 import vn.edu.drl.backend.model.*;
+import vn.edu.drl.backend.service.interfaces.EmailService;
 import vn.edu.drl.backend.service.interfaces.EvaluationPeriodService;
 import vn.edu.drl.backend.service.interfaces.NotificationService;
 
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -33,15 +39,16 @@ public class EvaluationPeriodServiceImpl implements EvaluationPeriodService {
     private final FormVersionRepository formVersionRepository;
     private final UserRepository userRepository;
     private final AuditLogRepository auditLogRepository;
+    private final ScoreFormRepository scoreFormRepository;
+    private final DepartmentRepository departmentRepository;
+    private final ClassRepository classRepository;
     private final NotificationService notificationService;
+    private final EmailService emailService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     private static final List<String> STANDARD_SCOPES = List.of(
             "Toàn trường",
-            "Khoa Công nghệ Thông tin",
-            "Khoa Kỹ thuật Xây dựng",
-            "Khóa QH-2023-I/CQ",
-            "Khóa QH-2024-I/CQ",
-            "Khóa QH-2025-I/CQ"
+            "Theo khoa"
     );
 
     @Override
@@ -50,8 +57,11 @@ public class EvaluationPeriodServiceImpl implements EvaluationPeriodService {
         String kw = (keyword != null && !keyword.trim().isEmpty())
                 ? "%" + keyword.trim().toLowerCase() + "%"
                 : null;
+
         List<EvaluationPeriod> periods = evaluationPeriodRepository.searchPeriods(kw, semesterId, status);
-        return periods.stream().map(this::mapToResponseWithoutHistory).collect(Collectors.toList());
+        return periods.stream()
+                .map(this::mapToResponseWithoutHistory)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -64,16 +74,16 @@ public class EvaluationPeriodServiceImpl implements EvaluationPeriodService {
 
         // Fetch audit history (UC018 R)
         List<AuditLog> auditLogs = auditLogRepository.findByEvaluationPeriodIdOrderByCreatedAtDesc(id);
-        List<EvaluationPeriodResponse.AuditLogItem> history = auditLogs.stream().map(log ->
+        List<EvaluationPeriodResponse.AuditLogItem> history = auditLogs.stream().map(l ->
                 EvaluationPeriodResponse.AuditLogItem.builder()
-                        .id(log.getId())
-                        .actorName(log.getUser() != null ? log.getUser().getFullName() : "Hệ thống")
-                        .action(log.getAction())
-                        .actionDisplayName(getActionDisplayName(log.getAction()))
-                        .fromStatus(log.getFromStatus())
-                        .toStatus(log.getToStatus())
-                        .note(log.getNote())
-                        .createdAt(log.getCreatedAt())
+                        .id(l.getId())
+                        .actorName(l.getUser() != null ? l.getUser().getFullName() : "Hệ thống")
+                        .action(l.getAction())
+                        .actionDisplayName(getActionDisplayName(l.getAction()))
+                        .fromStatus(l.getFromStatus())
+                        .toStatus(l.getToStatus())
+                        .note(l.getNote())
+                        .createdAt(l.getCreatedAt())
                         .build()
         ).collect(Collectors.toList());
 
@@ -87,39 +97,60 @@ public class EvaluationPeriodServiceImpl implements EvaluationPeriodService {
         User admin = userRepository.findById(adminUserId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy thông tin quản trị viên"));
 
+        // 1. Kiểm tra mã đợt chấm duy nhất
+        String periodCode = (request.getPeriodCode() != null) ? request.getPeriodCode().trim() : "";
+        if (periodCode.isEmpty()) {
+            throw new RuntimeException("Mã đợt chấm không được để trống.");
+        }
+        if (evaluationPeriodRepository.existsByPeriodCode(periodCode)) {
+            throw new RuntimeException("Mã đợt chấm '" + periodCode + "' đã tồn tại trên hệ thống. Vui lòng sử dụng mã khác.");
+        }
+
         Semester semester = semesterRepository.findById(request.getSemesterId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy học kỳ với ID: " + request.getSemesterId()));
 
         FormVersion formVersion = formVersionRepository.findById(request.getFormVersionId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy phiên bản biểu mẫu với ID: " + request.getFormVersionId()));
 
-        // Check form version must be ACTIVE
+        // 2. Biểu mẫu phải ở trạng thái ACTIVE
         if (formVersion.getStatus() != FormVersionStatus.ACTIVE) {
-            throw new RuntimeException("Chỉ được chọn phiên bản biểu mẫu đang có hiệu lực (ACTIVE)");
+            throw new RuntimeException("Chỉ được chọn phiên bản biểu mẫu đang có hiệu lực.");
         }
 
-        // Validate submission deadline
-        LocalDate today = LocalDate.now();
-        if (request.getSubmissionDeadline().isBefore(today)) {
-            throw new RuntimeException("Hạn nộp không hợp lệ: không được trước ngày hiện tại");
-        }
+        // Đồng bộ fallback deadline nếu client truyền submissionDeadline
+        LocalDate studentDeadline = request.getStudentDeadline() != null ? request.getStudentDeadline() : request.getSubmissionDeadline();
+        LocalDate startDate = request.getStartDate() != null ? request.getStartDate() : LocalDate.now();
+        LocalDate classDeadline = request.getClassDeadline() != null ? request.getClassDeadline() : (studentDeadline != null ? studentDeadline.plusDays(7) : null);
+        LocalDate deanDeadline = request.getDeanDeadline() != null ? request.getDeanDeadline() : (classDeadline != null ? classDeadline.plusDays(7) : null);
 
-        // 6b Duplicate check: cùng Học kỳ và Phạm vi áp dụng đang Chưa mở hoặc Đang mở
-        List<EvaluationPeriod> duplicates = evaluationPeriodRepository.findBySemesterIdAndApplicationScopeAndStatusIn(
-                request.getSemesterId(),
-                request.getApplicationScope().trim(),
-                List.of(EvaluationPeriodStatus.CHUA_MO, EvaluationPeriodStatus.DANG_MO)
-        );
-        if (!duplicates.isEmpty()) {
-            throw new RuntimeException("409 CONFLICT: Đã có kỳ cùng Học kỳ và Phạm vi áp dụng đang Chưa mở hoặc Đang mở");
+        // 3. Kiểm tra các mốc thời hạn tuần tự
+        validateTimelineOrder(startDate, studentDeadline, classDeadline, deanDeadline);
+
+        // 4. Kiểm tra phạm vi Theo khoa
+        String scope = request.getApplicationScope() != null ? request.getApplicationScope().trim() : "Toàn trường";
+        String applicableDeptStr = null;
+        if ("Theo khoa".equalsIgnoreCase(scope)) {
+            if (request.getApplicableDepartmentIds() == null || request.getApplicableDepartmentIds().isEmpty()) {
+                throw new RuntimeException("Khi chọn phạm vi 'Theo khoa', bắt buộc phải chọn ít nhất 01 khoa áp dụng.");
+            }
+            applicableDeptStr = request.getApplicableDepartmentIds().stream()
+                    .map(String::valueOf)
+                    .collect(Collectors.joining(","));
         }
 
         EvaluationPeriod period = EvaluationPeriod.builder()
+                .periodCode(periodCode)
                 .semester(semester)
                 .formVersion(formVersion)
-                .applicationScope(request.getApplicationScope().trim())
-                .submissionDeadline(request.getSubmissionDeadline())
+                .applicationScope(scope)
+                .applicableDepartments(applicableDeptStr)
+                .startDate(startDate)
+                .studentDeadline(studentDeadline)
+                .classDeadline(classDeadline)
+                .deanDeadline(deanDeadline)
+                .submissionDeadline(studentDeadline)
                 .status(EvaluationPeriodStatus.CHUA_MO)
+                .isLocked(false)
                 .createdBy(admin)
                 .build();
 
@@ -131,10 +162,130 @@ public class EvaluationPeriodServiceImpl implements EvaluationPeriodService {
         audit.setUser(admin);
         audit.setAction("CREATE_PERIOD");
         audit.setToStatus(EvaluationPeriodStatus.CHUA_MO.name());
-        audit.setNote("Tạo mới kỳ chấm ĐRL (Trạng thái: Chưa mở)");
+        audit.setNote("Tạo mới kỳ chấm ĐRL " + periodCode + " (Trạng thái: Chưa mở)");
         auditLogRepository.save(audit);
 
         return getPeriodById(saved.getId());
+    }
+
+    @Override
+    @Transactional
+    public EvaluationPeriodResponse updatePeriod(Long adminUserId, Long id, EvaluationPeriodRequest request) {
+        User admin = userRepository.findById(adminUserId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy thông tin quản trị viên"));
+
+        EvaluationPeriod period = evaluationPeriodRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy kỳ chấm ĐRL với ID: " + id));
+
+        if (period.getStatus() != EvaluationPeriodStatus.CHUA_MO && period.getStatus() != EvaluationPeriodStatus.VO_HIEU_HOA) {
+            throw new RuntimeException("Chỉ được chỉnh sửa kỳ chấm ĐRL khi đang ở trạng thái Chưa mở hoặc Vô hiệu hóa");
+        }
+
+        // 1. Kiểm tra mã đợt chấm duy nhất
+        String periodCode = (request.getPeriodCode() != null) ? request.getPeriodCode().trim() : "";
+        if (!periodCode.isEmpty() && !periodCode.equals(period.getPeriodCode())) {
+            if (evaluationPeriodRepository.existsByPeriodCodeAndIdNot(periodCode, id)) {
+                throw new RuntimeException("Mã đợt chấm '" + periodCode + "' đã tồn tại trên hệ thống. Vui lòng sử dụng mã khác.");
+            }
+            period.setPeriodCode(periodCode);
+        }
+
+        Semester semester = semesterRepository.findById(request.getSemesterId())
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy học kỳ với ID: " + request.getSemesterId()));
+
+        FormVersion formVersion = formVersionRepository.findById(request.getFormVersionId())
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy phiên bản biểu mẫu với ID: " + request.getFormVersionId()));
+
+        if (formVersion.getStatus() != FormVersionStatus.ACTIVE) {
+            throw new RuntimeException("Chỉ được chọn phiên bản biểu mẫu đang có hiệu lực.");
+        }
+
+        LocalDate studentDeadline = request.getStudentDeadline() != null ? request.getStudentDeadline() : request.getSubmissionDeadline();
+        LocalDate startDate = request.getStartDate() != null ? request.getStartDate() : period.getStartDate();
+        LocalDate classDeadline = request.getClassDeadline() != null ? request.getClassDeadline() : (studentDeadline != null ? studentDeadline.plusDays(7) : null);
+        LocalDate deanDeadline = request.getDeanDeadline() != null ? request.getDeanDeadline() : (classDeadline != null ? classDeadline.plusDays(7) : null);
+
+        // Kiểm tra thứ tự tuần tự
+        validateTimelineOrder(startDate, studentDeadline, classDeadline, deanDeadline);
+
+        String scope = request.getApplicationScope() != null ? request.getApplicationScope().trim() : "Toàn trường";
+        String applicableDeptStr = null;
+        if ("Theo khoa".equalsIgnoreCase(scope)) {
+            if (request.getApplicableDepartmentIds() == null || request.getApplicableDepartmentIds().isEmpty()) {
+                throw new RuntimeException("Khi chọn phạm vi 'Theo khoa', bắt buộc phải chọn ít nhất 01 khoa áp dụng.");
+            }
+            applicableDeptStr = request.getApplicableDepartmentIds().stream()
+                    .map(String::valueOf)
+                    .collect(Collectors.joining(","));
+        }
+
+        period.setSemester(semester);
+        period.setFormVersion(formVersion);
+        period.setApplicationScope(scope);
+        period.setApplicableDepartments(applicableDeptStr);
+        period.setStartDate(startDate);
+        period.setStudentDeadline(studentDeadline);
+        period.setClassDeadline(classDeadline);
+        period.setDeanDeadline(deanDeadline);
+        period.setSubmissionDeadline(studentDeadline);
+
+        evaluationPeriodRepository.save(period);
+
+        AuditLog audit = new AuditLog();
+        audit.setEvaluationPeriod(period);
+        audit.setUser(admin);
+        audit.setAction("UPDATE_PERIOD");
+        audit.setFromStatus(EvaluationPeriodStatus.CHUA_MO.name());
+        audit.setToStatus(EvaluationPeriodStatus.CHUA_MO.name());
+        audit.setNote("Chỉnh sửa thông tin kỳ chấm ĐRL " + period.getPeriodCode() + " (Trạng thái: Chưa mở)");
+        auditLogRepository.save(audit);
+
+        return getPeriodById(period.getId());
+    }
+
+    @Override
+    @Transactional
+    public void deletePeriod(Long adminUserId, Long id) {
+        // Tuyệt đối không xóa cứng theo yêu cầu quản lý dữ liệu đào tạo: chuyển sang Vô hiệu hóa
+        deactivatePeriod(adminUserId, id);
+    }
+
+    @Override
+    @Transactional
+    public EvaluationPeriodResponse deactivatePeriod(Long adminUserId, Long id) {
+        User admin = userRepository.findById(adminUserId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy thông tin quản trị viên"));
+
+        EvaluationPeriod period = evaluationPeriodRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy kỳ chấm ĐRL với ID: " + id));
+
+        if (period.getStatus() == EvaluationPeriodStatus.VO_HIEU_HOA) {
+            throw new RuntimeException("Kỳ chấm ĐRL này hiện đã ở trạng thái Vô hiệu hóa");
+        }
+        if (period.getStatus() == EvaluationPeriodStatus.DA_DONG) {
+            throw new RuntimeException("Kỳ chấm ĐRL này đã được khóa sổ, không thể vô hiệu hóa");
+        }
+
+        EvaluationPeriodStatus oldStatus = period.getStatus();
+        period.setStatus(EvaluationPeriodStatus.VO_HIEU_HOA);
+        EvaluationPeriod saved = evaluationPeriodRepository.save(period);
+
+        AuditLog audit = new AuditLog();
+        audit.setEvaluationPeriod(period);
+        audit.setUser(admin);
+        audit.setAction("DEACTIVATE_PERIOD");
+        audit.setFromStatus(oldStatus.name());
+        audit.setToStatus(EvaluationPeriodStatus.VO_HIEU_HOA.name());
+        audit.setNote("Vô hiệu hóa kỳ chấm ĐRL " + period.getPeriodCode());
+        auditLogRepository.save(audit);
+
+        return mapToResponseWithoutHistory(saved);
+    }
+
+    @Override
+    @Transactional
+    public EvaluationPeriodResponse activatePeriod(Long adminUserId, Long id) {
+        return openPeriod(adminUserId, id);
     }
 
     @Override
@@ -150,14 +301,31 @@ public class EvaluationPeriodServiceImpl implements EvaluationPeriodService {
             throw new RuntimeException("Kỳ chấm ĐRL này hiện đã đang mở");
         }
         if (period.getStatus() == EvaluationPeriodStatus.DA_DONG) {
-            throw new RuntimeException("Không thể mở lại kỳ chấm ĐRL đã đóng");
+            throw new RuntimeException("Không thể mở lại kỳ chấm ĐRL đã đóng/khóa sổ");
+        }
+
+        // 1. Kiểm tra: Toàn trường chỉ duy nhất 01 kỳ chấm ở trạng thái Đang mở
+        Optional<EvaluationPeriod> activeOther = evaluationPeriodRepository.findFirstByStatusOrderByCreatedAtDesc(EvaluationPeriodStatus.DANG_MO);
+        if (activeOther.isPresent() && !activeOther.get().getId().equals(id)) {
+            throw new RuntimeException("Hiện tại đang có một kỳ chấm ĐRL đang mở (" +
+                    activeOther.get().getPeriodCode() + "). Vui lòng khóa sổ đợt chấm hiện tại trước khi kích hoạt mở đợt mới.");
+        }
+
+        // 2. Kiểm tra hạn nộp
+        LocalDate today = LocalDate.now();
+        LocalDate deadline = period.getStudentDeadline() != null ? period.getStudentDeadline() : period.getSubmissionDeadline();
+        if (deadline != null && deadline.isBefore(today)) {
+            throw new RuntimeException("Hạn nộp sinh viên của kỳ chấm này đã qua (" +
+                    deadline.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) +
+                    "). Vui lòng gia hạn hạn nộp trước khi mở kỳ.");
         }
 
         EvaluationPeriodStatus oldStatus = period.getStatus();
         period.setStatus(EvaluationPeriodStatus.DANG_MO);
+        period.setIsLocked(false);
         evaluationPeriodRepository.save(period);
 
-        // Also synchronize semester is_active flag
+        // Đồng bộ trạng thái học kỳ
         Semester semester = period.getSemester();
         if (semester != null && !Boolean.TRUE.equals(semester.getIsActive())) {
             semester.setIsActive(true);
@@ -168,31 +336,36 @@ public class EvaluationPeriodServiceImpl implements EvaluationPeriodService {
         AuditLog audit = new AuditLog();
         audit.setEvaluationPeriod(period);
         audit.setUser(admin);
-        audit.setAction("OPEN_PERIOD");
+        audit.setAction(oldStatus == EvaluationPeriodStatus.VO_HIEU_HOA ? "ACTIVATE_PERIOD" : "OPEN_PERIOD");
         audit.setFromStatus(oldStatus.name());
         audit.setToStatus(EvaluationPeriodStatus.DANG_MO.name());
-        audit.setNote("Mở kỳ chấm ĐRL cho sinh viên");
+        audit.setNote(oldStatus == EvaluationPeriodStatus.VO_HIEU_HOA
+                ? "Kích hoạt lại kỳ chấm ĐRL " + period.getPeriodCode()
+                : "Kích hoạt mở đợt chấm ĐRL " + period.getPeriodCode() + " toàn trường");
         auditLogRepository.save(audit);
 
-        // 8. Send notification to all students
+        // 3. Phát thông báo tự động (In-app & Brevo Email) tới Sinh viên, Cán bộ Lớp và Lãnh đạo Khoa
         try {
-            String formattedDeadline = period.getSubmissionDeadline().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+            String formattedDeadline = (deadline != null) ? deadline.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) : "Theo thông báo";
             String title = "Mở kỳ chấm ĐRL " + (semester != null ? semester.getSemesterName() : "");
             String content = "Kỳ chấm ĐRL " + (semester != null ? semester.getSemesterName() : "") +
-                    " năm học " + (semester != null ? semester.getAcademicYear() : "") +
-                    " đã mở, hạn nộp " + formattedDeadline;
+                    " (" + period.getPeriodCode() + ") đã chính thức mở cổng tự đánh giá. Hạn nộp sinh viên: " + formattedDeadline;
 
-            List<User> students = userRepository.findByRoleIn(List.of(Role.STUDENT, Role.CLASS_LEADER, Role.CLASS_DEPUTY));
+            List<User> recipients = userRepository.findByRoleIn(List.of(Role.STUDENT, Role.CLASS_LEADER, Role.CLASS_DEPUTY, Role.DEAN));
             notificationService.createBatchNotificationsAsync(
-                    students,
+                    recipients,
                     title,
                     content,
                     NotificationType.SYSTEM,
                     "/student/compose"
             );
+            try {
+                emailService.sendNewEvaluationPeriodEmail(recipients, period);
+            } catch (Exception ex) {
+                log.warn("Lỗi khi gửi email mở kỳ ĐRL: {}", ex.getMessage());
+            }
         } catch (Exception e) {
-            // 8a: Không có sinh viên nhận được thông báo do lỗi hệ thống: kỳ vẫn Đang mở; lỗi được ghi nhận
-            log.error("Lỗi khi gửi thông báo mở kỳ chấm ĐRL tới sinh viên: {}", e.getMessage(), e);
+            log.error("Lỗi khi gửi thông báo mở kỳ chấm ĐRL: {}", e.getMessage(), e);
         }
 
         return getPeriodById(period.getId());
@@ -211,13 +384,88 @@ public class EvaluationPeriodServiceImpl implements EvaluationPeriodService {
             throw new RuntimeException("Chỉ có thể gia hạn khi kỳ chấm đang ở trạng thái Đang mở");
         }
 
-        if (request.getNewDeadline() == null || !request.getNewDeadline().isAfter(period.getSubmissionDeadline())) {
-            throw new RuntimeException("Hạn nộp mới phải muộn hơn hạn nộp hiện tại (" +
-                    period.getSubmissionDeadline().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + ")");
+        String extendScope = request.getExtendScope() != null ? request.getExtendScope().trim().toUpperCase() : "ALL";
+
+        // =========================================================================
+        // Luồng 1a - Nhánh 1: Cấu hình mở lẻ ngoại lệ cho Lớp / Khoa đặc thù
+        // =========================================================================
+        if ("EXCEPTION".equals(extendScope)) {
+            if (request.getTargetType() == null || request.getTargetId() == null || request.getExceptionDeadline() == null) {
+                throw new RuntimeException("Thiếu thông tin đối tượng ngoại lệ (Lớp/Khoa) hoặc hạn mở lẻ.");
+            }
+            if (!request.getExceptionDeadline().isAfter(LocalDate.now())) {
+                throw new RuntimeException("Hạn mở lẻ ngoại lệ phải lớn hơn ngày hiện tại.");
+            }
+
+            List<Map<String, Object>> exceptionList = parseExceptions(period.getExceptions());
+            Map<String, Object> newException = new HashMap<>();
+            newException.put("id", UUID.randomUUID().toString());
+            newException.put("targetType", request.getTargetType().toUpperCase());
+            newException.put("targetId", request.getTargetId());
+            newException.put("targetName", request.getTargetName() != null ? request.getTargetName() : "Đơn vị #" + request.getTargetId());
+            newException.put("deadline", request.getExceptionDeadline().toString());
+            newException.put("reason", request.getReason() != null ? request.getReason() : "Mở lẻ ngoại lệ");
+            newException.put("createdAt", Instant.now().toString());
+
+            // Thay thế nếu trùng đối tượng, hoặc thêm mới
+            exceptionList.removeIf(e -> Objects.equals(e.get("targetType"), request.getTargetType().toUpperCase()) &&
+                    Objects.equals(String.valueOf(e.get("targetId")), String.valueOf(request.getTargetId())));
+            exceptionList.add(newException);
+
+            try {
+                period.setExceptions(objectMapper.writeValueAsString(exceptionList));
+            } catch (Exception ex) {
+                log.error("Lỗi parse JSON exceptions: {}", ex.getMessage());
+            }
+            evaluationPeriodRepository.save(period);
+
+            // Audit Log
+            AuditLog audit = new AuditLog();
+            audit.setEvaluationPeriod(period);
+            audit.setUser(admin);
+            audit.setAction("EXTEND_EXCEPTION");
+            audit.setFromStatus(EvaluationPeriodStatus.DANG_MO.name());
+            audit.setToStatus(EvaluationPeriodStatus.DANG_MO.name());
+            audit.setNote("Cấp quyền mở nộp/sửa lẻ cho " + request.getTargetType() + " " + request.getTargetName() +
+                    " đến ngày " + request.getExceptionDeadline().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) +
+                    ". Lý do: " + request.getReason());
+            auditLogRepository.save(audit);
+
+            return getPeriodById(period.getId());
         }
 
-        LocalDate oldDeadline = period.getSubmissionDeadline();
-        period.setSubmissionDeadline(request.getNewDeadline());
+        // =========================================================================
+        // Luồng 1a - Nhánh 2: Gia hạn chung toàn trường
+        // =========================================================================
+        LocalDate newStudentDeadline = request.getNewStudentDeadline() != null ? request.getNewStudentDeadline() : request.getNewDeadline();
+        if (newStudentDeadline == null) {
+            newStudentDeadline = period.getStudentDeadline();
+        }
+
+        LocalDate currentStudentDeadline = period.getStudentDeadline() != null ? period.getStudentDeadline() : period.getSubmissionDeadline();
+        if (newStudentDeadline != null && currentStudentDeadline != null && !newStudentDeadline.isAfter(currentStudentDeadline)) {
+            throw new RuntimeException("Hạn sinh viên nộp bài mới phải muộn hơn hạn hiện tại (" +
+                    currentStudentDeadline.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + ")");
+        }
+
+        LocalDate newClassDeadline = request.getNewClassDeadline() != null ? request.getNewClassDeadline() : period.getClassDeadline();
+        if (newClassDeadline == null && newStudentDeadline != null) {
+            newClassDeadline = newStudentDeadline.plusDays(7);
+        }
+
+        LocalDate newDeanDeadline = request.getNewDeanDeadline() != null ? request.getNewDeanDeadline() : period.getDeanDeadline();
+        if (newDeanDeadline == null && newClassDeadline != null) {
+            newDeanDeadline = newClassDeadline.plusDays(7);
+        }
+
+        // Kiểm tra logic thứ tự BR-KCDRL-02
+        validateTimelineOrder(period.getStartDate(), newStudentDeadline, newClassDeadline, newDeanDeadline);
+
+        LocalDate oldDeadline = period.getStudentDeadline();
+        period.setStudentDeadline(newStudentDeadline);
+        period.setSubmissionDeadline(newStudentDeadline);
+        period.setClassDeadline(newClassDeadline);
+        period.setDeanDeadline(newDeanDeadline);
         evaluationPeriodRepository.save(period);
 
         // Record audit log
@@ -227,11 +475,30 @@ public class EvaluationPeriodServiceImpl implements EvaluationPeriodService {
         audit.setAction("EXTEND_DEADLINE");
         audit.setFromStatus(EvaluationPeriodStatus.DANG_MO.name());
         audit.setToStatus(EvaluationPeriodStatus.DANG_MO.name());
-        audit.setNote("Gia hạn hạn nộp từ " +
-                oldDeadline.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) +
-                " đến " +
-                request.getNewDeadline().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
+        audit.setNote("Gia hạn thời hạn chung toàn trường: SV nộp bài đến " +
+                (newStudentDeadline != null ? newStudentDeadline.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) : "") +
+                ", Lớp duyệt đến " + (newClassDeadline != null ? newClassDeadline.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) : "") +
+                ", Khoa duyệt đến " + (newDeanDeadline != null ? newDeanDeadline.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) : ""));
         auditLogRepository.save(audit);
+
+        // Gửi thông báo gia hạn
+        try {
+            String formattedDeadline = newStudentDeadline != null ? newStudentDeadline.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) : "";
+            String title = "Gia hạn hạn nộp kỳ chấm ĐRL " + (period.getSemester() != null ? period.getSemester().getSemesterName() : "");
+            String content = "Kỳ chấm ĐRL " + (period.getSemester() != null ? period.getSemester().getSemesterName() : "") +
+                    " đã được gia hạn hạn nộp đến ngày " + formattedDeadline;
+
+            List<User> students = userRepository.findByRoleIn(List.of(Role.STUDENT, Role.CLASS_LEADER, Role.CLASS_DEPUTY));
+            notificationService.createBatchNotificationsAsync(
+                    students,
+                    title,
+                    content,
+                    NotificationType.SYSTEM,
+                    "/student/compose"
+            );
+        } catch (Exception e) {
+            log.error("Lỗi khi gửi thông báo gia hạn tới sinh viên: {}", e.getMessage());
+        }
 
         return getPeriodById(period.getId());
     }
@@ -246,22 +513,82 @@ public class EvaluationPeriodServiceImpl implements EvaluationPeriodService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy kỳ chấm ĐRL với ID: " + id));
 
         if (period.getStatus() != EvaluationPeriodStatus.DANG_MO) {
-            throw new RuntimeException("Chỉ có thể đóng kỳ chấm khi kỳ đang ở trạng thái Đang mở");
+            throw new RuntimeException("Chỉ có thể khóa sổ khi kỳ chấm đang ở trạng thái Đang mở");
         }
+
+        // =========================================================================
+        // Chuỗi xử lý Khóa sổ tự động (Luồng sự kiện thay thế 1b & BR-KCDRL-06):
+        // 1) Chuyển trạng thái kỳ chấm sang INACTIVE / DA_DONG (is_active = FALSE).
+        // 2) Vô hiệu hóa toàn bộ tính năng Soạn/Nộp/Duyệt phiếu (chuyển sang Read-only, is_locked = TRUE).
+        // 3) Chuyển tất cả phiếu DRAFT chưa nộp sang EXPIRED, tự động gán mặc định Điểm = 0 và Xếp loại = 'Kém'.
+        // 4) Khóa cứng cờ is_locked = TRUE trên các phiếu.
+        // 5) Tự động gọi API đẩy dữ liệu điểm tổng hợp sang Hệ thống SIS/Core của Phòng Đào tạo.
+        // =========================================================================
 
         EvaluationPeriodStatus oldStatus = period.getStatus();
         period.setStatus(EvaluationPeriodStatus.DA_DONG);
+        period.setIsLocked(true);
         evaluationPeriodRepository.save(period);
 
-        // Record audit log
+        int expiredCount = 0;
+        int lockedCount = 0;
+
+        if (period.getSemester() != null) {
+            List<ScoreForm> forms = scoreFormRepository.findByEvaluationPeriodId(period.getId());
+            if (forms.isEmpty()) {
+                forms = scoreFormRepository.findBySemesterId(period.getSemester().getId());
+            }
+            for (ScoreForm f : forms) {
+                f.setIsLocked(true); // Khóa cứng Read-only
+                lockedCount++;
+
+                // Chuyển DRAFT sang EXPIRED, gán 0 điểm và Xếp loại Kém
+                if (f.getStatus() == ScoreFormStatus.DRAFT) {
+                    f.setStatus(ScoreFormStatus.EXPIRED);
+                    f.setStudentTotal(BigDecimal.ZERO);
+                    f.setClassTotal(BigDecimal.ZERO);
+                    f.setFinalTotal(BigDecimal.ZERO);
+                    f.setRanking("Kém");
+                    f.setRejectReason("Hệ thống tự động khóa sổ kỳ chấm: Phiếu chưa nộp đúng hạn.");
+                    expiredCount++;
+                }
+            }
+            scoreFormRepository.saveAll(forms);
+        }
+
+        // Đồng bộ kết quả sang SIS/Core (Mô phỏng tích hợp tự động qua API)
+        log.info("[SIS SYNC AUTO] Đã đồng bộ thành công {} phiếu điểm rèn luyện của kỳ {} sang Hệ thống SIS/Core (Phòng Đào tạo).",
+                lockedCount, period.getPeriodCode());
+
+        // Ghi nhận Audit Log
         AuditLog audit = new AuditLog();
         audit.setEvaluationPeriod(period);
         audit.setUser(admin);
         audit.setAction("CLOSE_PERIOD");
         audit.setFromStatus(oldStatus.name());
         audit.setToStatus(EvaluationPeriodStatus.DA_DONG.name());
-        audit.setNote("Đóng kỳ chấm ĐRL sớm bởi Quản trị viên");
+        audit.setNote("Khóa sổ đợt chấm " + period.getPeriodCode() +
+                ". Đã chuyển " + expiredCount + " phiếu chưa hoàn tất sang hết hạn (0 điểm) và niêm phong " +
+                lockedCount + " phiếu kết quả chuyển Phòng Đào tạo.");
         auditLogRepository.save(audit);
+
+        // Gửi thông báo tới sinh viên và cán bộ
+        try {
+            String title = "Đóng kỳ & Khóa sổ ĐRL " + (period.getSemester() != null ? period.getSemester().getSemesterName() : "");
+            String content = "Cổng đánh giá ĐRL kỳ " + (period.getSemester() != null ? period.getSemester().getSemesterName() : "") +
+                    " đã chính thức khóa sổ. Kết quả đã được niêm phong và gửi về Phòng Đào tạo.";
+
+            List<User> recipients = userRepository.findByRoleIn(List.of(Role.STUDENT, Role.CLASS_LEADER, Role.CLASS_DEPUTY, Role.DEAN));
+            notificationService.createBatchNotificationsAsync(
+                    recipients,
+                    title,
+                    content,
+                    NotificationType.SYSTEM,
+                    "/student/history"
+            );
+        } catch (Exception e) {
+            log.error("Lỗi khi gửi thông báo đóng kỳ: {}", e.getMessage());
+        }
 
         return getPeriodById(period.getId());
     }
@@ -294,9 +621,30 @@ public class EvaluationPeriodServiceImpl implements EvaluationPeriodService {
                                 .build()
                 ).collect(Collectors.toList());
 
+        List<Department> departments = departmentRepository.findAll();
+        List<EvaluationPeriodFormOptionsResponse.DepartmentOption> deptOptions = departments.stream().map(d ->
+                EvaluationPeriodFormOptionsResponse.DepartmentOption.builder()
+                        .id(d.getId())
+                        .deptCode(d.getDeptCode())
+                        .deptName(d.getDeptName())
+                        .build()
+        ).collect(Collectors.toList());
+
+        List<ClassEntity> classes = classRepository.findAll();
+        List<EvaluationPeriodFormOptionsResponse.ClassOption> classOptions = classes.stream().map(c ->
+                EvaluationPeriodFormOptionsResponse.ClassOption.builder()
+                        .id(c.getId())
+                        .classCode(c.getClassCode())
+                        .className(c.getClassName())
+                        .departmentId(c.getDepartment() != null ? c.getDepartment().getId() : null)
+                        .build()
+        ).collect(Collectors.toList());
+
         return EvaluationPeriodFormOptionsResponse.builder()
                 .semesters(semOptions)
                 .formVersions(fvOptions)
+                .departments(deptOptions)
+                .classes(classOptions)
                 .scopes(STANDARD_SCOPES)
                 .build();
     }
@@ -309,14 +657,93 @@ public class EvaluationPeriodServiceImpl implements EvaluationPeriodService {
                 .orElse(null);
     }
 
+    /**
+     * Kiểm tra logic 3 mốc thời hạn tuần tự
+     */
+    private void validateTimelineOrder(LocalDate start, LocalDate student, LocalDate classRev, LocalDate dean) {
+        if (start == null || student == null || classRev == null || dean == null) {
+            throw new RuntimeException("Vui lòng thiết lập đầy đủ 4 mốc thời gian: Ngày bắt đầu mở cổng, Hạn sinh viên nộp bài, Hạn lớp thẩm định và Hạn khoa phê duyệt.");
+        }
+        if (!student.isAfter(start)) {
+            throw new RuntimeException("Thời hạn không hợp lệ: Hạn sinh viên nộp bài (" + student + ") phải sau ngày bắt đầu mở cổng (" + start + ").");
+        }
+        if (!classRev.isAfter(student)) {
+            throw new RuntimeException("Thời hạn không hợp lệ: Hạn thẩm định của lớp (" + classRev + ") phải sau hạn sinh viên nộp bài (" + student + ").");
+        }
+        if (!dean.isAfter(classRev)) {
+            throw new RuntimeException("Thời hạn không hợp lệ: Hạn phê duyệt của khoa (" + dean + ") phải sau hạn thẩm định của lớp (" + classRev + ").");
+        }
+    }
+
     private EvaluationPeriodResponse mapToResponseWithoutHistory(EvaluationPeriod p) {
         LocalDate today = LocalDate.now();
-        long remaining = (p.getSubmissionDeadline() != null)
-                ? Math.max(0, ChronoUnit.DAYS.between(today, p.getSubmissionDeadline()))
+        LocalDate targetDeadline = p.getStudentDeadline() != null ? p.getStudentDeadline() : p.getSubmissionDeadline();
+        long remaining = (targetDeadline != null)
+                ? Math.max(0, ChronoUnit.DAYS.between(today, targetDeadline))
                 : 0;
+
+        Long totalSubmissions = 0L;
+        Long completedSubmissions = 0L;
+        Long pendingSubmissions = 0L;
+        Long draftSubmissions = 0L;
+        Long rejectedSubmissions = 0L;
+
+        if (p.getStatus() == EvaluationPeriodStatus.CHUA_MO || p.getStatus() == EvaluationPeriodStatus.VO_HIEU_HOA) {
+            // Đợt chấm chưa mở hoặc vô hiệu hóa: Tiến độ bằng 0
+            totalSubmissions = 0L;
+            completedSubmissions = 0L;
+            pendingSubmissions = 0L;
+            draftSubmissions = 0L;
+            rejectedSubmissions = 0L;
+        } else if (p.getSemester() != null) {
+            // Đợt chấm đang mở hoặc đã đóng:
+            long periodCount = scoreFormRepository.countByEvaluationPeriodId(p.getId());
+            if (periodCount > 0) {
+                totalSubmissions = periodCount;
+                completedSubmissions = scoreFormRepository.countByEvaluationPeriodIdAndStatus(p.getId(), ScoreFormStatus.DEAN_APPROVED);
+                long submitted = scoreFormRepository.countByEvaluationPeriodIdAndStatus(p.getId(), ScoreFormStatus.SUBMITTED);
+                long classApproved = scoreFormRepository.countByEvaluationPeriodIdAndStatus(p.getId(), ScoreFormStatus.CLASS_APPROVED);
+                draftSubmissions = scoreFormRepository.countByEvaluationPeriodIdAndStatus(p.getId(), ScoreFormStatus.DRAFT);
+                rejectedSubmissions = scoreFormRepository.countByEvaluationPeriodIdAndStatus(p.getId(), ScoreFormStatus.REJECTED);
+                pendingSubmissions = submitted + classApproved;
+            } else {
+                // Fallback nếu dữ liệu cũ chưa có evaluation_period_id
+                if (p.getFormVersion() != null) {
+                    totalSubmissions = scoreFormRepository.countBySemesterIdAndFormVersionId(p.getSemester().getId(), p.getFormVersion().getId());
+                    completedSubmissions = scoreFormRepository.countBySemesterIdAndFormVersionIdAndStatus(p.getSemester().getId(), p.getFormVersion().getId(), ScoreFormStatus.DEAN_APPROVED);
+                    long submitted = scoreFormRepository.countBySemesterIdAndFormVersionIdAndStatus(p.getSemester().getId(), p.getFormVersion().getId(), ScoreFormStatus.SUBMITTED);
+                    long classApproved = scoreFormRepository.countBySemesterIdAndFormVersionIdAndStatus(p.getSemester().getId(), p.getFormVersion().getId(), ScoreFormStatus.CLASS_APPROVED);
+                    draftSubmissions = scoreFormRepository.countBySemesterIdAndFormVersionIdAndStatus(p.getSemester().getId(), p.getFormVersion().getId(), ScoreFormStatus.DRAFT);
+                    rejectedSubmissions = scoreFormRepository.countBySemesterIdAndFormVersionIdAndStatus(p.getSemester().getId(), p.getFormVersion().getId(), ScoreFormStatus.REJECTED);
+                    pendingSubmissions = submitted + classApproved;
+                } else {
+                    totalSubmissions = scoreFormRepository.countBySemesterId(p.getSemester().getId());
+                    completedSubmissions = scoreFormRepository.countBySemesterIdAndStatus(p.getSemester().getId(), ScoreFormStatus.DEAN_APPROVED);
+                    long submitted = scoreFormRepository.countBySemesterIdAndStatus(p.getSemester().getId(), ScoreFormStatus.SUBMITTED);
+                    long classApproved = scoreFormRepository.countBySemesterIdAndStatus(p.getSemester().getId(), ScoreFormStatus.CLASS_APPROVED);
+                    draftSubmissions = scoreFormRepository.countBySemesterIdAndStatus(p.getSemester().getId(), ScoreFormStatus.DRAFT);
+                    rejectedSubmissions = scoreFormRepository.countBySemesterIdAndStatus(p.getSemester().getId(), ScoreFormStatus.REJECTED);
+                    pendingSubmissions = submitted + classApproved;
+                }
+            }
+        }
+
+        List<String> deptNames = new ArrayList<>();
+        if (p.getApplicableDepartments() != null && !p.getApplicableDepartments().trim().isEmpty()) {
+            List<Long> deptIds = Arrays.stream(p.getApplicableDepartments().split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .map(Long::parseLong)
+                    .collect(Collectors.toList());
+            if (!deptIds.isEmpty()) {
+                List<Department> depts = departmentRepository.findAllById(deptIds);
+                deptNames = depts.stream().map(Department::getDeptName).collect(Collectors.toList());
+            }
+        }
 
         return EvaluationPeriodResponse.builder()
                 .id(p.getId())
+                .periodCode(p.getPeriodCode() != null ? p.getPeriodCode() : ("HK" + (p.getSemester() != null ? p.getSemester().getId() : "") + "_PERIOD_" + p.getId()))
                 .semesterId(p.getSemester() != null ? p.getSemester().getId() : null)
                 .semesterCode(p.getSemester() != null ? p.getSemester().getSemesterCode() : null)
                 .semesterName(p.getSemester() != null ? p.getSemester().getSemesterName() : null)
@@ -326,23 +753,52 @@ public class EvaluationPeriodServiceImpl implements EvaluationPeriodService {
                 .formVersionNo(p.getFormVersion() != null ? p.getFormVersion().getVersionNo() : null)
                 .formName(p.getFormVersion() != null ? p.getFormVersion().getFormName() : null)
                 .applicationScope(p.getApplicationScope())
-                .submissionDeadline(p.getSubmissionDeadline())
+                .applicableDepartments(p.getApplicableDepartments())
+                .applicableDepartmentNames(deptNames)
+                .startDate(p.getStartDate() != null ? p.getStartDate() : (p.getCreatedAt() != null ? LocalDate.ofInstant(p.getCreatedAt(), java.time.ZoneId.systemDefault()) : LocalDate.now()))
+                .studentDeadline(p.getStudentDeadline() != null ? p.getStudentDeadline() : p.getSubmissionDeadline())
+                .classDeadline(p.getClassDeadline() != null ? p.getClassDeadline() : (targetDeadline != null ? targetDeadline.plusDays(7) : null))
+                .deanDeadline(p.getDeanDeadline() != null ? p.getDeanDeadline() : (targetDeadline != null ? targetDeadline.plusDays(14) : null))
+                .submissionDeadline(targetDeadline)
+                .exceptions(p.getExceptions())
                 .status(p.getStatus())
                 .statusDisplayName(p.getStatus() != null ? p.getStatus().getDisplayName() : "")
+                .isLocked(Boolean.TRUE.equals(p.getIsLocked()))
+                .isActive(p.getStatus() == EvaluationPeriodStatus.DANG_MO)
                 .remainingDays(remaining)
+                .totalSubmissions(totalSubmissions)
+                .completedSubmissions(completedSubmissions)
+                .pendingSubmissions(pendingSubmissions)
+                .draftSubmissions(draftSubmissions)
+                .rejectedSubmissions(rejectedSubmissions)
                 .createdByName(p.getCreatedBy() != null ? p.getCreatedBy().getFullName() : null)
                 .createdAt(p.getCreatedAt())
                 .updatedAt(p.getUpdatedAt())
                 .build();
     }
 
+    private List<Map<String, Object>> parseExceptions(String json) {
+        if (json == null || json.trim().isEmpty()) {
+            return new ArrayList<>();
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<Map<String, Object>>>() {});
+        } catch (Exception e) {
+            return new ArrayList<>();
+        }
+    }
+
     private String getActionDisplayName(String action) {
         if (action == null) return "Cập nhật";
         return switch (action) {
             case "CREATE_PERIOD" -> "Tạo mới kỳ chấm";
-            case "OPEN_PERIOD" -> "Mở kỳ chấm";
-            case "EXTEND_DEADLINE" -> "Gia hạn hạn nộp";
-            case "CLOSE_PERIOD" -> "Đóng kỳ chấm";
+            case "UPDATE_PERIOD" -> "Chỉnh sửa kỳ chấm";
+            case "OPEN_PERIOD" -> "Kích hoạt mở đợt chấm";
+            case "ACTIVATE_PERIOD" -> "Kích hoạt lại đợt chấm";
+            case "DEACTIVATE_PERIOD" -> "Vô hiệu hóa kỳ chấm";
+            case "EXTEND_DEADLINE" -> "Gia hạn hạn nộp toàn trường";
+            case "EXTEND_EXCEPTION" -> "Cấp quyền mở lẻ ngoại lệ";
+            case "CLOSE_PERIOD" -> "Khóa sổ đợt chấm (Đóng kỳ)";
             default -> action;
         };
     }

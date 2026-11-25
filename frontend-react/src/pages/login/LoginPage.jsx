@@ -1,18 +1,29 @@
 import { Eye, EyeOff, LockKeyhole } from "lucide-react"
-import { useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useState, useEffect } from "react"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import { M } from "../../common/messages"
 import { homeByRole } from "../../common/permission-config"
 import { useAuthStore } from "../../stores/useAuthStore"
 import { Button, Input } from "../../components/ui/Primitives"
+import ForgotPasswordModal from "../../components/auth/ForgotPasswordModal"
 
 export default function LoginPage() {
   const [show, setShow] = useState(false)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
+  const [forgotModalOpen, setForgotModalOpen] = useState(false)
+  const [searchParams] = useSearchParams()
+  const resetToken = searchParams.get("resetToken") || ""
+
   const navigate = useNavigate()
   const { login, loading } = useAuthStore()
+
+  useEffect(() => {
+    if (resetToken) {
+      setForgotModalOpen(true)
+    }
+  }, [resetToken])
   
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -65,32 +76,50 @@ export default function LoginPage() {
             onChange={(e) => setEmail(e.target.value)}
           />
           <div className="relative">
-            <Input
-              label={M.password}
-              required
-              type={show ? "text" : "password"}
-              placeholder="Nhập mật khẩu"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <button
-              type="button"
-              aria-label={show ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-              onClick={() => setShow(!show)}
-              className="absolute bottom-0 right-0 size-11 flex items-center justify-center text-muted hover:text-ink active:scale-95 transition"
-            >
-              {show ? (
-                <EyeOff className="size-5" />
-              ) : (
-                <Eye className="size-5" />
-              )}
-            </button>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-semibold text-slate-700">{M.password} <span className="text-red-500">*</span></label>
+              <button
+                type="button"
+                onClick={() => setForgotModalOpen(true)}
+                className="text-xs text-brand hover:underline font-medium cursor-pointer"
+              >
+                Quên mật khẩu?
+              </button>
+            </div>
+            <div className="relative">
+              <input
+                required
+                type={show ? "text" : "password"}
+                placeholder="Nhập mật khẩu"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+              />
+              <button
+                type="button"
+                aria-label={show ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                onClick={() => setShow(!show)}
+                className="absolute inset-y-0 right-0 size-10 flex items-center justify-center text-muted hover:text-ink active:scale-95 transition"
+              >
+                {show ? (
+                  <EyeOff className="size-4" />
+                ) : (
+                  <Eye className="size-4" />
+                )}
+              </button>
+            </div>
           </div>
           <Button variant="primary" loading={loading} className="w-full h-11 min-h-[44px]" type="submit">
             <LockKeyhole className="size-4" />
             {M.login}
           </Button>
         </form>
+
+        <ForgotPasswordModal
+          open={forgotModalOpen}
+          initialToken={resetToken}
+          onClose={() => setForgotModalOpen(false)}
+        />
         
         <div className="my-6 flex items-center gap-3">
           <span className="h-px flex-1 bg-line" />

@@ -20,4 +20,5 @@ public interface UserService {
     String updateSignatureSpecimen(Long userId, String signatureUrl);
     Map<String, Object> updateSignature(Long userId, String signatureUrl);
     void validateSignatureNotDuplicate(Long userId, String signatureUrl);
+    UserResponse grantSignatureChange(Long id);
 }

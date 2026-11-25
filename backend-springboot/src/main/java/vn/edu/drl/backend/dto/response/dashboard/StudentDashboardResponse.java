@@ -16,6 +16,8 @@ public class StudentDashboardResponse {
     private boolean hasSignature;
     private boolean isLeader;
     private long pendingLeaderReviews;
+    private boolean canCompose;
+    private String periodNotice;
     private SemesterInfoDto semester;
     private String formVersion;
     private MyFormDto myForm;
@@ -27,10 +29,15 @@ public class StudentDashboardResponse {
     @AllArgsConstructor
     public static class SemesterInfoDto {
         private Long id;
+        private Long periodId;
+        private String periodStatus; // "DANG_MO", "CHUA_MO", "DA_DONG", "VO_HIEU_HOA"
         private String name;
         private String academicYear;
         private String deadline;
         private long remainingDays;
+        private boolean isExpired;
+        private boolean isLocked;
+        private String notice;
     }
 
     @Data

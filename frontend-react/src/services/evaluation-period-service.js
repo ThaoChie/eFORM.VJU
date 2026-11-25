@@ -32,15 +32,39 @@ export const evaluationPeriodService = {
     return unwrap(res)
   },
 
+  // Cập nhật thông tin kỳ chấm ĐRL (khi ở trạng thái Chưa mở)
+  async updatePeriod(id, payload) {
+    const res = await client.put(`/admin/evaluation-periods/${id}`, payload)
+    return unwrap(res)
+  },
+
+  // Vô hiệu hóa kỳ chấm ĐRL (thay thế xóa cứng)
+  async deactivatePeriod(id) {
+    const res = await client.post(`/admin/evaluation-periods/${id}/deactivate`)
+    return unwrap(res)
+  },
+
+  // Kích hoạt / Kích hoạt lại kỳ chấm ĐRL
+  async activatePeriod(id) {
+    const res = await client.post(`/admin/evaluation-periods/${id}/activate`)
+    return unwrap(res)
+  },
+
+  // Soft delete fallback nếu còn gọi deletePeriod
+  async deletePeriod(id) {
+    return this.deactivatePeriod(id)
+  },
+
   // Kích hoạt mở kỳ (Chưa mở -> Đang mở)
   async openPeriod(id) {
     const res = await client.post(`/admin/evaluation-periods/${id}/open`)
     return unwrap(res)
   },
 
-  // Gia hạn hạn nộp kỳ chấm (U1, U2)
-  async extendDeadline(id, newDeadline) {
-    const res = await client.post(`/admin/evaluation-periods/${id}/extend`, { newDeadline })
+  // Gia hạn hạn nộp hoặc cấu hình ngoại lệ mở lẻ (Luồng 1a)
+  async extendDeadline(id, payload) {
+    const body = typeof payload === "string" ? { newDeadline: payload, extendScope: "ALL" } : payload
+    const res = await client.post(`/admin/evaluation-periods/${id}/extend`, body)
     return unwrap(res)
   },
 

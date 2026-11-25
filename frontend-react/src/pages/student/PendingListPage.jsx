@@ -15,7 +15,7 @@ import {
 
 export default function PendingListPage() {
   const navigate = useNavigate()
-  const { status, scoreFormId, semester, lastSavedText, fetchFormData } = useSubmissionStore()
+  const { status, scoreFormId, semester, lastSavedText, fetchFormData, isReadOnly } = useSubmissionStore()
   const [activeTab, setActiveTab] = useState("PROCESSING") // "PROCESSING" | "WAITING"
 
   useEffect(() => {
@@ -115,7 +115,7 @@ export default function PendingListPage() {
                   label="Xem chi tiết phiếu"
                   onClick={() => navigate(`/student/compose/${r.id}`)}
                 />
-                {(r.rawStatus === "DRAFT" || r.rawStatus === "REJECTED") && (
+                {!isReadOnly && (r.rawStatus === "DRAFT" || r.rawStatus === "REJECTED") && (
                   <ActionEditButton
                     label="Tiếp tục soạn thảo"
                     onClick={() => navigate(`/student/compose/${r.id}`)}

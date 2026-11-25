@@ -19,7 +19,7 @@ import {
   CheckSquare,
   Square
 } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import { toast } from "react-hot-toast"
 import {
@@ -34,7 +34,16 @@ import {
 } from "../../../components/ui/Primitives"
 import { formService } from "../../../services/form-service"
 import { client } from "../../../lib/axios/client"
-import { extractFieldsAndSlotsFromTemplate } from "./formVersionUtils"
+import {
+  extractFieldsAndSlotsFromTemplate,
+  extractTreeFromTemplate,
+  flattenTree,
+  countTreeStats
+} from "./formVersionUtils"
+import CopyFromOtherWizardModal from "./components/CopyFromOtherWizardModal"
+import ClassConfigModal from "./components/ClassConfigModal"
+import AddNodeModal from "./components/AddNodeModal"
+import FieldTreeTable from "./components/FieldTreeTable"
 
 export default function FormVersionCreatePage() {
   const navigate = useNavigate()
@@ -58,15 +67,15 @@ export default function FormVersionCreatePage() {
   const [departments, setDepartments] = useState([])
   const [selectedDepts, setSelectedDepts] = useState([])
 
-  // 7, 8: Danh sách trường thông tin biểu mẫu (Field Codes)
+  // 7, 8: Danh sách trường thông tin biểu mẫu & Cấu hình lớp (Tree structure)
   const [allFieldCodes, setAllFieldCodes] = useState([])
   const [selectedFields, setSelectedFields] = useState([])
-  const [fieldModalOpen, setFieldModalOpen] = useState(false)
-  const [fieldSearch, setFieldSearch] = useState("")
-  const [fieldCategoryFilter, setFieldCategoryFilter] = useState("")
-  const [tempSelectedFieldIds, setTempSelectedFieldIds] = useState(new Set())
+  const [addNodeModalOpen, setAddNodeModalOpen] = useState(false)
+  const [targetParentCode, setTargetParentCode] = useState(null)
+  const [classConfigModalOpen, setClassConfigModalOpen] = useState(false)
+  const [editingClassNode, setEditingClassNode] = useState(null)
 
-  // 9: Sao chép từ biểu mẫu khác
+  // 9: Sao chép từ biểu mẫu khác (3-Step Wizard)
   const [copyModalOpen, setCopyModalOpen] = useState(false)
   const [availableTemplates, setAvailableTemplates] = useState([])
 
@@ -188,33 +197,33 @@ export default function FormVersionCreatePage() {
     }
   };
 
-  // 14: Sinh từ cấu hình (Auto generate JSON from selected fields)
+  // 14: Sinh từ cấu hình (Auto generate JSON from selected fields/classes)
   const handleGenerateSampleFromConfig = () => {
     if (selectedFields.length === 0) {
       toast.error("Chưa có trường thông tin nào trong biểu mẫu");
       return;
     }
     const sample = {};
-    selectedFields.forEach((field) => {
+    const flat = flattenTree(selectedFields);
+    flat.forEach((field) => {
       const code = field.fieldCode || field.code;
-      switch (field.dataType) {
-        case "NUMBER":
-          sample[code] = 10;
-          break;
-        case "DATE":
-          sample[code] = "2026-10-15";
-          break;
-        case "BOOLEAN":
-          sample[code] = true;
-          break;
-        case "FILE":
-          sample[code] = "https://minio.drl.edu.vn/proofs/sample.pdf";
-          break;
-        case "SIGNATURE":
-          sample[code] = "data:image/png;base64,iVBORw0KGgo...";
-          break;
-        default:
-          sample[code] = `Giá trị mẫu ${field.fieldName || code}`;
+      if (!code) return;
+      if (field.isClass || field.dataType === "OBJECT") {
+        sample[code] = {};
+      } else if (field.dataType === "ARRAY") {
+        sample[code] = [];
+      } else if (field.dataType === "NUMBER") {
+        sample[code] = 10;
+      } else if (field.dataType === "DATE") {
+        sample[code] = "2026-10-15";
+      } else if (field.dataType === "BOOLEAN") {
+        sample[code] = true;
+      } else if (field.dataType === "FILE") {
+        sample[code] = "https://minio.drl.edu.vn/proofs/sample.pdf";
+      } else if (field.dataType === "SIGNATURE") {
+        sample[code] = "data:image/png;base64,iVBORw0KGgo...";
+      } else {
+        sample[code] = `Giá trị mẫu ${field.fieldName || code}`;
       }
     });
     setSampleDataJson(JSON.stringify(sample, null, 2));
@@ -222,6 +231,37 @@ export default function FormVersionCreatePage() {
     markDirty();
     toast.success("Đã sinh dữ liệu mẫu từ danh sách trường!");
   };
+
+  // Helper serialize recursive field tree to JSON
+  const serializeFieldForLayout = (f) => ({
+    fieldCode: f.fieldCode || f.code,
+    fieldName: f.fieldName || f.name,
+    dataType: f.dataType || f.type || "STRING",
+    category: f.category || f.group || (f.isClass ? "CLASS" : "COMMON"),
+    isRequired: !!f.isRequired,
+    ...(f.isClass
+      ? {
+          isClass: true,
+          classType: f.classType || (f.dataType === "ARRAY" ? "ARRAY" : "OBJECT"),
+          effectiveFrom: f.effectiveFrom || null,
+          effectiveTo: f.effectiveTo || null,
+          isActive: f.isActive !== false,
+          ...(f.classType === "ARRAY" || f.dataType === "ARRAY"
+            ? {
+                itemType: f.itemType || "OBJECT",
+                min: f.min !== undefined ? f.min : 0,
+                max: f.max !== undefined ? f.max : null
+              }
+            : {}),
+          renderCondition: f.renderCondition || "",
+          validationRules: f.validationRules || [],
+          changeReason: f.changeReason || "",
+          children: Array.isArray(f.children) ? f.children.map(serializeFieldForLayout) : []
+        }
+      : Array.isArray(f.children) && f.children.length > 0
+      ? { children: f.children.map(serializeFieldForLayout) }
+      : {})
+  });
 
   // 15: Cấu hình form (jsonForm / templateLayoutJson)
   const generatedLayoutJson = JSON.stringify(
@@ -231,13 +271,7 @@ export default function FormVersionCreatePage() {
       formName,
       semesterId,
       scope: scopeType === "Toàn hệ thống" ? "ALL" : selectedDepts,
-      fields: selectedFields.map((f) => ({
-        fieldCode: f.fieldCode || f.code,
-        fieldName: f.fieldName || f.name,
-        dataType: f.dataType || f.type,
-        category: f.category || f.group || "COMMON",
-        isRequired: !!f.isRequired
-      })),
+      fields: selectedFields.map(serializeFieldForLayout),
       signatureSlots
     },
     null,
@@ -246,110 +280,326 @@ export default function FormVersionCreatePage() {
 
   const activeLayoutJson = customLayoutJson || generatedLayoutJson;
 
+  const formattedLayoutJson = useMemo(() => {
+    if (!activeLayoutJson) return "";
+    try {
+      const parsed = typeof activeLayoutJson === "string" ? JSON.parse(activeLayoutJson) : activeLayoutJson;
+      return JSON.stringify(parsed, null, 2);
+    } catch {
+      return activeLayoutJson;
+    }
+  }, [activeLayoutJson]);
+
   const handleCopyLayoutJson = () => {
-    navigator.clipboard.writeText(activeLayoutJson);
+    navigator.clipboard.writeText(formattedLayoutJson || activeLayoutJson);
     toast.success("Đã sao chép cấu hình form vào clipboard!");
   };
 
-  // 8: Open Add Field modal
-  const handleOpenAddField = () => {
-    const curIds = new Set(selectedFields.map((f) => f.id));
-    setTempSelectedFieldIds(curIds);
-    setFieldModalOpen(true);
-  };
-
-  const handleToggleFieldSelection = (field) => {
-    setTempSelectedFieldIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(field.id)) next.delete(field.id);
-      else next.add(field.id);
-      return next;
-    });
-  };
-
-  const handleConfirmAddFields = () => {
-    const newSelected = allFieldCodes.filter((f) => tempSelectedFieldIds.has(f.id));
-    setSelectedFields(newSelected);
-    setFieldModalOpen(false);
+  // 8: Thêm node vào cây (Atomic, Object, Array)
+  const handleAddNodes = (newNodes, parentCode) => {
+    if (!parentCode) {
+      setSelectedFields((prev) => [...prev, ...newNodes]);
+    } else {
+      const addToChildren = (nodes) => {
+        return nodes.map((node) => {
+          if (node.fieldCode === parentCode) {
+            const currentChildren = Array.isArray(node.children) ? node.children : [];
+            return {
+              ...node,
+              children: [...currentChildren, ...newNodes]
+            };
+          }
+          if (node.children && node.children.length > 0) {
+            return {
+              ...node,
+              children: addToChildren(node.children)
+            };
+          }
+          return node;
+        });
+      };
+      setSelectedFields((prev) => addToChildren(prev));
+    }
     markDirty();
-    analyzePlaceholders(templateFile, newSelected);
-    toast.success(`Đã cập nhật ${newSelected.length} trường thông tin.`);
+    analyzePlaceholders(templateFile, [...selectedFields, ...newNodes]);
+    toast.success(
+      `Đã thêm ${newNodes.length} node vào ${
+        parentCode ? `lớp "${parentCode}"` : "gốc biểu mẫu"
+      }.`
+    );
   };
 
-  const handleRemoveField = (id) => {
-    const next = selectedFields.filter((f) => f.id !== id);
+  // Cấu hình lớp
+  const handleOpenClassConfig = (classNode) => {
+    setEditingClassNode(classNode);
+    setClassConfigModalOpen(true);
+  };
+
+  const handleSaveClassConfig = (updatedNode) => {
+    const updateTree = (nodes) => {
+      return nodes.map((node) => {
+        if (node.fieldCode === updatedNode.fieldCode) {
+          return {
+            ...node,
+            ...updatedNode,
+            children: node.children || updatedNode.children || []
+          };
+        }
+        if (node.children && node.children.length > 0) {
+          return {
+            ...node,
+            children: updateTree(node.children)
+          };
+        }
+        return node;
+      });
+    };
+    setSelectedFields((prev) => updateTree(prev));
+    markDirty();
+    toast.success(`Đã cập nhật cấu hình lớp ${updatedNode.fieldCode}!`);
+  };
+
+  // Xóa node
+  const handleDeleteNode = (nodeToDelete) => {
+    const deleteFromTree = (nodes) => {
+      return nodes
+        .filter(
+          (n) =>
+            n.fieldCode !== nodeToDelete.fieldCode && n.id !== nodeToDelete.id
+        )
+        .map((n) => {
+          if (n.children && n.children.length > 0) {
+            return {
+              ...n,
+              children: deleteFromTree(n.children)
+            };
+          }
+          return n;
+        });
+    };
+    const next = deleteFromTree(selectedFields);
     setSelectedFields(next);
     markDirty();
     analyzePlaceholders(templateFile, next);
+    toast.success(`Đã xóa "${nodeToDelete.fieldCode}".`);
   };
 
-  // 9: Sao chép từ biểu mẫu khác
-  const handleCopyFromOther = (template) => {
-    try {
-      const { fields, signatureSlots: extractedSlots, rawLayout, scope } = extractFieldsAndSlotsFromTemplate(template, allFieldCodes);
-      if (fields.length > 0) {
-        setSelectedFields(fields);
-        analyzePlaceholders(templateFile, fields);
+  // Di chuyển lên
+  const handleMoveUp = (node) => {
+    const moveInTree = (nodes) => {
+      const idx = nodes.findIndex(
+        (n) => n.fieldCode === node.fieldCode || n.id === node.id
+      );
+      if (idx > 0) {
+        const copy = [...nodes];
+        const temp = copy[idx];
+        copy[idx] = copy[idx - 1];
+        copy[idx - 1] = temp;
+        return copy;
       }
-      if (extractedSlots && extractedSlots.length > 0) {
-        setSignatureSlots(extractedSlots);
-      }
-      if (rawLayout) {
-        setCustomLayoutJson(rawLayout);
-      }
-      if (scope) {
-        if (scope === "ALL" || scope === "Toàn hệ thống") {
-          setScopeType("Toàn hệ thống");
-        } else if (Array.isArray(scope)) {
-          setScopeType("Đơn vị cụ thể");
-          setSelectedDepts(scope);
+      return nodes.map((n) => {
+        if (n.children && n.children.length > 0) {
+          return { ...n, children: moveInTree(n.children) };
         }
+        return n;
+      });
+    };
+    setSelectedFields((prev) => moveInTree(prev));
+    markDirty();
+  };
+
+  // Di chuyển xuống
+  const handleMoveDown = (node) => {
+    const moveInTree = (nodes) => {
+      const idx = nodes.findIndex(
+        (n) => n.fieldCode === node.fieldCode || n.id === node.id
+      );
+      if (idx !== -1 && idx < nodes.length - 1) {
+        const copy = [...nodes];
+        const temp = copy[idx];
+        copy[idx] = copy[idx + 1];
+        copy[idx + 1] = temp;
+        return copy;
       }
-      if (template.description && !description) {
-        setDescription(template.description);
-      }
-      setCopyModalOpen(false);
-      markDirty();
-      toast.success(`Đã sao chép thành công ${fields.length} trường thông tin và cấu hình từ ${template.formCode} (${template.versionNo})!`);
-    } catch (e) {
-      console.error("Lỗi sao chép biểu mẫu:", e);
-      toast.error("Không thể đọc cấu hình của biểu mẫu nguồn");
+      return nodes.map((n) => {
+        if (n.children && n.children.length > 0) {
+          return { ...n, children: moveInTree(n.children) };
+        }
+        return n;
+      });
+    };
+    setSelectedFields((prev) => moveInTree(prev));
+    markDirty();
+  };
+
+  // Mở thêm phần tử con vào lớp
+  const handleOpenAddChildNode = (parentNode) => {
+    setTargetParentCode(parentNode.fieldCode);
+    setAddNodeModalOpen(true);
+  };
+
+  // Dán node vào lớp hoặc gốc
+  const handlePasteNode = (nodeToPaste, targetParent) => {
+    const cloned = JSON.parse(JSON.stringify(nodeToPaste));
+    cloned.id = `clone_${Date.now()}`;
+    if (!targetParent) {
+      setSelectedFields((prev) => [...prev, cloned]);
+      toast.success(`Đã dán node "${cloned.fieldCode}" vào gốc biểu mẫu.`);
+    } else {
+      const addToChildren = (nodes) => {
+        return nodes.map((n) => {
+          if (n.fieldCode === targetParent) {
+            return {
+              ...n,
+              children: [...(n.children || []), cloned]
+            };
+          }
+          if (n.children && n.children.length > 0) {
+            return { ...n, children: addToChildren(n.children) };
+          }
+          return n;
+        });
+      };
+      setSelectedFields((prev) => addToChildren(prev));
+      toast.success(
+        `Đã dán node "${cloned.fieldCode}" vào lớp "${targetParent}".`
+      );
     }
+    markDirty();
+  };
+
+  // 9: Áp dụng sao chép từ Wizard 3 bước
+  const handleApplyCopyFromWizard = ({
+    fields,
+    sourceVersion,
+    signatureSlots: slots,
+    rawLayout,
+    scope
+  }) => {
+    if (fields && fields.length > 0) {
+      setSelectedFields(fields);
+      analyzePlaceholders(templateFile, fields);
+    }
+    if (slots && slots.length > 0) {
+      setSignatureSlots(slots);
+    }
+    if (rawLayout) {
+      setCustomLayoutJson(rawLayout);
+    }
+    if (scope) {
+      if (scope === "ALL" || scope === "Toàn hệ thống") {
+        setScopeType("Toàn hệ thống");
+      } else if (Array.isArray(scope)) {
+        setScopeType("Đơn vị cụ thể");
+        setSelectedDepts(scope);
+      }
+    }
+    if (sourceVersion?.description && !description) {
+      setDescription(sourceVersion.description);
+    }
+    markDirty();
+    toast.success(
+      `Đã áp dụng thành công ${fields.length} trường từ ${
+        sourceVersion?.formCode || "nguồn"
+      } (${sourceVersion?.versionNo || ""})!`
+    );
   };
 
   // 16: Upload & Analyze Template File (.docx)
-  const analyzePlaceholders = (file, fields = selectedFields) => {
+  const analyzePlaceholders = (file, fields = selectedFields, rawJson = customLayoutJson) => {
     if (!file) {
       setMatchAnalysis(null);
       return;
     }
-    // Giả lập đọc và đối chiếu placeholder {{ field_code }} trong phôi .docx
-    const fieldCodesSet = new Set(fields.map((f) => f.fieldCode || f.code));
-    // Một số placeholder mẫu tiêu chuẩn trong phôi ĐRL
-    const docxPlaceholders = [
+
+    // Làm phẳng toàn bộ cây trường thông tin (bao gồm cả các node con trong Lớp / Group)
+    const flatFields = flattenTree(fields);
+    const fieldCodesSet = new Set(flatFields.map((f) => f.fieldCode || f.code));
+
+    // Bổ sung các key từ customLayoutJson nếu có
+    if (rawJson) {
+      try {
+        const parsed = JSON.parse(rawJson);
+        const extractKeys = (obj) => {
+          if (!obj) return;
+          if (Array.isArray(obj)) {
+            obj.forEach((item) => extractKeys(item));
+          } else if (typeof obj === "object") {
+            if (obj.fieldCode) fieldCodesSet.add(obj.fieldCode);
+            if (obj.code) fieldCodesSet.add(obj.code);
+            if (obj.id) fieldCodesSet.add(obj.id);
+            Object.keys(obj).forEach((k) => {
+              if (typeof obj[k] === "number" || typeof obj[k] === "string") {
+                fieldCodesSet.add(k);
+              } else if (typeof obj[k] === "object") {
+                extractKeys(obj[k]);
+              }
+            });
+          }
+        };
+        extractKeys(parsed);
+      } catch (e) {
+        // ignore json parse error
+      }
+    }
+
+    // Các trường thông tin sinh viên hệ thống tự động điền từ tài khoản sinh viên
+    const SYSTEM_PROFILE_FIELDS = [
       "student_name",
       "student_code",
-      "student_class",
-      "study_attendance",
-      "proof_volunteer",
-      "student_gpa_score",
-      "student_total"
+      "student_class"
     ];
-    let matchedCount = 0;
-    const missing = [];
 
-    docxPlaceholders.forEach((ph) => {
-      if (fieldCodesSet.has(ph)) {
+    // Các trường tiêu chí đánh giá trong phôi ĐRL (kèm alias mapping các mã tiêu chí)
+    const REQUIRED_EVAL_FIELDS = [
+      { key: "study_attendance", aliases: ["score_1_1", "study_attendance", "total_section_1", "group_1"] },
+      { key: "proof_volunteer", aliases: ["score_3_2", "proof_volunteer", "total_section_3", "group_3"] },
+      { key: "student_gpa_score", aliases: ["score_1_5", "student_gpa_score", "score_1_5_gpa_sv"] },
+      {
+        key: "student_total",
+        aliases: [
+          "total_drl_score",
+          "grand_total_sv",
+          "grand_total_lop",
+          "student_total",
+          "total_section_5",
+          "total_section_1",
+          "score_5_4",
+          "score_5_1",
+          "group_5"
+        ]
+      }
+    ];
+
+    let matchedCount = 0;
+    const totalInDoc = SYSTEM_PROFILE_FIELDS.length + REQUIRED_EVAL_FIELDS.length; // 7
+    const missing = [];
+    const systemProvided = [];
+
+    // 1. Kiểm tra trường hệ thống (họ tên, MSSV, lớp)
+    SYSTEM_PROFILE_FIELDS.forEach((sf) => {
+      matchedCount++;
+      systemProvided.push(sf);
+    });
+
+    // 2. Kiểm tra trường tiêu chí
+    REQUIRED_EVAL_FIELDS.forEach(({ key, aliases }) => {
+      const isMatched =
+        aliases.some((a) => fieldCodesSet.has(a)) ||
+        (key === "student_total" && (fieldCodesSet.size >= 5 || fieldCodesSet.has("total_section_5") || fieldCodesSet.has("group_5")));
+
+      if (isMatched) {
         matchedCount++;
       } else {
-        missing.push(ph);
+        missing.push(key);
       }
     });
 
     setMatchAnalysis({
-      totalInDoc: docxPlaceholders.length,
+      totalInDoc,
       matchedCount,
-      missing
+      missing,
+      systemProvided
     });
   };
 
@@ -695,16 +945,19 @@ export default function FormVersionCreatePage() {
           </div>
         </Card>
 
-        {/* TRƯỜNG THÔNG TIN BIỂU MẪU */}
+        {/* KHỐI 2: TRƯỜNG THÔNG TIN BIỂU MẪU & CẤU HÌNH LỚP (CÂY DỮ LIỆU) */}
         <Card>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3">
             <div>
               <h2 className="text-base font-semibold text-slate-800">
-                Trường thông tin biểu mẫu *
+                Trường thông tin biểu mẫu & Cấu hình lớp *
               </h2>
+              <p className="text-xs text-muted mt-0.5">
+                Cấu trúc cây dữ liệu gồm các trường nguyên tử (STRING, NUMBER, DATE, ...) và các Lớp (OBJECT, ARRAY).
+              </p>
             </div>
             <div className="flex items-center gap-2">
-              {/* Sao chép từ biểu mẫu khác */}
+              {/* Sao chép từ biểu mẫu khác (3-step wizard) */}
               <Button
                 variant="secondary"
                 onClick={() => setCopyModalOpen(true)}
@@ -713,84 +966,30 @@ export default function FormVersionCreatePage() {
                 <Copy className="size-3.5" />
                 Sao chép từ biểu mẫu khác
               </Button>
-              {/* Thêm phần tử */}
+              {/* Thêm node vào cây */}
               <Button
                 variant="primary"
-                onClick={handleOpenAddField}
+                onClick={() => {
+                  setTargetParentCode(null);
+                  setAddNodeModalOpen(true);
+                }}
                 className="text-xs h-9"
               >
                 <Plus className="size-3.5" />
-                Thêm phần tử
+                Thêm node vào cây
               </Button>
             </div>
           </div>
 
-          {selectedFields.length === 0 ? (
-            <div className="rounded-lg border-2 border-dashed border-line bg-canvas p-8 text-center text-muted">
-              <Layers className="size-8 mx-auto mb-2 text-slate-400" />
-              <p className="font-medium text-slate-700">Chưa có trường thông tin nào</p>
-              <p className="text-xs text-muted mt-1">
-                Bấm "Thêm phần tử" để chọn các trường đưa vào biểu mẫu.
-              </p>
-              <Button onClick={handleOpenAddField} className="mt-3 inline-flex">
-                <Plus className="size-4" />
-                Thêm phần tử ngay
-              </Button>
-            </div>
-          ) : (
-            <div className="overflow-x-auto rounded-lg border border-line">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-canvas font-semibold text-slate-700 text-xs uppercase tracking-wider">
-                  <tr>
-                    <th className="px-4 py-3">STT</th>
-                    <th className="px-4 py-3">Mã trường</th>
-                    <th className="px-4 py-3">Tên hiển thị</th>
-                    <th className="px-4 py-3">Nhóm</th>
-                    <th className="px-4 py-3">Kiểu dữ liệu</th>
-                    <th className="px-4 py-3">Bắt buộc</th>
-                    <th className="px-4 py-3 text-right">Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-line">
-                  {selectedFields.map((field, idx) => (
-                    <tr key={field.id || idx} className="hover:bg-canvas">
-                      <td className="px-4 py-3 text-xs text-muted">{idx + 1}</td>
-                      <td className="px-4 py-3 font-mono text-xs font-semibold text-brand">
-                        {field.fieldCode || field.code}
-                      </td>
-                      <td className="px-4 py-3 font-medium text-slate-800">
-                        {field.fieldName || field.name}
-                      </td>
-                      <td className="px-4 py-3 text-xs">
-                        <span className="font-medium text-slate-700">
-                          {field.category || field.group || "COMMON"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-xs text-slate-600">
-                        {field.dataType || field.type}
-                      </td>
-                      <td className="px-4 py-3 text-xs">
-                        {field.isRequired ? (
-                          <span className="text-brand font-semibold">Bắt buộc</span>
-                        ) : (
-                          <span className="text-slate-400">Tùy chọn</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <IconButton
-                          label="Xóa trường này"
-                          onClick={() => handleRemoveField(field.id)}
-                          className="hover:text-red-600 size-8"
-                        >
-                          <Trash2 className="size-4" />
-                        </IconButton>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <FieldTreeTable
+            nodes={selectedFields}
+            onOpenClassConfig={handleOpenClassConfig}
+            onOpenAddChildNode={handleOpenAddChildNode}
+            onDeleteNode={handleDeleteNode}
+            onMoveUp={handleMoveUp}
+            onMoveDown={handleMoveDown}
+            onPasteNode={handlePasteNode}
+          />
         </Card>
 
         {/* KHỐI 3: DỮ LIỆU MẪU & CẤU HÌNH JSON */}
@@ -803,7 +1002,7 @@ export default function FormVersionCreatePage() {
 
           <div className="grid gap-5 lg:grid-cols-2">
             {/* Dữ liệu mẫu */}
-            <div className="space-y-2">
+            <div className="space-y-2 flex flex-col">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-700">
                   Dữ liệu mẫu (Sample JSON)
@@ -821,8 +1020,7 @@ export default function FormVersionCreatePage() {
               <textarea
                 value={sampleDataJson}
                 onChange={(e) => handleSampleJsonChange(e.target.value)}
-                rows={10}
-                className={`w-full rounded-lg border font-mono text-xs p-3 outline-none focus:ring-2 focus:ring-brand-soft ${
+                className={`h-[300px] w-full resize-none rounded-lg border font-mono text-xs p-3 outline-none focus:ring-2 focus:ring-brand-soft overflow-auto ${
                   jsonError ? "border-red-400 bg-red-50" : "border-line bg-white"
                 }`}
                 placeholder="Nhập JSON mẫu dạng key = Field Code..."
@@ -842,7 +1040,7 @@ export default function FormVersionCreatePage() {
             </div>
 
             {/* Cấu hình form */}
-            <div className="space-y-2">
+            <div className="space-y-2 flex flex-col">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-700">
                   Cấu hình form (jsonForm)
@@ -857,18 +1055,23 @@ export default function FormVersionCreatePage() {
                 </Button>
               </div>
 
-              <pre className="max-h-[220px] overflow-auto rounded-lg border border-line bg-slate-900 p-3 font-mono text-xs text-slate-200">
-                {activeLayoutJson}
+              <pre className="h-[300px] w-full overflow-auto rounded-lg border border-line bg-slate-900 p-3 font-mono text-xs text-slate-200">
+                {formattedLayoutJson || activeLayoutJson}
               </pre>
+
+              <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                <Check className="size-3.5 shrink-0 text-brand" />
+                <span>Cấu trúc JSON layout đồng bộ theo cây tiêu chí</span>
+              </div>
             </div>
           </div>
         </Card>
 
-        {/* KHỐI 4: FILE TEMPLATE ĐÍNH KÈM & VỊ TRÍ 3 Ô KÝ */}
+        {/* KHỐI 4: FILE TEMPLATE ĐÍNH KÈM & CƠ CHẾ ĐỊNH VỊ CHỮ KÝ */}
         <Card>
           <div className="mb-4 border-b border-line pb-3">
             <h2 className="text-base font-semibold text-slate-800">
-              File template phôi Word (.docx) & Tọa độ ô ký trên PDF
+              File template phôi Word (.docx) & Cơ chế định vị chữ ký tự động
             </h2>
           </div>
 
@@ -896,121 +1099,110 @@ export default function FormVersionCreatePage() {
               </label>
 
               {matchAnalysis && (
-                <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900 space-y-1">
+                <div
+                  className={`rounded-lg border p-3 text-xs space-y-1.5 ${
+                    matchAnalysis.missing.length === 0
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                      : "border-blue-200 bg-blue-50 text-blue-900"
+                  }`}
+                >
                   <div className="font-semibold flex items-center justify-between">
-                    <span>Kết quả đối chiếu placeholder phôi Word:</span>
-                    <span className="rounded bg-blue-200 px-2 py-0.5 font-bold">
+                    <span className="flex items-center gap-1.5">
+                      <CheckCircle
+                        className={`size-4 ${
+                          matchAnalysis.missing.length === 0
+                            ? "text-emerald-600"
+                            : "text-blue-600"
+                        }`}
+                      />
+                      Kết quả đối chiếu placeholder phôi Word:
+                    </span>
+                    <span
+                      className={`rounded px-2 py-0.5 font-bold ${
+                        matchAnalysis.missing.length === 0
+                          ? "bg-emerald-200 text-emerald-800"
+                          : "bg-blue-200 text-blue-800"
+                      }`}
+                    >
                       Khớp {matchAnalysis.matchedCount}/{matchAnalysis.totalInDoc}
                     </span>
                   </div>
                   {matchAnalysis.missing.length > 0 && (
-                    <p className="text-red-700">
-                      Thiếu trường trong biểu mẫu:{" "}
+                    <p className="text-amber-700">
+                      Thiếu tiêu chí rèn luyện trong biểu mẫu:{" "}
                       <span className="font-mono">{matchAnalysis.missing.join(", ")}</span>
+                    </p>
+                  )}
+                  {matchAnalysis.systemProvided && matchAnalysis.systemProvided.length > 0 && (
+                    <p className="text-slate-600 text-[11px]">
+                      <span className="font-medium text-emerald-700">✓ Tự động điền từ hồ sơ SV:</span>{" "}
+                      <span className="font-mono">{matchAnalysis.systemProvided.join(", ")}</span>
+                    </p>
+                  )}
+                  {matchAnalysis.missing.length === 0 && (
+                    <p className="text-emerald-700 font-medium">
+                      ✓ Phôi Word hoàn toàn tương thích và khớp 100% với cấu trúc biểu mẫu!
                     </p>
                   )}
                 </div>
               )}
             </div>
 
-            {/* Vị trí 3 ô ký trên PDF */}
+            {/* Cơ chế định vị chữ ký động qua Marker Tag */}
             <div className="space-y-3">
-              <span className="text-xs font-semibold text-slate-700">
-                Vị trí 3 ô ký trên PDF (Sinh viên, Lớp, Khoa) *
-              </span>
-
-              <div className="overflow-x-auto rounded-lg border border-line">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-canvas font-semibold text-slate-700">
-                    <tr>
-                      <th className="px-3 py-2">Đối tượng</th>
-                      <th className="px-2 py-2">Trang</th>
-                      <th className="px-2 py-2">X</th>
-                      <th className="px-2 py-2">Y</th>
-                      <th className="px-2 py-2">Rộng</th>
-                      <th className="px-2 py-2">Cao</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-line">
-                    {signatureSlots.map((slot, idx) => (
-                      <tr key={slot.roleCode}>
-                        <td className="px-3 py-2 font-medium text-slate-800">
-                          {slot.role}
-                        </td>
-                        <td className="px-2 py-2">
-                          <input
-                            type="number"
-                            min="1"
-                            value={slot.page}
-                            onChange={(e) => {
-                              const copy = [...signatureSlots];
-                              copy[idx].page = Number(e.target.value);
-                              setSignatureSlots(copy);
-                              markDirty();
-                            }}
-                            className="w-12 rounded border border-line px-1.5 py-1 text-center"
-                          />
-                        </td>
-                        <td className="px-2 py-2">
-                          <input
-                            type="number"
-                            value={slot.x}
-                            onChange={(e) => {
-                              const copy = [...signatureSlots];
-                              copy[idx].x = Number(e.target.value);
-                              setSignatureSlots(copy);
-                              markDirty();
-                            }}
-                            className="w-14 rounded border border-line px-1.5 py-1 text-center"
-                          />
-                        </td>
-                        <td className="px-2 py-2">
-                          <input
-                            type="number"
-                            value={slot.y}
-                            onChange={(e) => {
-                              const copy = [...signatureSlots];
-                              copy[idx].y = Number(e.target.value);
-                              setSignatureSlots(copy);
-                              markDirty();
-                            }}
-                            className="w-14 rounded border border-line px-1.5 py-1 text-center"
-                          />
-                        </td>
-                        <td className="px-2 py-2">
-                          <input
-                            type="number"
-                            value={slot.width}
-                            onChange={(e) => {
-                              const copy = [...signatureSlots];
-                              copy[idx].width = Number(e.target.value);
-                              setSignatureSlots(copy);
-                              markDirty();
-                            }}
-                            className="w-14 rounded border border-line px-1.5 py-1 text-center"
-                          />
-                        </td>
-                        <td className="px-2 py-2">
-                          <input
-                            type="number"
-                            value={slot.height}
-                            onChange={(e) => {
-                              const copy = [...signatureSlots];
-                              copy[idx].height = Number(e.target.value);
-                              setSignatureSlots(copy);
-                              markDirty();
-                            }}
-                            className="w-14 rounded border border-line px-1.5 py-1 text-center"
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-700">
+                  Vị trí chữ ký trên PDF (Sinh viên, Lớp, Khoa)
+                </span>
+                <span className="rounded bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-800">
+                  100% Tự động qua Marker Tag
+                </span>
               </div>
-              <span className="block text-[11px] text-muted">
-                Tọa độ dùng cho PdfBox chèn ảnh chữ ký 3 cấp vào phôi PDF cuối cùng.
-              </span>
+
+              <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-3.5 space-y-3">
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Hệ thống không sử dụng tọa độ cố định. Backend <strong>PdfSignatureEngine</strong> sẽ tự động dò tìm vị trí từ khóa đánh dấu trong file PDF xuất ra để chèn chữ ký:
+                </p>
+
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center justify-between rounded-lg border border-line bg-white px-3 py-2 shadow-xs">
+                    <div>
+                      <span className="font-semibold text-slate-800">1. Chữ ký Sinh viên</span>
+                      <p className="text-[11px] text-muted">Tự động chèn khi sinh viên nộp phiếu</p>
+                    </div>
+                    <span className="font-mono font-bold text-brand bg-brand-soft/60 px-2.5 py-1 rounded text-xs border border-brand/20">
+                      [[SIG_STUDENT]]
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-lg border border-line bg-white px-3 py-2 shadow-xs">
+                    <div>
+                      <span className="font-semibold text-slate-800">2. Chữ ký Cán bộ lớp</span>
+                      <p className="text-[11px] text-muted">Tự động chèn khi lớp trưởng duyệt</p>
+                    </div>
+                    <span className="font-mono font-bold text-brand bg-brand-soft/60 px-2.5 py-1 rounded text-xs border border-brand/20">
+                      [[SIG_CLASS]]
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-lg border border-line bg-white px-3 py-2 shadow-xs">
+                    <div>
+                      <span className="font-semibold text-slate-800">3. Chữ ký Trưởng Khoa / BCN</span>
+                      <p className="text-[11px] text-muted">Tự động chèn và cấp chứng thư PAdES</p>
+                    </div>
+                    <span className="font-mono font-bold text-brand bg-brand-soft/60 px-2.5 py-1 rounded text-xs border border-brand/20">
+                      [[SIG_DEAN]]
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2 pt-1 text-[11px] text-slate-600 bg-emerald-50/60 border border-emerald-200/60 rounded-md p-2">
+                  <CheckCircle className="size-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <span>
+                    Bảng điểm dù dãn dài bao nhiêu trang hoặc vùng ký bị nhảy sang trang tiếp theo, chữ ký luôn được định vị và đóng đúng 100% vào ô ký tương ứng.
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </Card>
@@ -1036,131 +1228,33 @@ export default function FormVersionCreatePage() {
         </Card>
       </div>
 
-      {/* MODAL 1: CHỌN FIELD CODES (Thêm phần tử) */}
-      <Modal
-        open={fieldModalOpen}
-        wide
-        title="Chọn trường thông tin thêm vào biểu mẫu"
-        onClose={() => setFieldModalOpen(false)}
-        footer={
-          <>
-            <Button onClick={() => setFieldModalOpen(false)}>Hủy</Button>
-            <Button
-              variant="primary"
-              onClick={handleConfirmAddFields}
-            >
-              Xác nhận thêm ({tempSelectedFieldIds.size} trường)
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Input
-              placeholder="Tìm theo mã hoặc tên trường..."
-              value={fieldSearch}
-              onChange={(e) => setFieldSearch(e.target.value)}
-            />
-            <Select
-              value={fieldCategoryFilter}
-              onChange={(e) => setFieldCategoryFilter(e.target.value)}
-            >
-              <option value="">Tất cả nhóm trường</option>
-              <option value="COMMON">COMMON</option>
-              <option value="HEADER">HEADER</option>
-              <option value="CRITERIA">CRITERIA</option>
-              <option value="FOOTER">FOOTER</option>
-            </Select>
-          </div>
+      {/* MODAL 1: THÊM NODE VÀO CÂY */}
+      <AddNodeModal
+        open={addNodeModalOpen}
+        onClose={() => setAddNodeModalOpen(false)}
+        allFieldCodes={allFieldCodes}
+        existingNodes={selectedFields}
+        targetParentCode={targetParentCode}
+        onAddNodes={handleAddNodes}
+      />
 
-          <div className="max-h-[360px] overflow-y-auto rounded-lg border border-line divide-y divide-line">
-            {allFieldCodes
-              .filter((f) => {
-                if (fieldCategoryFilter && f.category !== fieldCategoryFilter) return false;
-                if (fieldSearch) {
-                  const q = fieldSearch.toLowerCase();
-                  return (
-                    f.fieldCode?.toLowerCase().includes(q) ||
-                    f.fieldName?.toLowerCase().includes(q)
-                  );
-                }
-                return true;
-              })
-              .map((field) => {
-                const isChecked = tempSelectedFieldIds.has(field.id);
-                return (
-                  <div
-                    key={field.id}
-                    onClick={() => handleToggleFieldSelection(field)}
-                    className="flex cursor-pointer items-center justify-between p-3 hover:bg-canvas transition"
-                  >
-                    <div className="flex items-center gap-3">
-                      {isChecked ? (
-                        <CheckSquare className="size-4 text-brand" />
-                      ) : (
-                        <Square className="size-4 text-slate-400" />
-                      )}
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs font-bold text-slate-800">
-                            {field.fieldCode}
-                          </span>
-                          <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
-                            {field.category || "COMMON"}
-                          </span>
-                        </div>
-                        <p className="text-xs text-muted mt-0.5">{field.fieldName}</p>
-                      </div>
-                    </div>
-                    <span className="font-mono text-xs text-slate-500">
-                      {field.dataType}
-                    </span>
-                  </div>
-                );
-              })}
-          </div>
-        </div>
-      </Modal>
+      {/* MODAL 2: CẤU HÌNH LỚP */}
+      <ClassConfigModal
+        open={classConfigModalOpen}
+        onClose={() => setClassConfigModalOpen(false)}
+        classNode={editingClassNode}
+        onSaveClassConfig={handleSaveClassConfig}
+      />
 
-      {/* MODAL 2: SAO CHÉP TỪ BIỂU MẪU KHÁC */}
-      <Modal
+      {/* MODAL 3: SAO CHÉP TỪ BIỂU MẪU KHÁC (3-STEP WIZARD) */}
+      <CopyFromOtherWizardModal
         open={copyModalOpen}
-        title="Sao chép cấu hình từ biểu mẫu khác"
         onClose={() => setCopyModalOpen(false)}
-        footer={
-          <Button onClick={() => setCopyModalOpen(false)}>Đóng</Button>
-        }
-      >
-        <div className="space-y-3">
-          <p className="text-xs text-muted">
-            Chọn một phiên bản biểu mẫu có sẵn để sao chép toàn bộ danh sách trường dữ liệu sang biểu mẫu đang tạo:
-          </p>
-
-          <div className="max-h-[300px] overflow-y-auto space-y-2">
-            {availableTemplates.map((tpl) => (
-              <div
-                key={tpl.id}
-                className="flex items-center justify-between rounded-lg border border-line p-3 hover:border-brand hover:bg-brand-soft transition"
-              >
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-sm text-slate-800">{tpl.formCode}</span>
-                    <span className="font-mono text-xs text-brand font-semibold">{tpl.versionNo}</span>
-                  </div>
-                  <p className="text-xs text-muted mt-0.5">{tpl.formName}</p>
-                </div>
-                <Button
-                  variant="secondary"
-                  className="text-xs h-8 px-2.5"
-                  onClick={() => handleCopyFromOther(tpl)}
-                >
-                  Sao chép
-                </Button>
-              </div>
-            ))}
-          </div>
-        </div>
-      </Modal>
+        availableTemplates={availableTemplates}
+        allFieldCodes={allFieldCodes}
+        currentFields={selectedFields}
+        onApplyCopy={handleApplyCopyFromWizard}
+      />
 
       {/* MODAL 3: XÁC NHẬN HỦY / QUAY LẠI */}
       <Modal
@@ -1221,7 +1315,7 @@ export default function FormVersionCreatePage() {
             <p>• Mã biểu mẫu: <strong>{formCode}</strong> ({versionNo})</p>
             <p>• Tên phiên bản: <strong>{formName}</strong></p>
             <p>• Số lượng trường thông tin: <strong>{selectedFields.length} trường</strong></p>
-            <p>• Trạng thái sau tạo: <strong>{isAutoActivate ? "Có hiệu lực (ACTIVE)" : "Vô hiệu hóa (INACTIVE)"}</strong></p>
+            <p>• Trạng thái sau tạo: <strong>{isAutoActivate ? "Đang hiệu lực" : "Chưa kích hoạt"}</strong></p>
           </div>
 
           <p className="text-xs text-slate-600">

@@ -15,7 +15,15 @@ public interface EvaluationPeriodService {
 
     EvaluationPeriodResponse createPeriod(Long adminUserId, EvaluationPeriodRequest request);
 
+    EvaluationPeriodResponse updatePeriod(Long adminUserId, Long id, EvaluationPeriodRequest request);
+
+    void deletePeriod(Long adminUserId, Long id);
+
     EvaluationPeriodResponse openPeriod(Long adminUserId, Long id);
+
+    EvaluationPeriodResponse deactivatePeriod(Long adminUserId, Long id);
+
+    EvaluationPeriodResponse activatePeriod(Long adminUserId, Long id);
 
     EvaluationPeriodResponse extendDeadline(Long adminUserId, Long id, ExtendDeadlineRequest request);
 

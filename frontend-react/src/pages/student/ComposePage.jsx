@@ -2,6 +2,7 @@ import {
   AlertCircle,
   AlertTriangle,
   ArrowLeft,
+  Ban,
   Calendar,
   CheckCircle2,
   Clock,
@@ -67,6 +68,9 @@ export default function ComposePage() {
     rejectedAt,
     noActiveSemester,
     isReadOnly,
+    isLocked,
+    isExpired,
+    readOnlyReason,
     isDirty,
     lastSavedText,
     templateLayout,
@@ -613,11 +617,34 @@ export default function ComposePage() {
 
       {/* 3. Read-Only Notice if in non-editable status */}
       {isReadOnly && (
-        <div className="m-4 rounded-lg border border-blue-200 bg-blue-50/70 p-3 text-xs text-blue-800 flex items-center gap-2">
-          <Lock className="size-4 text-blue-600 shrink-0" />
-          <span>
-            Phiếu hiện ở trạng thái <strong>{currentStatusBadge.text}</strong> và được khóa chỉnh sửa. Bạn chỉ có quyền xem nội dung.
-          </span>
+        <div className={`m-4 rounded-xl border p-4 text-xs shadow-xs flex items-center gap-3 ${
+          readOnlyReason?.includes("vô hiệu hóa")
+            ? "border-rose-200 bg-rose-50 text-rose-900"
+            : isLocked
+            ? "border-slate-300 bg-slate-50 text-slate-800"
+            : "border-amber-200 bg-amber-50/90 text-amber-900"
+        }`}>
+          {readOnlyReason?.includes("vô hiệu hóa") ? (
+            <Ban className="size-5 text-rose-600 shrink-0" />
+          ) : isLocked ? (
+            <Lock className="size-5 text-slate-600 shrink-0" />
+          ) : (
+            <Clock className="size-5 text-amber-600 shrink-0" />
+          )}
+          <div className="flex-1">
+            <div className="font-bold text-sm mb-0.5">
+              {readOnlyReason?.includes("vô hiệu hóa")
+                ? "Kỳ đánh giá đang tạm dừng"
+                : isLocked
+                ? "Kỳ đánh giá đã khóa sổ"
+                : isExpired
+                ? "Đã hết thời hạn tự đánh giá"
+                : "Chế độ xem phiếu (Read-only)"}
+            </div>
+            <div>
+              {readOnlyReason || `Phiếu hiện ở trạng thái ${currentStatusBadge.text} và được khóa chỉnh sửa. Bạn chỉ có quyền xem nội dung.`}
+            </div>
+          </div>
         </div>
       )}
 

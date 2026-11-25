@@ -75,4 +75,26 @@ public class AuthController {
                     .body(ApiResponse.error("BAD_REQUEST", ex.getMessage()));
         }
     }
+
+    @PostMapping("/forgot-password")
+    public ApiResponse<Map<String, String>> forgotPassword(@Valid @RequestBody vn.edu.drl.backend.dto.request.ForgotPasswordRequest request) {
+        authService.forgotPassword(request.getEmail());
+        return ApiResponse.success(Map.of("message", "Nếu email tồn tại trong hệ thống, hướng dẫn đặt lại mật khẩu đã được gửi đến hộp thư của bạn."));
+    }
+
+    @PostMapping("/reset-password")
+    public ApiResponse<Map<String, String>> resetPassword(@Valid @RequestBody vn.edu.drl.backend.dto.request.ResetPasswordRequest request) {
+        authService.resetPassword(request);
+        return ApiResponse.success(Map.of("message", "Đặt lại mật khẩu thành công. Vui lòng đăng nhập bằng mật khẩu mới."));
+    }
+
+    @PutMapping("/notification-preferences")
+    public ApiResponse<Map<String, String>> updateNotificationPreferences(@RequestBody vn.edu.drl.backend.dto.request.NotificationPreferencesRequest request) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        if (currentUserId == null) {
+            throw new RuntimeException("UNAUTHORIZED");
+        }
+        authService.updateNotificationPreferences(currentUserId, request);
+        return ApiResponse.success(Map.of("message", "Cập nhật tùy chọn thông báo thành công."));
+    }
 }

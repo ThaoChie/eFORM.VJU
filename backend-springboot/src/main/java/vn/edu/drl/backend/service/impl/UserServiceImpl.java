@@ -37,6 +37,7 @@ public class UserServiceImpl implements UserService {
     private final ClassRepository classRepo;
     private final PasswordEncoder passwordEncoder;
     private final vn.edu.drl.backend.dao.SignatureLogRepository signatureLogRepository;
+    private final vn.edu.drl.backend.service.interfaces.EmailService emailService;
     
     public UserServiceImpl(UserRepository repository, 
                            UserHibernateDao hibernateDao, 
@@ -44,7 +45,8 @@ public class UserServiceImpl implements UserService {
                            MajorRepository majorRepo,
                            ClassRepository classRepo, 
                            PasswordEncoder passwordEncoder,
-                           vn.edu.drl.backend.dao.SignatureLogRepository signatureLogRepository) { 
+                           vn.edu.drl.backend.dao.SignatureLogRepository signatureLogRepository,
+                           vn.edu.drl.backend.service.interfaces.EmailService emailService) { 
         this.repository = repository; 
         this.hibernateDao = hibernateDao;
         this.deptRepo = deptRepo;
@@ -52,6 +54,7 @@ public class UserServiceImpl implements UserService {
         this.classRepo = classRepo;
         this.passwordEncoder = passwordEncoder;
         this.signatureLogRepository = signatureLogRepository;
+        this.emailService = emailService;
     }
     
     public List<User> findAll() { 
@@ -117,6 +120,11 @@ public class UserServiceImpl implements UserService {
         u.setStatus(st);
         u.setIsActive(st == 1);
         User saved = repository.save(u);
+        try {
+            emailService.sendAccountCreatedEmail(saved, "123456");
+        } catch (Exception ex) {
+            // Non-blocking email
+        }
         return new UserResponse(saved);
     }
 
@@ -437,7 +445,14 @@ public class UserServiceImpl implements UserService {
         }
 
         if (!preview && !usersToSave.isEmpty()) {
-            repository.saveAll(usersToSave);
+            List<User> savedList = repository.saveAll(usersToSave);
+            for (User u : savedList) {
+                try {
+                    emailService.sendAccountCreatedEmail(u, "123456");
+                } catch (Exception ex) {
+                    // Non-blocking
+                }
+            }
         }
 
         result.put("validRows", validRows);
@@ -709,6 +724,22 @@ public class UserServiceImpl implements UserService {
                 throw re;
             }
         } catch (Exception ignored) {}
+    }
+
+    @Override
+    @Transactional
+    public UserResponse grantSignatureChange(Long id) {
+        User u = repository.findById(id).orElseThrow(() -> new vn.edu.drl.backend.exception.BusinessException("Không tìm thấy người dùng"));
+        u.setIsSignatureLocked(false);
+        java.time.Instant expiry = java.time.Instant.now().plus(7, java.time.temporal.ChronoUnit.DAYS);
+        u.setSignatureUnlockedUntil(expiry);
+        User saved = repository.save(u);
+        try {
+            emailService.sendSignaturePermissionEmail(saved, expiry);
+        } catch (Exception ex) {
+            // Non-blocking
+        }
+        return new UserResponse(saved);
     }
 
     private String computeSha256Hex(String input) {
