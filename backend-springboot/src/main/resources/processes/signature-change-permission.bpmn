@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_SignatureChangePermission"
+                  targetNamespace="http://drl.edu.vn/bpmn">
+
+  <bpmn:message id="Message_SignatureChanged" name="MSG_SIGNATURE_CHANGED" />
+
+  <bpmn:process id="signature-change-permission"
+                name="Quy trình cấp quyền thay đổi chữ ký số (7 ngày)"
+                isExecutable="true"
+                camunda:historyTimeToLive="P30D">
+
+    <bpmn:startEvent id="StartEvent_GrantSignature" name="Admin cấp quyền đổi chữ ký">
+      <bpmn:outgoing>Flow_Start_To_SendEmail</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <bpmn:sequenceFlow id="Flow_Start_To_SendEmail"
+                       sourceRef="StartEvent_GrantSignature"
+                       targetRef="Task_SendPermissionEmail" />
+
+    <bpmn:serviceTask id="Task_SendPermissionEmail"
+                      name="Gửi email thông báo mở quyền đổi chữ ký (Luồng 1.3)"
+                      camunda:delegateExpression="${sendSignaturePermissionDelegate}">
+      <bpmn:incoming>Flow_Start_To_SendEmail</bpmn:incoming>
+      <bpmn:outgoing>Flow_SendEmail_To_Gateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:sequenceFlow id="Flow_SendEmail_To_Gateway"
+                       sourceRef="Task_SendPermissionEmail"
+                       targetRef="Gateway_WaitSignatureOrExpiry" />
+
+    <bpmn:eventBasedGateway id="Gateway_WaitSignatureOrExpiry" name="Chờ người dùng đổi chữ ký hoặc hết hạn 7 ngày">
+      <bpmn:incoming>Flow_SendEmail_To_Gateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_To_SignatureChanged</bpmn:outgoing>
+      <bpmn:outgoing>Flow_To_TimerExpired</bpmn:outgoing>
+    </bpmn:eventBasedGateway>
+
+    <bpmn:sequenceFlow id="Flow_To_SignatureChanged"
+                       sourceRef="Gateway_WaitSignatureOrExpiry"
+                       targetRef="Catch_SignatureChanged" />
+
+    <bpmn:intermediateCatchEvent id="Catch_SignatureChanged" name="Người dùng đã cập nhật chữ ký">
+      <bpmn:incoming>Flow_To_SignatureChanged</bpmn:incoming>
+      <bpmn:outgoing>Flow_Changed_To_End</bpmn:outgoing>
+      <bpmn:messageEventDefinition messageRef="Message_SignatureChanged" />
+    </bpmn:intermediateCatchEvent>
+
+    <bpmn:sequenceFlow id="Flow_Changed_To_End"
+                       sourceRef="Catch_SignatureChanged"
+                       targetRef="EndEvent_Changed" />
+
+    <bpmn:endEvent id="EndEvent_Changed" name="Hoàn tất đổi chữ ký trong hạn">
+      <bpmn:incoming>Flow_Changed_To_End</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_To_TimerExpired"
+                       sourceRef="Gateway_WaitSignatureOrExpiry"
+                       targetRef="Catch_Timer7Days" />
+
+    <bpmn:intermediateCatchEvent id="Catch_Timer7Days" name="Hết hạn 7 ngày">
+      <bpmn:incoming>Flow_To_TimerExpired</bpmn:incoming>
+      <bpmn:outgoing>Flow_Timer_To_ExpireTask</bpmn:outgoing>
+      <bpmn:timerEventDefinition>
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">P7D</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+
+    <bpmn:sequenceFlow id="Flow_Timer_To_ExpireTask"
+                       sourceRef="Catch_Timer7Days"
+                       targetRef="Task_ExpireSignaturePermission" />
+
+    <bpmn:serviceTask id="Task_ExpireSignaturePermission"
+                      name="Tự động khóa lại quyền đổi chữ ký"
+                      camunda:delegateExpression="${expireSignaturePermissionDelegate}">
+      <bpmn:incoming>Flow_Timer_To_ExpireTask</bpmn:incoming>
+      <bpmn:outgoing>Flow_ExpireTask_To_End</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <bpmn:sequenceFlow id="Flow_ExpireTask_To_End"
+                       sourceRef="Task_ExpireSignaturePermission"
+                       targetRef="EndEvent_Expired" />
+
+    <bpmn:endEvent id="EndEvent_Expired" name="Hết hạn 7 ngày - Đã khóa lại">
+      <bpmn:incoming>Flow_ExpireTask_To_End</bpmn:incoming>
+    </bpmn:endEvent>
+
+  </bpmn:process>
+</bpmn:definitions>

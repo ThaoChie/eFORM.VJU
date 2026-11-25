@@ -10,6 +10,7 @@ public interface AuthService {
     AuthUserResponse me(Long userId);
     void changePassword(Long userId, ChangePasswordRequest request);
     void forgotPassword(String email);
+    void verifyResetOtp(String email, String otp);
     void resetPassword(vn.edu.drl.backend.dto.request.ResetPasswordRequest request);
     void updateNotificationPreferences(Long userId, vn.edu.drl.backend.dto.request.NotificationPreferencesRequest request);
 }

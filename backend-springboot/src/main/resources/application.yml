@@ -26,6 +26,14 @@ spring:
         order_inserts: true
         order_updates: true
 
+camunda:
+  bpm:
+    auto-deployment-enabled: true
+    database:
+      schema-update: true
+    job-execution:
+      enabled: true
+
 jwt:
   secret: ${JWT_SECRET:super_secret_jwt_key_drl_eform_2026_super_secret_jwt_key_drl_eform_2026}
   expirationMs: ${JWT_EXPIRATION_MS:28800000}

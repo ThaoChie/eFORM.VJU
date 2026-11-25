@@ -18,6 +18,10 @@ export const authService = {
     const data = await client.post("/auth/forgot-password", { email });
     return data;
   },
+  async verifyResetOtp(email, otp) {
+    const data = await client.post("/auth/verify-reset-otp", { email, otp });
+    return data;
+  },
   async resetPassword({ token, email, otp, newPassword }) {
     const data = await client.post("/auth/reset-password", { token, email, otp, newPassword });
     return data;

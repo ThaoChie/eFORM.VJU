@@ -38,6 +38,9 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final vn.edu.drl.backend.dao.SignatureLogRepository signatureLogRepository;
     private final vn.edu.drl.backend.service.interfaces.EmailService emailService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private org.camunda.bpm.engine.RuntimeService camundaRuntimeService;
     
     public UserServiceImpl(UserRepository repository, 
                            UserHibernateDao hibernateDao, 
@@ -539,46 +542,56 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("Chữ ký điện tử đã được khóa bảo mật vĩnh viễn, không thể sửa đổi.");
         }
 
+        boolean keepingExistingSignature = false;
         if (signatureUrl == null || signatureUrl.trim().isEmpty()) {
-            throw new RuntimeException("Vui lòng tải lên ảnh chữ ký hợp lệ.");
-        }
-
-        String rawInputSig = signatureUrl;
-        String rawHashHex = computeSha256Hex(rawInputSig);
-
-        signatureUrl = vn.edu.drl.backend.service.engine.ImageConversionUtils.ensureStandardWebImage(signatureUrl);
-        String convertedSig = signatureUrl;
-        String convertedHashHex = computeSha256Hex(convertedSig);
-
-        signatureUrl = vn.edu.drl.backend.service.engine.ImageConversionUtils.removeBackground(signatureUrl);
-
-        // 1. Compute cryptographic SHA-256 fingerprint of signature data
-        String hashHex = computeSha256Hex(signatureUrl);
-
-        // Ưu tiên kiểm tra trùng lặp chữ ký với tài khoản khác trước (ERR-014)
-        ensureSignatureNotRegisteredByAnotherUser(userId, rawInputSig, signatureUrl, rawHashHex, hashHex);
-        if (!convertedSig.equals(rawInputSig) && !convertedSig.equals(signatureUrl)) {
-            ensureSignatureNotRegisteredByAnotherUser(userId, convertedSig, signatureUrl, convertedHashHex, hashHex);
-        }
-
-        // Chặn tải ảnh chữ ký có dung lượng vượt quá 2MB (ERR-012) và ảnh gốc nhỏ hơn 300x100px (ERR-013)
-        validateSignatureSizeAndDimensions(rawInputSig, false);
-        validateSignatureSizeAndDimensions(convertedSig, false);
-        if (signatureUrl != null && signatureUrl.startsWith("data:")) {
-            int commaIdx = signatureUrl.indexOf(",");
-            String base64Payload = commaIdx >= 0 ? signatureUrl.substring(commaIdx + 1) : signatureUrl;
-            long estimatedBytes = (long) (base64Payload.length() * 0.75);
-            if (estimatedBytes > 2L * 1024 * 1024) {
-                throw new RuntimeException("ERR-012: File vượt quá dung lượng tối đa 2MB.");
+            // BR-Signature: Nếu user không up ảnh mới nhưng đã có ảnh cũ hợp lệ, giữ nguyên ảnh cũ
+            if (!isDummyOrCorrupted) {
+                signatureUrl = user.getSignatureSpecimenUrl();
+                keepingExistingSignature = true;
+            } else {
+                throw new RuntimeException("Vui lòng tải lên ảnh chữ ký hợp lệ.");
             }
         }
 
-        // 2. Persist signature and permanently lock it to prevent modifications
+        if (!keepingExistingSignature) {
+            String rawInputSig = signatureUrl;
+            signatureUrl = vn.edu.drl.backend.service.engine.ImageConversionUtils.ensureStandardWebImage(signatureUrl);
+            String convertedSig = signatureUrl;
+            signatureUrl = vn.edu.drl.backend.service.engine.ImageConversionUtils.removeBackground(signatureUrl);
+
+            // Chặn tải ảnh chữ ký có dung lượng vượt quá 2MB (ERR-012) và ảnh gốc nhỏ hơn 300x100px (ERR-013)
+            validateSignatureSizeAndDimensions(rawInputSig, false);
+            validateSignatureSizeAndDimensions(convertedSig, false);
+            if (signatureUrl != null && signatureUrl.startsWith("data:")) {
+                int commaIdx = signatureUrl.indexOf(",");
+                String base64Payload = commaIdx >= 0 ? signatureUrl.substring(commaIdx + 1) : signatureUrl;
+                long estimatedBytes = (long) (base64Payload.length() * 0.75);
+                if (estimatedBytes > 2L * 1024 * 1024) {
+                    throw new RuntimeException("ERR-012: File vượt quá dung lượng tối đa 2MB.");
+                }
+            }
+        }
+
+        // BR-Signature: Tạo mã băm SHA-256 kèm salt ngẫu nhiên và thông tin định danh người dùng (không check trùng ảnh giữa các user)
+        String salt = java.util.UUID.randomUUID().toString();
+        String hashHex = computeSha256Hex(userId + ":" + salt + ":" + signatureUrl);
+
+        // 2. Persist signature and lock it
         user.setSignatureSpecimenUrl(signatureUrl);
         user.setSignatureHash(hashHex);
         user.setSignatureRegisteredAt(java.time.Instant.now());
         user.setIsSignatureLocked(true);
+        user.setSignatureUnlockedUntil(null);
         repository.saveAndFlush(user);
+
+        // Hoàn tất quy trình Camunda (nếu user đang có timer chờ 7 ngày)
+        if (camundaRuntimeService != null) {
+            try {
+                camundaRuntimeService.createMessageCorrelation("MSG_SIGNATURE_CHANGED")
+                        .processInstanceBusinessKey("sig-perm-" + userId)
+                        .correlateAll();
+            } catch (Exception ignored) {}
+        }
 
         // 3. Backfill any existing signature logs for this signer that were placeholder or dummy
         try {
@@ -609,15 +622,10 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void validateSignatureNotDuplicate(Long userId, String signatureUrl) {
+        // BR-Signature: Không kiểm tra trùng lặp ảnh chữ ký giữa các tài khoản khác nhau.
         if (signatureUrl == null || signatureUrl.trim().isEmpty()) {
             throw new RuntimeException("Vui lòng tải lên ảnh chữ ký hợp lệ.");
         }
-        String rawHash = computeSha256Hex(signatureUrl);
-        String converted = vn.edu.drl.backend.service.engine.ImageConversionUtils.ensureStandardWebImage(signatureUrl);
-        String processed = vn.edu.drl.backend.service.engine.ImageConversionUtils.removeBackground(converted);
-        String processedHash = computeSha256Hex(processed);
-
-        ensureSignatureNotRegisteredByAnotherUser(userId, signatureUrl, processed, rawHash, processedHash);
     }
 
     private void validateSignatureSizeAndDimensions(String signatureUrl, boolean forceDimensionCheck) {
@@ -734,6 +742,29 @@ public class UserServiceImpl implements UserService {
         java.time.Instant expiry = java.time.Instant.now().plus(7, java.time.temporal.ChronoUnit.DAYS);
         u.setSignatureUnlockedUntil(expiry);
         User saved = repository.save(u);
+
+        String businessKey = "sig-perm-" + id;
+        if (camundaRuntimeService != null) {
+            try {
+                // Hủy các instance cũ nếu còn tồn tại để tránh trùng timer 7 ngày
+                var existing = camundaRuntimeService.createProcessInstanceQuery()
+                        .processDefinitionKey("signature-change-permission")
+                        .processInstanceBusinessKey(businessKey)
+                        .active()
+                        .list();
+                for (var pi : existing) {
+                    camundaRuntimeService.deleteProcessInstance(pi.getId(), "Superseded by new admin grant");
+                }
+                Map<String, Object> vars = new HashMap<>();
+                vars.put("userId", id);
+                vars.put("expiryMillis", expiry.toEpochMilli());
+                camundaRuntimeService.startProcessInstanceByKey("signature-change-permission", businessKey, vars);
+                return new UserResponse(saved);
+            } catch (Exception ex) {
+                // Fallback gửi email trực tiếp nếu Camunda chưa sẵn sàng
+            }
+        }
+
         try {
             emailService.sendSignaturePermissionEmail(saved, expiry);
         } catch (Exception ex) {

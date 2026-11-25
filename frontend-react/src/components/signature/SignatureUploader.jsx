@@ -1,4 +1,4 @@
-import { ImagePlus, ShieldCheck, Upload, Check, Lock, AlertCircle, FileCheck, Info, RotateCw, RotateCcw, Crop, Scissors, RefreshCw } from "lucide-react"
+import { ImagePlus, ShieldCheck, Upload, Check, Lock, AlertCircle, FileCheck, Info, RotateCw, RotateCcw, Crop, Scissors, RefreshCw, PenLine, Unlock } from "lucide-react"
 import { useRef, useState, useEffect } from "react"
 import { toast } from "react-hot-toast"
 import { useSubmissionStore } from "../../stores/useSubmissionStore"
@@ -8,8 +8,6 @@ import { Button, Card, Modal } from "../ui/Primitives"
 import { isValidSignatureImage } from "../ui/PdfViewer"
 import {
   removePaperBackground,
-  computeStringSha256,
-  areSignaturesVisuallyIdentical,
   rotateSignatureImage90,
   detectTightSignatureCropBox,
   cropSignatureImage,
@@ -41,17 +39,18 @@ export default function SignatureUploader({ level = 1 }) {
 
   const userStorageKey = user?.id ? `user_signature_${user.id}` : null
 
-  // Chữ ký chỉ coi là đã khóa nếu cờ isSignatureLocked = true VÀ có dữ liệu ảnh hợp lệ
-  const isLocked = Boolean(
-    user?.isSignatureLocked &&
+  const hasExistingSignature = Boolean(
     isValidSignatureImage(user?.signatureSpecimenUrl) &&
     !user.signatureSpecimenUrl.startsWith("data:image/svg+xml")
   )
+  // Chữ ký chỉ coi là đã khóa nếu cờ isSignatureLocked = true VÀ có dữ liệu ảnh hợp lệ
+  const isLocked = Boolean(user?.isSignatureLocked && hasExistingSignature)
   const [isEditing, setIsEditing] = useState(false)
+  const [hasNewUpload, setHasNewUpload] = useState(false)
 
-  // Khởi tạo preview: Chỉ dùng chữ ký đã khóa hợp lệ của người dùng
+  // Khởi tạo preview: Hiển thị chữ ký hiện có của người dùng (kể cả khi Admin vừa mở khóa quyền thay đổi)
   const [preview, setPreview] = useState(() => {
-    if (user?.isSignatureLocked && isValidSignatureImage(user?.signatureSpecimenUrl) && !user.signatureSpecimenUrl.startsWith("data:image/svg+xml")) {
+    if (hasExistingSignature) {
       return user.signatureSpecimenUrl
     }
     return null
@@ -67,80 +66,20 @@ export default function SignatureUploader({ level = 1 }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [confirmLockModalOpen, setConfirmLockModalOpen] = useState(false)
+  const [confirmReplaceModalOpen, setConfirmReplaceModalOpen] = useState(false)
 
   useEffect(() => {
-    if (user?.isSignatureLocked && isValidSignatureImage(user?.signatureSpecimenUrl) && !user.signatureSpecimenUrl.startsWith("data:image/svg+xml")) {
-      setPreview((prev) => prev || user.signatureSpecimenUrl)
+    if (hasExistingSignature && !isEditing) {
+      setPreview(user.signatureSpecimenUrl)
       registerSignature()
     }
-  }, [user?.signatureSpecimenUrl, user?.isSignatureLocked, registerSignature])
+  }, [user?.signatureSpecimenUrl, hasExistingSignature, isEditing, registerSignature])
 
   const MAX_SIGNATURE_SIZE_BYTES = 2 * 1024 * 1024 // 2MB
   const MIN_SIGNATURE_WIDTH = 300
   const MIN_SIGNATURE_HEIGHT = 100
   const ERR_MAX_SIZE_MSG = "ERR-012: File vượt quá dung lượng tối đa 2MB."
   const ERR_MIN_DIM_MSG = "ERR-013: Ảnh nhỏ hơn kích thước tối thiểu (300×100px)."
-  const ERR_DUPLICATE_SIG_MSG = "ERR-014: Ảnh đã được đăng ký bởi tài khoản khác."
-
-  const isDuplicateInLocalStorage = async (...candidates) => {
-    const validCandidates = candidates.filter(Boolean)
-    if (validCandidates.length === 0) return false
-    const currentIdStr = user?.id ? String(user.id) : null
-    try {
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i)
-        if (!key) continue
-        const isSigKey = key.startsWith("user_signature_")
-        if (!isSigKey) continue
-        if (key === userStorageKey) continue
-        if (currentIdStr && (key === `user_signature_${currentIdStr}` || key === `user_signature_raw_${currentIdStr}`)) {
-          continue
-        }
-        const otherSig = localStorage.getItem(key)
-        if (!otherSig) continue
-        if (validCandidates.includes(otherSig)) {
-          return true
-        }
-        for (const c of validCandidates) {
-          if (await areSignaturesVisuallyIdentical(c, otherSig)) {
-            return true
-          }
-        }
-      }
-    } catch {}
-    return false
-  }
-
-  const checkDuplicateSignatureOnServerUsers = async (cleanSig, rawSig) => {
-    try {
-      const res = await client.get("/users")
-      const usersList = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : []
-      if (!usersList.length) return false
-
-      const cleanHash = await computeStringSha256(cleanSig)
-      const rawHash = rawSig && rawSig !== cleanSig ? await computeStringSha256(rawSig) : cleanHash
-
-      for (const u of usersList) {
-        if (!u || String(u.id) === String(user?.id)) continue
-        const otherSig = u.signatureSpecimenUrl
-        const otherHash = u.signatureHash
-        if (otherHash && (otherHash.toLowerCase() === cleanHash.toLowerCase() || otherHash.toLowerCase() === rawHash.toLowerCase())) {
-          return true
-        }
-        if (!otherSig || typeof otherSig !== "string" || otherSig.length < 100) continue
-        if (otherSig === cleanSig || (rawSig && otherSig === rawSig)) {
-          return true
-        }
-        if (await areSignaturesVisuallyIdentical(cleanSig, otherSig)) {
-          return true
-        }
-        if (rawSig && rawSig !== cleanSig && (await areSignaturesVisuallyIdentical(rawSig, otherSig))) {
-          return true
-        }
-      }
-    } catch {}
-    return false
-  }
 
   const getImageDimensions = (dataUrl) =>
     new Promise((resolve, reject) => {
@@ -295,6 +234,7 @@ export default function SignatureUploader({ level = 1 }) {
 
           setRawPreview(safeUrl)
           setOriginalUploadUrl(safeUrl)
+          setHasNewUpload(true)
           setRotationAngle(0)
           setIsCropMode(false)
           try {
@@ -496,6 +436,12 @@ export default function SignatureUploader({ level = 1 }) {
     setSaving(true)
     setError("")
     try {
+      // Nếu đang ở chế độ thay đổi chữ ký nhưng user không tải ảnh mới -> giữ nguyên ảnh cũ để xác nhận lưu
+      if (isEditing && !hasNewUpload && hasExistingSignature) {
+        setConfirmLockModalOpen(true)
+        return
+      }
+
       let activePreview = preview
       if (isCropMode) {
         const cropped = await cropSignatureImage(preview, cropRect, MIN_SIGNATURE_WIDTH, MIN_SIGNATURE_HEIGHT)
@@ -505,41 +451,12 @@ export default function SignatureUploader({ level = 1 }) {
         setImgDims({ width: cropped.width, height: cropped.height })
         setIsCropMode(false)
       }
-      const cleanSig = await removePaperBackground(activePreview, { autoTrim: false })
-      const trimmedCandidate = await removePaperBackground(rawPreview || activePreview, { autoTrim: true })
-      if (
-        (await isDuplicateInLocalStorage(cleanSig, trimmedCandidate, activePreview, rawPreview)) ||
-        (await checkDuplicateSignatureOnServerUsers(cleanSig, rawPreview || activePreview))
-      ) {
-        if (!isLocked) {
-          setPreview(null)
-          setRawPreview(null)
-        }
-        toast.error(ERR_DUPLICATE_SIG_MSG)
-        setError(ERR_DUPLICATE_SIG_MSG)
-        return
-      }
-      try {
-        await client.post("/users/signature/check", {
-          signature: cleanSig,
-          rawSignature: rawPreview || activePreview,
-        })
-      } catch (checkErr) {
-        const status = checkErr?.response?.status
-        const msg = checkErr?.response?.data?.message || checkErr?.message || ""
-        // Nếu endpoint /users/signature/check trả về ERR-xxx hoặc lỗi 400 cụ thể, ném lỗi ngay; nếu 404 trên server cũ thì bỏ qua vì đã kiểm tra qua /users
-        if (status !== 404 || msg.startsWith("ERR-")) {
-          throw checkErr
-        }
-      }
+      // Xác thực tách nền & kiểm tra kích thước hợp lệ (không kiểm tra trùng ảnh giữa các user theo BR-Signature)
+      await removePaperBackground(activePreview, { autoTrim: false })
       setConfirmLockModalOpen(true)
     } catch (err) {
       const rawMsg = err?.response?.data?.message || err?.message || "Lỗi hệ thống"
       const displayMsg = rawMsg.startsWith("ERR-") ? rawMsg : "Không thể lưu chữ ký: " + rawMsg
-      if (displayMsg.startsWith("ERR-014") && !isLocked) {
-        setPreview(null)
-        setRawPreview(null)
-      }
       toast.error(displayMsg)
       setError(displayMsg)
     } finally {
@@ -555,38 +472,35 @@ export default function SignatureUploader({ level = 1 }) {
     setSaving(true)
     setError("")
     try {
-      // 1. Tách nền giấy và gửi lên backend API để tính băm SHA-256 và khóa vĩnh viễn
       let backendHash = null
-      const cleanSig = await removePaperBackground(preview, { autoTrim: false })
-      const trimmedCandidate = await removePaperBackground(rawPreview || preview, { autoTrim: true })
-      let finalSignature = cleanSig
+      let finalSignature = preview
 
-      // Kiểm tra dung lượng ảnh chữ ký trước khi gửi lên API (chặn vượt quá 2MB)
-      if (cleanSig && cleanSig.startsWith("data:")) {
-        const base64Data = cleanSig.split(",")[1] || ""
-        const byteSize = Math.round(base64Data.length * 0.75)
-        if (byteSize > MAX_SIGNATURE_SIZE_BYTES) {
-          setSaving(false)
-          setConfirmLockModalOpen(false)
-          setPreview(null)
-          setRawPreview(null)
-          toast.error(ERR_MAX_SIZE_MSG)
-          return setError(ERR_MAX_SIZE_MSG)
+      // Nếu đang thay đổi chữ ký nhưng không tải ảnh mới -> giữ nguyên ảnh chữ ký cũ gửi lên BE để sinh hash & khóa lại
+      const keepingOldSignature = isEditing && !hasNewUpload && hasExistingSignature
+
+      if (!keepingOldSignature) {
+        const cleanSig = await removePaperBackground(preview, { autoTrim: false })
+        finalSignature = cleanSig
+
+        // Kiểm tra dung lượng ảnh chữ ký trước khi gửi lên API (chặn vượt quá 2MB)
+        if (cleanSig && cleanSig.startsWith("data:")) {
+          const base64Data = cleanSig.split(",")[1] || ""
+          const byteSize = Math.round(base64Data.length * 0.75)
+          if (byteSize > MAX_SIGNATURE_SIZE_BYTES) {
+            setSaving(false)
+            setConfirmLockModalOpen(false)
+            setPreview(null)
+            setRawPreview(null)
+            toast.error(ERR_MAX_SIZE_MSG)
+            return setError(ERR_MAX_SIZE_MSG)
+          }
         }
-      }
-
-      // Kiểm tra trùng lặp chữ ký với tài khoản khác (ERR-014)
-      if (
-        (await isDuplicateInLocalStorage(cleanSig, trimmedCandidate, preview, rawPreview)) ||
-        (await checkDuplicateSignatureOnServerUsers(cleanSig, rawPreview || preview))
-      ) {
-        throw new Error(ERR_DUPLICATE_SIG_MSG)
       }
 
       try {
         const res = await client.post("/users/signature", {
-          signature: cleanSig,
-          rawSignature: rawPreview || preview,
+          signature: keepingOldSignature ? "" : finalSignature,
+          rawSignature: keepingOldSignature ? "" : (rawPreview || preview),
         })
         backendHash = res?.signatureHash || res?.data?.signatureHash || null
         if (res?.signature || res?.data?.signature) {
@@ -619,6 +533,7 @@ export default function SignatureUploader({ level = 1 }) {
           ...user,
           signatureSpecimenUrl: finalSignature,
           isSignatureLocked: true,
+          signatureUnlockedUntil: null,
           signatureHash: backendHash || "ENCRYPTED_SHA256",
           signatureRegisteredAt: new Date().toISOString(),
         }
@@ -628,17 +543,19 @@ export default function SignatureUploader({ level = 1 }) {
         } catch {}
       }
 
+      setPreview(finalSignature)
+      setHasNewUpload(false)
       setIsEditing(false)
       setConfirmLockModalOpen(false)
-      toast.success("Đã tải lên và khóa chữ ký điện tử thành công! Chữ ký hiện ở trạng thái bất biến.")
+      toast.success(
+        keepingOldSignature
+          ? "Đã xác nhận giữ nguyên chữ ký cũ và khóa bảo mật thành công!"
+          : "Đã tải lên và khóa chữ ký điện tử thành công!"
+      )
     } catch (e) {
       setConfirmLockModalOpen(false)
       const rawMsg = e?.response?.data?.message || e?.message || "Lỗi hệ thống"
       const displayMsg = rawMsg.startsWith("ERR-") ? rawMsg : "Không thể lưu chữ ký: " + rawMsg
-      if (displayMsg.startsWith("ERR-014") && !isLocked) {
-        setPreview(null)
-        setRawPreview(null)
-      }
       toast.error(displayMsg)
       setError(displayMsg)
     } finally {
@@ -725,17 +642,24 @@ export default function SignatureUploader({ level = 1 }) {
               </h2>
               <p className="mt-1 text-xs text-slate-500">
                 {isLocked
-                  ? "Chữ ký đã được mã hóa và khóa bảo mật vĩnh viễn theo định danh của bạn."
-                  : `Mỗi ${isDean ? "trưởng khoa" : isAdmin ? "quản trị viên" : level === 2 ? "cán bộ lớp" : "sinh viên"} cần tải lên ảnh chữ ký một lần duy nhất. Hệ thống tự động tách nền giấy và khóa chữ ký số.`}
+                  ? "Chữ ký đã được mã hóa và khóa bảo mật theo định danh của bạn."
+                  : hasExistingSignature
+                    ? "Bạn đã được cấp quyền thay đổi chữ ký. Có thể tải ảnh mới hoặc giữ nguyên chữ ký cũ."
+                    : `Mỗi ${isDean ? "trưởng khoa" : isAdmin ? "quản trị viên" : level === 2 ? "cán bộ lớp" : "sinh viên"} cần tải lên ảnh chữ ký một lần duy nhất. Hệ thống tự động tách nền giấy và khóa chữ ký số.`}
               </p>
             </div>
             {isLocked ? (
-              <span className="inline-flex items-center gap-1.5 text-xs text-slate-600 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-md">
+              <span className="inline-flex items-center gap-1.5 text-xs text-slate-600 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-md shrink-0">
                 <Lock className="size-3.5 text-slate-500" />
                 Đã khóa bảo mật
               </span>
+            ) : hasExistingSignature ? (
+              <span className="inline-flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-md shrink-0">
+                <Unlock className="size-3.5 text-emerald-600" />
+                Đã mở quyền thay đổi
+              </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 text-xs text-slate-500 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-md">
+              <span className="inline-flex items-center gap-1.5 text-xs text-slate-500 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-md shrink-0">
                 <AlertCircle className="size-3.5 text-slate-400" />
                 Chưa có chữ ký
               </span>
@@ -743,18 +667,20 @@ export default function SignatureUploader({ level = 1 }) {
           </div>
 
           {/* VÙNG HIỂN THỊ CHỮ KÝ */}
-          {isLocked ? (
-            /* TRẠNG THÁI ĐÃ KHÓA: HIỂN THỊ CHỮ KÝ BẤT BIẾN, KHÔNG HIỂN THỊ NÚT THAY ĐỔI */
+          {hasExistingSignature && !isEditing ? (
+            /* TRẠNG THÁI ĐÃ CÓ CHỮ KÝ: HIỂN THỊ CHỮ KÝ HIỆN TẠI + NÚT THAY ĐỔI CHỮ KÝ */
             <div className="space-y-4">
               <div className="flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-slate-50/60 p-6 text-center">
                 <img
-                  src={preview}
-                  alt="Chữ ký đã khóa"
+                  src={preview || user?.signatureSpecimenUrl}
+                  alt="Chữ ký hiện tại"
                   className="max-h-28 max-w-[320px] object-contain drop-shadow-xs"
                 />
                 <div className="mt-3 flex items-center gap-1.5 text-xs text-slate-600">
                   <ShieldCheck className="size-4 text-slate-500" />
-                  Chữ ký điện tử hợp lệ & Khóa bảo mật bất biến
+                  {isLocked
+                    ? "Chữ ký điện tử hợp lệ & Khóa bảo mật"
+                    : "Chữ ký hiện tại (Đang mở quyền cập nhật)"}
                 </div>
               </div>
 
@@ -763,14 +689,47 @@ export default function SignatureUploader({ level = 1 }) {
                 <div className="space-y-1">
                   <span className="font-medium block text-slate-800">Quy chuẩn chữ ký số bảo mật:</span>
                   <p className="leading-relaxed text-slate-500">
-                    Chữ ký này gắn liền với tài khoản <span className="font-medium text-slate-700">{user?.fullName}</span> ({user?.userCode || user?.email}). Sau khi đã khóa bảo mật, chữ ký được áp dụng cố định trên tất cả phiếu điểm rèn luyện và không thể sửa đổi.
+                    Chữ ký này gắn liền với tài khoản <span className="font-medium text-slate-700">{user?.fullName}</span> ({user?.userCode || user?.email}).
+                    {isLocked
+                      ? " Khi cần thay đổi chữ ký mới, vui lòng liên hệ Quản trị viên để được cấp quyền mở khóa."
+                      : user?.signatureUnlockedUntil
+                        ? ` Quyền thay đổi chữ ký có hiệu lực đến ${new Date(user.signatureUnlockedUntil).toLocaleString("vi-VN")}.`
+                        : " Bạn có thể tải ảnh mới hoặc xác nhận giữ nguyên chữ ký cũ."}
                   </p>
                 </div>
+              </div>
+
+              <div className="flex items-center justify-end border-t border-slate-100 pt-4">
+                <Button
+                  type="button"
+                  variant={isLocked ? "secondary" : "primary"}
+                  onClick={() => {
+                    if (isLocked) {
+                      toast("Chữ ký đang được khóa bảo mật. Vui lòng liên hệ Quản trị viên để cấp quyền thay đổi chữ ký.", {
+                        icon: "🔒",
+                      })
+                      return
+                    }
+                    // Luồng 3a (UC-AUTH-03): Popup cảnh báo chữ ký mới chỉ áp dụng cho lần ký sau
+                    setConfirmReplaceModalOpen(true)
+                  }}
+                >
+                  <PenLine className="size-4 mr-1.5" />
+                  Thay đổi chữ ký
+                </Button>
               </div>
             </div>
           ) : (
             /* TRẠNG THÁI TẢI LÊN / CHỈNH SỬA (XOAY 90° & CẮT ẢNH) TRƯỚC KHI LƯU */
             <div className="space-y-4">
+              {isEditing && (
+                <div className="rounded-lg border border-sky-200 bg-sky-50/70 px-3.5 py-2.5 text-xs text-sky-800 flex items-start gap-2">
+                  <Info className="size-4 text-sky-600 shrink-0 mt-0.5" />
+                  <span>
+                    Bạn có thể chọn ảnh chữ ký mới bên dưới, hoặc nhấn <b>"Cập nhật & Lưu chữ ký"</b> ngay nếu muốn giữ nguyên ảnh chữ ký cũ.
+                  </span>
+                </div>
+              )}
               <div
                 role="button"
                 tabIndex={0}
@@ -999,7 +958,9 @@ export default function SignatureUploader({ level = 1 }) {
                     variant="secondary"
                     onClick={() => {
                       setIsEditing(false)
-                      setPreview(null)
+                      setHasNewUpload(false)
+                      setIsCropMode(false)
+                      setPreview(user?.signatureSpecimenUrl || null)
                       setError("")
                     }}
                   >
@@ -1051,7 +1012,7 @@ export default function SignatureUploader({ level = 1 }) {
 
               <div className="border-t border-slate-100 pt-2.5">
                 <span className="text-muted block text-[11px]">Mã vân tay mật mã (SHA-256)</span>
-                {isLocked ? (
+                {hasExistingSignature ? (
                   <span className="mt-1 block font-mono text-xs text-slate-700">
                     {fingerprintText}
                   </span>
@@ -1061,6 +1022,39 @@ export default function SignatureUploader({ level = 1 }) {
                   </span>
                 )}
               </div>
+
+              <div>
+                <span className="text-muted block text-[11px]">Ngày đăng ký</span>
+                <span className="text-xs text-slate-700 block mt-0.5">
+                  {hasExistingSignature && user?.signatureRegisteredAt
+                    ? new Date(user.signatureRegisteredAt).toLocaleString("vi-VN")
+                    : hasExistingSignature
+                      ? "Đã ghi nhận"
+                      : "Chưa đăng ký"}
+                </span>
+              </div>
+
+              {(preview || user?.signatureSpecimenUrl) && (
+                <div className="border-t border-slate-100 pt-2.5">
+                  <span className="text-muted block text-[11px] mb-1.5">Mô phỏng trong ô ký trên PDF</span>
+                  <div className="rounded-lg border border-slate-300 bg-white p-3 text-center shadow-2xs">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                      {isDean ? "Trưởng khoa xác nhận" : level === 2 || role === "class-leader" || role === "class-deputy" ? "Cán bộ lớp xác nhận" : "Sinh viên ký tên"}
+                    </p>
+                    <div className="my-1.5 flex h-12 items-center justify-center">
+                      <img
+                        src={preview || user?.signatureSpecimenUrl}
+                        alt="Mô phỏng ô ký PDF"
+                        className="max-h-11 max-w-[160px] object-contain"
+                      />
+                    </div>
+                    <p className="text-[11px] font-semibold text-slate-800">{ownerName}</p>
+                    <p className="text-[10px] text-slate-400 font-mono">
+                      {new Date().toLocaleDateString("vi-VN")}
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <span className="text-muted block text-[11px]">Trạng thái sửa đổi</span>
@@ -1093,6 +1087,47 @@ export default function SignatureUploader({ level = 1 }) {
           </Card>
         </div>
       </div>
+
+      {/* MODAL CẢNH BÁO KHI THAY ĐỔI CHỮ KÝ (UC-AUTH-03 LUỒNG 3a) */}
+      <Modal
+        open={confirmReplaceModalOpen}
+        title="Xác nhận thay đổi chữ ký cá nhân"
+        onClose={() => setConfirmReplaceModalOpen(false)}
+        footer={
+          <div className="flex items-center justify-end gap-2 w-full">
+            <Button variant="secondary" onClick={() => setConfirmReplaceModalOpen(false)}>
+              Hủy
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                setConfirmReplaceModalOpen(false)
+                setError("")
+                setHasNewUpload(false)
+                setIsCropMode(false)
+                setRotationAngle(0)
+                setPreview(user?.signatureSpecimenUrl || null)
+                setIsEditing(true)
+              }}
+            >
+              Tôi đã hiểu, tiếp tục thay đổi
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-3 py-2 text-xs text-slate-600">
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3.5 text-amber-900 leading-relaxed flex items-start gap-2.5">
+            <AlertCircle className="size-4 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-semibold block mb-1">Lưu ý quan trọng khi thay chữ ký:</span>
+              Chữ ký mới chỉ áp dụng cho các lần ký sau. Toàn bộ các phiếu điểm rèn luyện đã ký trước đó vẫn giữ nguyên chữ ký cũ.
+            </div>
+          </div>
+          <p className="text-slate-500">
+            Bạn có thể tải lên ảnh chữ ký mới hoặc giữ nguyên ảnh chữ ký hiện tại ở bước tiếp theo.
+          </p>
+        </div>
+      </Modal>
 
       {/* MODAL XÁC NHẬN KHÓA CHỮ KÝ VĨNH VIỄN */}
       <Modal

@@ -1,9 +1,10 @@
 import toast from "react-hot-toast";
-import { AlertTriangle, CircleOff, CheckCircle, Download, Pencil, Plus, Search, Settings, Upload, ChevronLeft, ChevronRight, Filter, ChevronDown, ChevronUp } from "lucide-react"
+import { AlertTriangle, CircleOff, CheckCircle, Download, Pencil, Plus, Search, Settings, Upload, ChevronLeft, ChevronRight, Filter, ChevronDown, ChevronUp, KeyRound } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import { Button, Card, IconButton, Input, Modal, PageTitle, Select, Table, ResetFilterButton, Pagination } from "../../../components/ui/Primitives"
 import { useDirectoryStore } from "../../../stores/useDirectoryStore"
+import { directoryService } from "../../../services/directory-service"
 import ReactSelect from "react-select";
 import { downloadBlob, downloadExcelTemplate } from "../../../lib/downloadHelper";
 
@@ -26,6 +27,8 @@ export default function DirectoryPage() {
   const [students, setStudents] = useState([]);
   const [offices, setOffices] = useState([]);
   const [classes, setClasses] = useState([]);
+  const [grantSigModalUser, setGrantSigModalUser] = useState(null);
+  const [grantingSig, setGrantingSig] = useState(false);
   
   const [filters, setFilters] = useState({ query: "", status: "Tất cả" });
   const [showFilters, setShowFilters] = useState(false);
@@ -137,6 +140,14 @@ export default function DirectoryPage() {
             }
           }}>
             <Pencil className="size-4" />
+          </IconButton>
+        )}
+        {active === "users" && isActive && (
+          <IconButton
+            label="Cấp quyền đổi chữ ký (7 ngày)"
+            onClick={() => setGrantSigModalUser(r)}
+          >
+            <KeyRound className="size-4 text-amber-600" />
           </IconButton>
         )}
         {isActive ? (
@@ -1441,6 +1452,81 @@ export default function DirectoryPage() {
           </Modal>
         );
       })()}
+
+      {/* MODAL CẤP QUYỀN ĐỔI CHỮ KÝ (LUỒNG 1.3 + CAMUNDA 7 NGÀY) */}
+      <Modal
+        open={Boolean(grantSigModalUser)}
+        title="Cấp quyền thay đổi chữ ký số"
+        onClose={() => !grantingSig && setGrantSigModalUser(null)}
+        footer={
+          <div className="flex items-center justify-end gap-2 w-full">
+            <Button
+              variant="secondary"
+              disabled={grantingSig}
+              onClick={() => setGrantSigModalUser(null)}
+            >
+              Hủy
+            </Button>
+            <Button
+              variant="primary"
+              loading={grantingSig}
+              disabled={grantingSig}
+              onClick={async () => {
+                if (!grantSigModalUser) return;
+                setGrantingSig(true);
+                try {
+                  await directoryService.grantSignatureChange(grantSigModalUser.id);
+                  toast.success(`Đã cấp quyền đổi chữ ký (7 ngày) và gửi email cho ${grantSigModalUser.fullName}!`);
+                  setGrantSigModalUser(null);
+                  fetchItems("users");
+                } catch (err) {
+                  toast.error(err?.response?.data?.message || err?.message || "Không thể cấp quyền đổi chữ ký");
+                } finally {
+                  setGrantingSig(false);
+                }
+              }}
+            >
+              <KeyRound className="size-4 mr-1.5" />
+              Xác nhận cấp quyền (7 ngày)
+            </Button>
+          </div>
+        }
+      >
+        {grantSigModalUser && (
+          <div className="space-y-3 py-1 text-xs text-slate-600">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-1">
+              <p>
+                <span className="text-slate-400">Người dùng:</span>{" "}
+                <span className="font-semibold text-slate-900">{grantSigModalUser.fullName}</span>{" "}
+                ({grantSigModalUser.userCode || "—"})
+              </p>
+              <p>
+                <span className="text-slate-400">Email nhận thông báo:</span>{" "}
+                <span className="font-mono text-slate-800">{grantSigModalUser.email}</span>
+              </p>
+              <p>
+                <span className="text-slate-400">Trạng thái chữ ký hiện tại:</span>{" "}
+                {!grantSigModalUser.signatureSpecimenUrl ? (
+                  <span className="text-slate-500">Chưa đăng ký chữ ký</span>
+                ) : grantSigModalUser.isSignatureLocked ? (
+                  <span className="text-slate-700 font-medium">Đã khóa bảo mật</span>
+                ) : (
+                  <span className="text-emerald-700 font-medium">
+                    Đang mở quyền đổi
+                    {grantSigModalUser.signatureUnlockedUntil
+                      ? ` (đến ${new Date(grantSigModalUser.signatureUnlockedUntil).toLocaleString("vi-VN")})`
+                      : ""}
+                  </span>
+                )}
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-900 leading-relaxed">
+              Hệ thống sẽ mở khóa quyền thay đổi chữ ký trong vòng <b>7 ngày</b>, gửi email thông báo (Luồng 1.3) và kích hoạt lịch <b>Camunda</b> tự động khóa lại sau 1 tuần nếu người dùng chưa cập nhật chữ ký mới.
+            </div>
+          </div>
+        )}
+      </Modal>
     </>
   )
 }

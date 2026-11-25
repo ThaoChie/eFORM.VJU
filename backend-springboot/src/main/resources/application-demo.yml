@@ -35,6 +35,14 @@ spring:
   flyway:
     enabled: true
     clean-disabled: true
+
+camunda:
+  bpm:
+    auto-deployment-enabled: true
+    database:
+      schema-update: true
+    job-execution:
+      enabled: true
 management:
   endpoints:
     web:

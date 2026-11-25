@@ -74,12 +74,15 @@ public class AuthServiceImpl implements AuthService {
             throw new IllegalArgumentException("Mật khẩu hiện tại và mật khẩu mới không được để trống");
         }
 
-        if (newPassword.length() < 8) {
-            throw new IllegalArgumentException("Mật khẩu mới phải có độ dài tối thiểu 8 ký tự");
+        boolean hasUpper = newPassword.chars().anyMatch(Character::isUpperCase);
+        boolean hasLower = newPassword.chars().anyMatch(Character::isLowerCase);
+        boolean hasDigit = newPassword.chars().anyMatch(Character::isDigit);
+        if (newPassword.length() < 8 || !hasUpper || !hasLower || !hasDigit) {
+            throw new IllegalArgumentException("ERR-010: Mật khẩu mới phải có tối thiểu 8 ký tự, gồm chữ hoa, chữ thường, số và không trùng mật khẩu cũ.");
         }
 
         if (newPassword.equals(oldPassword)) {
-            throw new IllegalArgumentException("Mật khẩu mới không được trùng với mật khẩu hiện tại");
+            throw new IllegalArgumentException("ERR-010: Mật khẩu mới không được trùng với mật khẩu hiện tại");
         }
 
         // 2. Truy vấn thông tin user theo userId trong database
@@ -203,9 +206,30 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    public void verifyResetOtp(String email, String otp) {
+        if (email == null || email.trim().isEmpty() || otp == null || otp.trim().isEmpty()) {
+            throw new vn.edu.drl.backend.exception.BusinessException("Vui lòng nhập đầy đủ email và mã OTP 6 chữ số");
+        }
+        User user = userRepository.findByEmail(email.trim().toLowerCase()).orElse(null);
+        vn.edu.drl.backend.model.PasswordResetToken resetToken = user != null
+                ? passwordResetTokenRepository.findByUserIdAndOtpAndIsUsedFalse(user.getId(), otp.trim()).orElse(null)
+                : null;
+        if (resetToken == null) {
+            throw new vn.edu.drl.backend.exception.BusinessException("Mã xác thực OTP không hợp lệ");
+        }
+        if (resetToken.getExpiresAt().isBefore(java.time.Instant.now())) {
+            throw new vn.edu.drl.backend.exception.BusinessException("Mã xác thực OTP đã hết hạn (chỉ có hiệu lực trong 15 phút). Vui lòng yêu cầu gửi lại mã.");
+        }
+    }
+
+    @Override
     public void resetPassword(vn.edu.drl.backend.dto.request.ResetPasswordRequest request) {
-        if (request == null || request.getNewPassword() == null || request.getNewPassword().trim().length() < 6) {
-            throw new vn.edu.drl.backend.exception.BusinessException("Mật khẩu mới phải có tối thiểu 6 ký tự");
+        String newPwd = request != null && request.getNewPassword() != null ? request.getNewPassword().trim() : "";
+        boolean hasUpper = newPwd.chars().anyMatch(Character::isUpperCase);
+        boolean hasLower = newPwd.chars().anyMatch(Character::isLowerCase);
+        boolean hasDigit = newPwd.chars().anyMatch(Character::isDigit);
+        if (newPwd.length() < 8 || !hasUpper || !hasLower || !hasDigit) {
+            throw new vn.edu.drl.backend.exception.BusinessException("ERR-010: Mật khẩu mới phải có tối thiểu 8 ký tự, gồm chữ hoa, chữ thường và chữ số.");
         }
 
         vn.edu.drl.backend.model.PasswordResetToken resetToken = null;

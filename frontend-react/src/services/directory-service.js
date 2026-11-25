@@ -33,6 +33,9 @@ export const directoryService = {
   getDeans: async () => {
     return await client.get("/directory/users?role=DEAN");
   },
+  grantSignatureChange: async (userId) => {
+    return await client.put(`/directory/users/${userId}/grant-signature-change`);
+  },
   importClasses: async (file, preview = true) => {
     const formData = new FormData();
     formData.append("file", file);

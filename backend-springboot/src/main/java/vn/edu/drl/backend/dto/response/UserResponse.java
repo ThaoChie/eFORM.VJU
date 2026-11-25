@@ -28,6 +28,7 @@ public class UserResponse {
     private String signatureHash;
     private Instant signatureRegisteredAt;
     private Boolean isSignatureLocked;
+    private Instant signatureUnlockedUntil;
     private Boolean isActive;
     private Instant createdAt;
 
@@ -119,6 +120,7 @@ public class UserResponse {
         this.signatureHash = user.getSignatureHash();
         this.signatureRegisteredAt = user.getSignatureRegisteredAt();
         this.isSignatureLocked = user.getIsSignatureLocked();
+        this.signatureUnlockedUntil = user.getSignatureUnlockedUntil();
         this.isActive = user.getIsActive();
         this.createdAt = user.getCreatedAt();
 

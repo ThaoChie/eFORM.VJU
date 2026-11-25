@@ -82,6 +82,12 @@ public class AuthController {
         return ApiResponse.success(Map.of("message", "Nếu email tồn tại trong hệ thống, hướng dẫn đặt lại mật khẩu đã được gửi đến hộp thư của bạn."));
     }
 
+    @PostMapping("/verify-reset-otp")
+    public ApiResponse<Map<String, String>> verifyResetOtp(@RequestBody Map<String, String> body) {
+        authService.verifyResetOtp(body != null ? body.get("email") : null, body != null ? body.get("otp") : null);
+        return ApiResponse.success(Map.of("message", "Mã OTP hợp lệ. Vui lòng nhập mật khẩu mới."));
+    }
+
     @PostMapping("/reset-password")
     public ApiResponse<Map<String, String>> resetPassword(@Valid @RequestBody vn.edu.drl.backend.dto.request.ResetPasswordRequest request) {
         authService.resetPassword(request);

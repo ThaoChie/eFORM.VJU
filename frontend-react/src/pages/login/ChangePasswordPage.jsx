@@ -36,6 +36,23 @@ export default function ChangePasswordPage() {
     location.state?.forceChangePassword
   )
 
+  const hasMinLen = newPassword.length >= 8
+  const hasUpper = /[A-Z]/.test(newPassword)
+  const hasLower = /[a-z]/.test(newPassword)
+  const hasDigit = /\d/.test(newPassword)
+  const passedRulesCount = [hasMinLen, hasUpper, hasLower, hasDigit].filter(Boolean).length
+
+  const strengthMeta =
+    !newPassword
+      ? null
+      : passedRulesCount <= 1
+        ? { label: "Yếu", color: "bg-rose-500", text: "text-rose-600", width: "w-1/4" }
+        : passedRulesCount === 2
+          ? { label: "Trung bình", color: "bg-amber-500", text: "text-amber-600", width: "w-2/4" }
+          : passedRulesCount === 3
+            ? { label: "Khá", color: "bg-sky-500", text: "text-sky-600", width: "w-3/4" }
+            : { label: "Mạnh", color: "bg-emerald-500", text: "text-emerald-600", width: "w-full" }
+
   const validateForm = () => {
     const errors = {}
 
@@ -45,8 +62,9 @@ export default function ChangePasswordPage() {
 
     if (!newPassword || !newPassword.trim()) {
       errors.newPassword = "Vui lòng nhập mật khẩu mới"
-    } else if (newPassword.length < 8) {
-      errors.newPassword = "Mật khẩu mới phải có độ dài tối thiểu 8 ký tự"
+    } else if (!hasMinLen || !hasUpper || !hasLower || !hasDigit) {
+      errors.newPassword =
+        "Mật khẩu mới phải có tối thiểu 8 ký tự, gồm chữ hoa, chữ thường, số và không trùng mật khẩu cũ."
     } else if (oldPassword && newPassword === oldPassword) {
       errors.newPassword = "Mật khẩu mới không được trùng với mật khẩu hiện tại"
     }
@@ -141,31 +159,63 @@ export default function ChangePasswordPage() {
           </div>
 
           {/* Ô 2: Mật khẩu mới */}
-          <div className="relative">
-            <Input
-              label="Mật khẩu mới"
-              required
-              disabled={submitting}
-              type={showNew ? "text" : "password"}
-              placeholder="Tối thiểu 8 ký tự, khác mật khẩu hiện tại"
-              value={newPassword}
-              error={fieldErrors.newPassword}
-              onChange={(e) => {
-                setNewPassword(e.target.value)
-                if (fieldErrors.newPassword) {
-                  setFieldErrors((prev) => ({ ...prev, newPassword: "" }))
-                }
-              }}
-            />
-            <button
-              type="button"
-              tabIndex={-1}
-              aria-label={showNew ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-              onClick={() => setShowNew(!showNew)}
-              className="absolute top-[26px] right-0 flex size-10 items-center justify-center text-muted hover:text-ink active:scale-95 transition"
-            >
-              {showNew ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
-            </button>
+          <div>
+            <div className="relative">
+              <Input
+                label="Mật khẩu mới"
+                required
+                disabled={submitting}
+                type={showNew ? "text" : "password"}
+                placeholder="Tối thiểu 8 ký tự, gồm chữ hoa, thường, số"
+                value={newPassword}
+                error={fieldErrors.newPassword}
+                onChange={(e) => {
+                  setNewPassword(e.target.value)
+                  if (fieldErrors.newPassword) {
+                    setFieldErrors((prev) => ({ ...prev, newPassword: "" }))
+                  }
+                }}
+              />
+              <button
+                type="button"
+                tabIndex={-1}
+                aria-label={showNew ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                onClick={() => setShowNew(!showNew)}
+                className="absolute top-[26px] right-0 flex size-10 items-center justify-center text-muted hover:text-ink active:scale-95 transition"
+              >
+                {showNew ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+              </button>
+            </div>
+
+            {newPassword && strengthMeta && (
+              <div className="mt-2 space-y-1.5">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-muted">Độ mạnh mật khẩu</span>
+                  <span className={`font-semibold ${strengthMeta.text}`}>
+                    {strengthMeta.label}
+                  </span>
+                </div>
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+                  <div
+                    className={`h-full transition-all duration-200 ${strengthMeta.color} ${strengthMeta.width}`}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[11px] pt-0.5">
+                  <span className={hasMinLen ? "text-emerald-600" : "text-slate-400"}>
+                    • Tối thiểu 8 ký tự
+                  </span>
+                  <span className={hasUpper ? "text-emerald-600" : "text-slate-400"}>
+                    • Có chữ hoa (A-Z)
+                  </span>
+                  <span className={hasLower ? "text-emerald-600" : "text-slate-400"}>
+                    • Có chữ thường (a-z)
+                  </span>
+                  <span className={hasDigit ? "text-emerald-600" : "text-slate-400"}>
+                    • Có chữ số (0-9)
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Ô 3: Nhập lại mật khẩu mới */}
